@@ -175,5 +175,22 @@ class BridgeStateTests(unittest.TestCase):
         self.assertEqual(json.loads(line.decode("utf-8")), {"total": 1, "msg": "ok"})
 
 
+class SimulatorTests(unittest.TestCase):
+    def test_simulator_frames_include_pending_and_event(self):
+        frames = list(session_bridge.simulator_frames(now=100))
+        self.assertGreaterEqual(len(frames), 3)
+        self.assertIn("sessions", frames[0])
+        self.assertIn("pending", frames[1])
+        self.assertIn("event", frames[2])
+
+    def test_parse_device_line_handles_json_command(self):
+        state = session_bridge.BridgeState()
+        state.upsert_session("s_1", "/tmp/a", "a", "main", 0, "running", "codex", "working", now=1)
+        state.add_pending("req_1", "s_1", "permission", "Bash", "pio run", [], now=2)
+        ok = session_bridge.handle_device_line(state, b'{"cmd":"permission","id":"req_1","decision":"deny"}\n')
+        self.assertTrue(ok)
+        self.assertEqual(state.decisions["req_1"], "deny")
+
+
 if __name__ == "__main__":
     unittest.main()

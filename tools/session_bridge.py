@@ -264,10 +264,84 @@ class BridgeState:
             return hb
 
 
-def main() -> int:
+def simulator_frames(now: int | None = None):
+    now = int(now if now is not None else time.time())
+    cwd = os.getcwd()
     state = BridgeState()
-    state.upsert_session("s_demo", os.getcwd(), os.path.basename(os.getcwd()), "feature/connectors", 0, "running", "codex", "bridge ready")
-    sys.stdout.buffer.write(encode_line(state.build_heartbeat()))
+    state.upsert_session(
+        sid="s_demo",
+        cwd=cwd,
+        project=os.path.basename(cwd),
+        branch=git_value(cwd, "rev-parse", "--abbrev-ref", "HEAD") or "feature/connectors",
+        dirty=git_dirty(cwd),
+        phase="running",
+        model="codex",
+        last="editing firmware UI",
+        now=now - 120,
+    )
+    yield state.build_heartbeat(now=now)
+    state.add_pending("req_demo", "s_demo", "permission", "Bash", "pio run -e m5sticks3", [], now=now - 15)
+    yield state.build_heartbeat(now=now)
+    state.resolve_pending("req_demo")
+    state.event = {
+        "kind": "complete",
+        "sid": "s_demo",
+        "title": "Done",
+        "text": "Build finished",
+        "ttl_ms": 5000,
+    }
+    yield state.build_heartbeat(now=now)
+
+
+def handle_device_line(state: BridgeState, raw: bytes) -> bool:
+    try:
+        obj = json.loads(raw.decode("utf-8").strip())
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return False
+    if not isinstance(obj, dict):
+        return False
+    return state.handle_device_command(obj)
+
+
+def git_value(cwd: str, *args: str) -> str:
+    try:
+        out = subprocess.run(["git", *args], cwd=cwd, text=True, capture_output=True, timeout=2, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    return out.stdout.strip() if out.returncode == 0 else ""
+
+
+def git_dirty(cwd: str) -> int:
+    status = git_value(cwd, "status", "--porcelain")
+    return sum(1 for line in status.splitlines() if line.strip())
+
+
+class StdoutTransport:
+    def write(self, data: bytes) -> None:
+        sys.stdout.buffer.write(data)
+        sys.stdout.buffer.flush()
+
+
+def run_simulator(interval: float, once: bool) -> int:
+    transport = StdoutTransport()
+    while True:
+        for frame in simulator_frames():
+            transport.write(encode_line(frame))
+            if not once:
+                time.sleep(interval)
+        if once:
+            return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--simulate", action="store_true", help="emit canned firmware frames")
+    parser.add_argument("--once", action="store_true", help="emit one simulator cycle and exit")
+    parser.add_argument("--interval", type=float, default=1.0)
+    args = parser.parse_args()
+    if args.simulate:
+        return run_simulator(args.interval, args.once)
+    parser.print_help()
     return 0
 
 

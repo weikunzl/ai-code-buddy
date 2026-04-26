@@ -117,6 +117,8 @@ Last updated: 2026-04-26
 - Task 2 review clarified a bridge state constraint: resolving one pending item must not mark a session `running` while another pending item for the same `sid` remains. `waiting_since` should be derived from the oldest remaining pending item for that same session.
 - Task 2 re-review clarified the same constraint also applies at queue time: adding a newer pending item for a session must not reset `waiting_since`; same-session pending age should always come from the oldest queued prompt.
 - Task 2 third review clarified the same constraint also applies to later session upserts: an incoming same-session `phase="running"` update must not clear unresolved pending state. `BridgeState` now centralizes oldest-pending derivation for upsert, queue, and resolve paths.
+- Milestone A Task 3 has been executed: the bridge can now emit canned simulator frames for running, pending permission, and completion event states, and it can parse newline-delimited device JSON commands back into `BridgeState.handle_device_command()`.
+- `tools/test_session_frames.py` is a host-side smoke tool for representative firmware frames; it does not exercise firmware parsing yet.
 - First practical code slice should be a minimal bridge/state schema and firmware parser changes, preserving compatibility with the current simple heartbeat.
 - Second slice should be StickS3 UI state/pages for action, focused session, session list, latest message, and idle/status.
 - Third slice should add tone alerts and countdown overlays before richer WAV effects, CJK font loading, or microphone recording.

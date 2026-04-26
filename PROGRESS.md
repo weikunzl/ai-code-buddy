@@ -68,6 +68,11 @@ Last updated: 2026-04-26
 - Applied the Task 2 third review fix:
   - added a regression for a later same-session `phase="running"` upsert after an unresolved pending prompt exists,
   - centralized same-session pending derivation so pending prompts keep the session `waiting` and preserve the oldest pending age across upserts, queueing, and resolving.
+- Implemented Milestone A Task 3 bridge simulator and device command RX:
+  - added simulator tests for canned pending/event frames and JSON command parsing,
+  - confirmed the RED failure before implementation with missing `simulator_frames` and `handle_device_line`,
+  - added simulator frame generation, device-line parsing, git metadata helpers, stdout transport, and `--simulate --once` CLI behavior,
+  - added executable `tools/test_session_frames.py` to print representative firmware frames.
 
 ## Current Workspace State
 
@@ -88,7 +93,7 @@ Documentation committed in `c33930d docs: record session console architecture`; 
 - `docs/superpowers/specs/2026-04-26-stick-s3-session-console-design.md`
 - `docs/superpowers/plans/2026-04-26-stick-s3-session-console-milestone-a.md`
 
-No firmware source files have been edited. Milestone A Task 2 only adds the host bridge model/tests and updates resume notes, including the third review fix for pending state surviving later running upserts.
+No firmware source files have been edited. Milestone A Task 3 only extends the host bridge simulator/tests and updates resume notes.
 
 ## Verification Done
 
@@ -105,6 +110,10 @@ No firmware source files have been edited. Milestone A Task 2 only adds the host
 - Ran `python3 tools/test_session_bridge.py` after the Task 2 re-review fix: PASS, `Ran 5 tests` / `OK`.
 - Ran `python3 tools/test_session_bridge.py` after adding the Task 2 third review regression: expected RED, `Ran 6 tests` with failure showing session `phase` was `running` instead of `waiting`.
 - Ran `python3 tools/test_session_bridge.py` after the Task 2 third review fix: PASS, `Ran 6 tests` / `OK`.
+- Ran `python3 tools/test_session_bridge.py` after adding Task 3 simulator tests: expected RED, `Ran 8 tests` with `AttributeError` for missing `handle_device_line` and `simulator_frames`.
+- Ran `python3 tools/test_session_bridge.py` after implementing Task 3: PASS, `Ran 8 tests` / `OK`.
+- Ran `python3 tools/test_session_frames.py` after implementing Task 3: PASS, printed 3 compact JSON frames for running, pending permission, and completion event states.
+- Ran `python3 tools/session_bridge.py --simulate --once` after implementing Task 3: PASS, printed 3 newline-delimited JSON simulator frames.
 - No hardware tests were run.
 
 ## Important Context
