@@ -322,19 +322,27 @@ template<size_t N>
 struct _LineBuf {
   char buf[N];
   uint16_t len = 0;
+  bool overflow = false;
   void feed(Stream& s, TamaState* out) {
     while (s.available()) {
       char c = s.read();
       if (c == '\n' || c == '\r') {
-        if (len > 0) { buf[len]=0; if (buf[0]=='{') _applyJson(buf, out); len=0; }
+        if (len > 0 && !overflow) {
+          buf[len]=0;
+          if (buf[0]=='{') _applyJson(buf, out);
+        }
+        len = 0;
+        overflow = false;
       } else if (len < N-1) {
         buf[len++] = c;
+      } else {
+        overflow = true;
       }
     }
   }
 };
 
-static _LineBuf<2560> _usbLine, _btLine;
+static _LineBuf<8192> _usbLine, _btLine;
 
 inline void dataPoll(TamaState* out) {
   uint32_t now = millis();

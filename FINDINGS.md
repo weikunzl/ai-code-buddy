@@ -129,7 +129,9 @@ Last updated: 2026-04-26
 - Milestone A Task 5 has been executed at the parser layer: `src/data.h` now accepts focused project/session metadata, bounded `sessions[]`, bounded `pending[]`, and `event` objects while still preserving the legacy `prompt` path by mirroring the first rich pending item.
 - The bridge emits sparse heartbeats: it omits `sessions`, `pending`, and `event` when those collections are empty. The firmware parser therefore has to clear stale `sessions[]` and `pending[]` when those keys disappear instead of treating absence as "keep old state".
 - Repeated identical `event` frames from the bridge must not reset `receivedMs` or bump `eventGen`, otherwise later tone/event-overlay logic will retrigger on every heartbeat and the TTL countdown will never advance.
-- The richer parser and larger `2560`-byte line buffers still compile comfortably on `m5sticks3`: RAM `84868 / 327680`, Flash `1252673 / 4194304`.
+- The current bridge payload envelope is much larger than the original Task 5 estimate. A max-shape synthetic heartbeat built from the current `tools/session_bridge.py` state model measured `5456` bytes, so the firmware line buffers need materially more than `2560` bytes to avoid truncating valid JSON.
+- `_LineBuf` must treat overflow as a discard condition until newline. Continuing to append until full and then parsing the truncated prefix is worse than dropping the frame, because it turns a size mismatch into undefined partial state updates.
+- The richer parser and `8192`-byte line buffers still compile comfortably on `m5sticks3`: RAM `90500 / 327680`, Flash `1252677 / 4194304`.
 - First practical code slice should be a minimal bridge/state schema and firmware parser changes, preserving compatibility with the current simple heartbeat.
 - Second slice should be StickS3 UI state/pages for action, focused session, session list, latest message, and idle/status.
 - Third slice should add tone alerts and countdown overlays before richer WAV effects, CJK font loading, or microphone recording.

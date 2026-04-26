@@ -97,6 +97,9 @@ Last updated: 2026-04-26
   - missing `sessions` and `pending` fields now clear stale rich state, matching the bridge's sparse heartbeat encoding,
   - repeated identical `event` payloads no longer reset the event timer or retrigger event generation,
   - expired or locally dismissed events can be cleared once the bridge stops sending them.
+- Task 5 review correction:
+  - widened the firmware JSON line buffers from `2560` to `8192` to match the current rich bridge heartbeat envelope,
+  - changed `_LineBuf` overflow handling to discard oversized frames cleanly instead of attempting to parse truncated JSON.
 
 ## Current Workspace State
 
@@ -149,7 +152,7 @@ No firmware source files have been edited. Milestone A Task 4 only extends the h
 - Ran `python3 tools/test_session_bridge.py` after the Task 4 review fix: PASS, `Ran 13 tests` / `OK`.
 - Re-ran `python3 tools/session_bridge.py --simulate --once` after the Task 4 review fix: PASS, printed 3 newline-delimited JSON simulator frames.
 - Re-ran `python3 tools/session_bridge.py --help` after the Task 4 review fix: PASS, still showed `--http-port` and `--transport {stdout,ble}`.
-- Ran `pio run -e m5sticks3` after closing Task 5 parser changes: PASS, RAM `84868 / 327680` and Flash `1252673 / 4194304`.
+- Ran `pio run -e m5sticks3` after the Task 5 transport-buffer correction: PASS, RAM `90500 / 327680` and Flash `1252677 / 4194304`.
 - No hardware tests were run.
 
 ## Important Context
