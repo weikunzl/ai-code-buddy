@@ -73,6 +73,9 @@ Last updated: 2026-04-26
   - confirmed the RED failure before implementation with missing `simulator_frames` and `handle_device_line`,
   - added simulator frame generation, device-line parsing, git metadata helpers, stdout transport, and `--simulate --once` CLI behavior,
   - added executable `tools/test_session_frames.py` to print representative firmware frames.
+- Applied the Task 3 quality review cleanup:
+  - removed generated Python bytecode from `tools/__pycache__/`,
+  - added `.gitignore` entries for `__pycache__/` and `*.pyc` so later bridge tests do not leave untracked cache files.
 
 ## Current Workspace State
 
@@ -92,6 +95,7 @@ Documentation committed in `c33930d docs: record session console architecture`; 
 - `docs/adr/0005-ble-first-transport-tone-first-audio.md`
 - `docs/superpowers/specs/2026-04-26-stick-s3-session-console-design.md`
 - `docs/superpowers/plans/2026-04-26-stick-s3-session-console-milestone-a.md`
+- `.gitignore`
 
 No firmware source files have been edited. Milestone A Task 3 only extends the host bridge simulator/tests and updates resume notes.
 
@@ -114,6 +118,7 @@ No firmware source files have been edited. Milestone A Task 3 only extends the h
 - Ran `python3 tools/test_session_bridge.py` after implementing Task 3: PASS, `Ran 8 tests` / `OK`.
 - Ran `python3 tools/test_session_frames.py` after implementing Task 3: PASS, printed 3 compact JSON frames for running, pending permission, and completion event states.
 - Ran `python3 tools/session_bridge.py --simulate --once` after implementing Task 3: PASS, printed 3 newline-delimited JSON simulator frames.
+- Task 3 quality review found generated Python bytecode under `tools/__pycache__/`; cache files were removed and `.gitignore` now ignores `__pycache__/` and `*.pyc`.
 - No hardware tests were run.
 
 ## Important Context
