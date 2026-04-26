@@ -11,12 +11,17 @@ console.
 - [ADR-0003: Extend The Wire Protocol Backward-Compatibly](0003-backward-compatible-session-protocol.md)
 - [ADR-0004: Keep StickS3 Firmware A Compact View Controller](0004-stick-s3-view-controller-ui.md)
 - [ADR-0005: Use BLE-First Transport And Tone-First Audio](0005-ble-first-transport-tone-first-audio.md)
+- [ADR-0006: Validate StickS3 USB CDC RX As A Separate Post-A Slice](0006-validate-stick-s3-usb-cdc-rx.md)
 
 ## Implementation Plan
 
 The detailed implementation plan for Milestone A is:
 
 - `docs/superpowers/plans/2026-04-26-stick-s3-session-console-milestone-a.md`
+
+The next implementation plan for post-A USB CDC RX work is:
+
+- `docs/superpowers/plans/2026-04-27-stick-s3-usb-cdc-rx-milestone-b.md`
 
 It starts with:
 

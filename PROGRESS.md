@@ -137,6 +137,11 @@ Last updated: 2026-04-26
   - Added a regression test covering the simulator decision-hold path and completion-event emission
   - `python3 tools/test_session_bridge.py`: PASS after the interactive simulator fix (`Ran 15 tests` / `OK`)
   - User-observed interactive BLE verification: PASS; pressing `A` printed the terminal-side decision and then showed the `Done` dialog on-device, while pressing `B` showed the error outcome dialog
+- Started Milestone B planning for StickS3 native USB CDC RX:
+  - added ADR-0006 for post-A USB CDC RX validation,
+  - added `docs/superpowers/specs/2026-04-27-stick-s3-usb-cdc-rx-design.md`,
+  - added `docs/superpowers/plans/2026-04-27-stick-s3-usb-cdc-rx-milestone-b.md`,
+  - updated `docs/adr/README.md` to index the new milestone.
 
 ## Current Workspace State
 
