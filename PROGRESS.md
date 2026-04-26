@@ -132,6 +132,10 @@ Last updated: 2026-04-26
   - `python3 tools/test_session_bridge.py`: PASS after the simulator transport fix (`Ran 14 tests` / `OK`)
   - User-observed live BLE simulator result: PASS for display path; after running the simulator, the StickS3 showed the `Bash` request and then `Done`
   - Direct BLE probing from a temporary local `bleak` virtualenv did not yield a clean automated confirmation in this workspace, so live on-device BLE simulator verification is still not recorded as PASS here.
+- Interactive simulator follow-up:
+  - Fixed a second verification gap in `tools/session_bridge.py`: non-`--once` simulator mode now holds the pending `Bash` request until the device sends a decision, instead of auto-advancing immediately to `Done`
+  - Added a regression test covering the simulator decision-hold path and completion-event emission
+  - `python3 tools/test_session_bridge.py`: PASS after the interactive simulator fix (`Ran 15 tests` / `OK`)
 
 ## Current Workspace State
 

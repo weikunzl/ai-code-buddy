@@ -203,6 +203,27 @@ class SimulatorTests(unittest.TestCase):
         self.assertGreaterEqual(len(transport.writes), 3)
         self.assertTrue(all(line.endswith(b"\n") for line in transport.writes))
 
+    def test_publish_simulator_decision_cycle_waits_for_device_decision(self):
+        state = session_bridge.BridgeState()
+
+        class InteractiveTransport:
+            def __init__(self):
+                self.frames = []
+
+            def write(self, data):
+                frame = json.loads(data.decode("utf-8"))
+                self.frames.append(frame)
+                if "pending" in frame:
+                    state.decisions["req_demo"] = "once"
+
+        transport = InteractiveTransport()
+        session_bridge.publish_simulator_decision_cycle(state, transport, 0.0)
+
+        self.assertGreaterEqual(len(transport.frames), 3)
+        self.assertIn("pending", transport.frames[1])
+        self.assertEqual(transport.frames[-1]["event"]["kind"], "complete")
+        self.assertEqual(transport.frames[-1]["event"]["title"], "Done")
+
     def test_parse_device_line_handles_json_command(self):
         state = session_bridge.BridgeState()
         state.upsert_session("s_1", "/tmp/a", "a", "main", 0, "running", "codex", "working", now=1)

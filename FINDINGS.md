@@ -144,6 +144,7 @@ Last updated: 2026-04-26
 - Hardware reachability changed later in the session: `pio device list` detected `/dev/cu.usbmodem144301`, and `pio run -e m5sticks3 -t upload` succeeded against that port.
 - Verification uncovered a bridge CLI bug: `tools/session_bridge.py --simulate --transport ble` did not actually use BLE because the simulate path bypassed transport selection. That path is now fixed and covered by a regression test.
 - User-observed hardware behavior now confirms the BLE display path: running the simulator produced the expected `Bash` request on-device followed by the `Done` event state.
+- The original non-`--once` simulator was also not suitable for validating button return traffic: it auto-advanced through the canned frames instead of holding the pending request. That path now waits for a device decision and logs the received `once`/`deny` result on the host side.
 - Even with the transport fix, fully automated BLE confirmation from this workspace is still not reliable enough to record PASS. A temporary local `bleak`-based probe did not produce a clean observable confirmation, so end-to-end BLE behavior still needs direct device observation when resumed.
 - First practical code slice should be a minimal bridge/state schema and firmware parser changes, preserving compatibility with the current simple heartbeat.
 - Second slice should be StickS3 UI state/pages for action, focused session, session list, latest message, and idle/status.

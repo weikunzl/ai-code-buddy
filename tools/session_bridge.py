@@ -323,6 +323,53 @@ def handle_device_line(state: BridgeState, raw: bytes) -> bool:
     return state.handle_device_command(obj)
 
 
+def seed_simulator_state(state: BridgeState, now: int | None = None) -> None:
+    now = int(now if now is not None else time.time())
+    cwd = os.getcwd()
+    state.upsert_session(
+        sid="s_demo",
+        cwd=cwd,
+        project=os.path.basename(cwd),
+        branch=git_value(cwd, "rev-parse", "--abbrev-ref", "HEAD") or "feature/connectors",
+        dirty=git_dirty(cwd),
+        phase="running",
+        model="codex",
+        last="editing firmware UI",
+        now=now - 120,
+    )
+
+
+def publish_simulator_decision_cycle(state: BridgeState, transport: Any, interval: float) -> None:
+    pending_id = "req_demo"
+    now = int(time.time())
+    seed_simulator_state(state, now=now)
+    transport.write(encode_line(state.build_heartbeat(now=now)))
+
+    state.add_pending(pending_id, "s_demo", "permission", "Bash", "pio run -e m5sticks3", [], now=now - 1)
+    transport.write(encode_line(state.build_heartbeat(now=now)))
+
+    decision = ""
+    while not decision:
+        with state.lock:
+            decision = state.decisions.pop(pending_id, "")
+        if decision:
+            break
+        time.sleep(interval)
+        transport.write(encode_line(state.build_heartbeat(now=int(time.time()))))
+
+    state.resolve_pending(pending_id)
+    approved = decision == "once"
+    state.event = {
+        "kind": "complete" if approved else "error",
+        "sid": "s_demo",
+        "title": "Done" if approved else "Denied",
+        "text": "Build finished" if approved else "Request denied",
+        "ttl_ms": 5000,
+    }
+    print(f"[sim] decision={decision}", file=sys.stderr)
+    transport.write(encode_line(state.build_heartbeat(now=int(time.time()))))
+
+
 def git_value(cwd: str, *args: str) -> str:
     try:
         out = subprocess.run(["git", *args], cwd=cwd, text=True, capture_output=True, timeout=2, check=False)
@@ -584,15 +631,25 @@ def run_simulator(interval: float, once: bool, transport: Any | None = None) -> 
     transport = transport or StdoutTransport()
     if hasattr(transport, "start"):
         transport.start(reader)
-    while True:
+    if once:
         for frame in simulator_frames():
             transport.write(encode_line(frame))
-            if not once:
-                time.sleep(interval)
-        if once and hasattr(transport, "start"):
+            time.sleep(interval)
+        if hasattr(transport, "start"):
             time.sleep(max(interval, 0.5))
-        if once:
-            return 0
+        return 0
+    while True:
+        publish_simulator_decision_cycle(state, transport, max(interval, 0.25))
+        time.sleep(interval)
+        with state.lock:
+            state.pending.clear()
+            state.decisions.clear()
+            state.event = None
+            sess = state.sessions.get("s_demo")
+            if sess:
+                sess.phase = "running"
+                sess.waiting_since = 0
+        transport.write(encode_line(state.build_heartbeat(now=int(time.time()))))
 
 
 def main() -> int:
