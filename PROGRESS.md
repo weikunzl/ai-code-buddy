@@ -118,6 +118,7 @@ Last updated: 2026-04-26
   - added `drawEventOverlay()` with title/text panel and TTL progress bar,
   - rendered the overlay before reset/settings/menu overlays,
   - added `BtnB` dismissal that marks the local event inactive and sends `event_dismiss`.
+- Documented the session-console protocol and simulator usage in `REFERENCE.md` and `README.md`.
 
 ## Current Workspace State
 

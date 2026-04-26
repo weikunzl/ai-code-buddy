@@ -137,6 +137,17 @@ If you're iterating on a character and would rather skip the BLE round-trip,
 `tools/flash_character.py characters/bufo` stages it into `data/` and runs
 `pio run -t uploadfs` directly over USB.
 
+For local session-console bring-up without Claude/Codex hooks:
+
+```bash
+python3 tools/session_bridge.py --simulate --once
+python3 tools/test_session_bridge.py
+python3 tools/test_session_frames.py
+```
+
+Use `python3 tools/session_bridge.py --transport ble` for the live bridge
+once a StickS3 is paired.
+
 ## The seven states
 
 | State       | Trigger                     | Feel                        |

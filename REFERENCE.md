@@ -78,6 +78,27 @@ midnight if you want a daily counter.
 If you don't receive a snapshot for ~30 seconds, treat the connection as
 dead.
 
+### Optional session-console fields
+
+Newer firmware can also consume optional multi-session fields. Older
+devices ignore them.
+
+| Field | Meaning |
+| --- | --- |
+| `focused` | Host-selected session id currently shown as primary |
+| `project` | Focused session project name |
+| `branch` | Focused session git branch |
+| `dirty` | Focused session dirty file count |
+| `model` | Short model or agent label |
+| `assistant_msg` | Short host-provided latest message summary |
+| `budget` | Optional context budget for display |
+| `sessions[]` | Bounded compact session summaries |
+| `pending[]` | Bounded pending decisions, highest priority first |
+| `event` | Short-lived completion/error/input-required overlay |
+
+Devices should prefer `pending[0]` for an action screen and fall back to
+legacy `prompt` when `pending[]` is absent.
+
 ## Turn events
 
 Each completed turn also fires a one-shot event containing the raw SDK
