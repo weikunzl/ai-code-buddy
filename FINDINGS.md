@@ -115,6 +115,7 @@ Last updated: 2026-04-26
 - Milestone A Task 1 has been executed: `pio run -e m5sticks3` passed before any firmware source changes.
 - Milestone A Task 2 has been executed: the initial host-side `BridgeState` model and executable Python smoke tests exist under `tools/`. The model intentionally keeps FIFO pending decisions and focused-session selection host-side before any firmware parser/UI changes.
 - Task 2 review clarified a bridge state constraint: resolving one pending item must not mark a session `running` while another pending item for the same `sid` remains. `waiting_since` should be derived from the oldest remaining pending item for that same session.
+- Task 2 re-review clarified the same constraint also applies at queue time: adding a newer pending item for a session must not reset `waiting_since`; same-session pending age should always come from the oldest queued prompt.
 - First practical code slice should be a minimal bridge/state schema and firmware parser changes, preserving compatibility with the current simple heartbeat.
 - Second slice should be StickS3 UI state/pages for action, focused session, session list, latest message, and idle/status.
 - Third slice should add tone alerts and countdown overlays before richer WAV effects, CJK font loading, or microphone recording.

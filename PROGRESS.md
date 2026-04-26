@@ -62,6 +62,9 @@ Last updated: 2026-04-26
 - Applied the Task 2 quality review fix:
   - added a regression test for resolving one pending prompt while another prompt remains queued for the same session,
   - updated `BridgeState.resolve_pending()` so the session stays `waiting` and `waiting_since` tracks the oldest remaining pending item for that same `sid`.
+- Applied the Task 2 quality re-review fix:
+  - extended the pending FIFO regression to cover immediate state after queueing a newer same-session prompt,
+  - updated `BridgeState.add_pending()` so queueing a newer prompt preserves the oldest pending age for that same `sid`.
 
 ## Current Workspace State
 
@@ -95,6 +98,8 @@ No firmware source files have been edited. Milestone A Task 2 only adds the host
 - Ran `python3 tools/test_session_bridge.py` after creating `tools/session_bridge.py`: PASS, `Ran 4 tests` / `OK`.
 - Ran `python3 tools/test_session_bridge.py` after adding the Task 2 review regression: expected RED, `Ran 5 tests` with failure showing session `phase` was `running` instead of `waiting`.
 - Ran `python3 tools/test_session_bridge.py` after the Task 2 review fix: PASS, `Ran 5 tests` / `OK`.
+- Ran `python3 tools/test_session_bridge.py` after adding the Task 2 re-review assertion: expected RED, `Ran 5 tests` with failure showing same-session `pending_s` was `10` instead of `30`.
+- Ran `python3 tools/test_session_bridge.py` after the Task 2 re-review fix: PASS, `Ran 5 tests` / `OK`.
 - No hardware tests were run.
 
 ## Important Context

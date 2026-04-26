@@ -60,19 +60,21 @@ class BridgeStateTests(unittest.TestCase):
             title="Edit",
             body="src/data.h",
             options=[],
-            now=21,
+            now=40,
         )
 
-        hb = state.build_heartbeat(now=30)
+        hb = state.build_heartbeat(now=50)
         self.assertEqual(hb["waiting"], 1)
         self.assertEqual(hb["pending"][0]["id"], "req_1")
         self.assertEqual(hb["prompt"]["id"], "req_1")
+        self.assertEqual(hb["sessions"][0]["phase"], "waiting")
+        self.assertEqual(hb["sessions"][0]["pending_s"], 30)
 
         self.assertTrue(state.handle_device_command({"cmd": "permission", "id": "req_1", "decision": "once"}))
         self.assertEqual(state.decisions["req_1"], "once")
 
         state.resolve_pending("req_1")
-        hb = state.build_heartbeat(now=31)
+        hb = state.build_heartbeat(now=51)
         self.assertEqual(hb["pending"][0]["id"], "req_2")
 
     def test_resolving_one_pending_keeps_session_waiting_for_remaining_prompt(self):

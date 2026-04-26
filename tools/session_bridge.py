@@ -137,7 +137,7 @@ class BridgeState:
             )
             if sid in self.sessions:
                 self.sessions[sid].phase = "waiting"
-                self.sessions[sid].waiting_since = now
+                self.sessions[sid].waiting_since = min(p.pending_since for p in self.pending.values() if p.sid == sid)
 
     def resolve_pending(self, pid: str) -> None:
         with self.lock:
