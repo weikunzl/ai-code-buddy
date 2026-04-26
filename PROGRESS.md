@@ -58,7 +58,7 @@ Last updated: 2026-04-26
 
 ## Current Workspace State
 
-Untracked files created in this session:
+Documentation committed in `c33930d docs: record session console architecture`:
 
 - `AGENTS.md`
 - `docs/sticks3-plus-reference.md`

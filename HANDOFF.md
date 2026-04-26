@@ -119,9 +119,15 @@ The immediate technical baseline is: this firmware already targets `m5sticks3`, 
 - WiFi remote-control mode should be a later phase. BLE/USB hook interaction is the lower-risk base; WiFi adds pairing, auth, reconnect, and local-network security decisions.
 - Remote control should be daemon-mediated with commands like `focus_session`, `toggle_dnd`, `permission`, and `status`, not firmware-side knowledge of Claude internals.
 
-## Clean Commit Scope
+## Commit Status
 
-A reasonable first commit would include only documentation:
+The first documentation commit has been created:
+
+```text
+c33930d docs: record session console architecture
+```
+
+It includes:
 
 - `AGENTS.md`
 - `docs/sticks3-plus-reference.md`
@@ -129,9 +135,7 @@ A reasonable first commit would include only documentation:
 - `FINDINGS.md`
 - `PROGRESS.md`
 - `HANDOFF.md`
+- `docs/adr/`
+- `docs/superpowers/`
 
-Suggested commit message:
-
-```text
-docs: record StickS3 architecture findings
-```
+Continue implementation from Milestone A Task 2.

@@ -12,10 +12,13 @@ console.
 - [ADR-0004: Keep StickS3 Firmware A Compact View Controller](0004-stick-s3-view-controller-ui.md)
 - [ADR-0005: Use BLE-First Transport And Tone-First Audio](0005-ble-first-transport-tone-first-audio.md)
 
-## Next Step
+## Implementation Plan
 
-The next planning step should produce a detailed implementation plan for
-Milestone A:
+The detailed implementation plan for Milestone A is:
+
+- `docs/superpowers/plans/2026-04-26-stick-s3-session-console-milestone-a.md`
+
+It starts with:
 
 1. Add a minimal host bridge under `tools/`.
 2. Add canned heartbeat simulation for firmware bring-up.
