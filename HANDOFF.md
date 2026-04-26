@@ -23,13 +23,13 @@ Start with:
 - `src/main.cpp`
 - `src/data.h`
 
-The immediate technical baseline is: this firmware already targets `m5sticks3`, and StickS3 hardware/library details are now documented before changing code. The session-console design is recorded in `docs/sticks3-session-console-design.md`, accepted architecture decisions for Milestone A are recorded in `docs/adr/`, and the formal design/implementation plan are recorded in `docs/superpowers/`. Milestone A is complete for the BLE simulator path, including interactive hardware verification of display, decision return, and event outcomes. The current build baseline on `m5sticks3` is RAM `90508 / 327680` and Flash `1255621 / 4194304`. Milestone B is now defined for native StickS3 USB CDC RX in:
+The immediate technical baseline is: this firmware already targets `m5sticks3`, and StickS3 hardware/library details are now documented before changing code. The session-console design is recorded in `docs/sticks3-session-console-design.md`, accepted architecture decisions for Milestone A are recorded in `docs/adr/`, and the formal design/implementation plan are recorded in `docs/superpowers/`. Milestone A is complete for the BLE simulator path, including interactive hardware verification of display, decision return, and event outcomes. Milestone B is now defined for native StickS3 USB CDC RX in:
 
 - `docs/adr/0006-validate-stick-s3-usb-cdc-rx.md`
 - `docs/superpowers/specs/2026-04-27-stick-s3-usb-cdc-rx-design.md`
 - `docs/superpowers/plans/2026-04-27-stick-s3-usb-cdc-rx-milestone-b.md`
 
-The key implementation constraint is still the same: current firmware skips `Serial` RX on `BUDDY_BOARD_S3` because raw `Serial.available()` can report phantom bytes when no host is attached. Local ESP32 Arduino USB CDC support exposes connection state through `USBCDC::operator bool()` and line-state events, so Milestone B should gate USB RX on actual CDC connectivity instead of trusting `available()` alone.
+Milestone B Task 2 is now complete: `src/data.h` adds `_serialRxReady()` and only feeds StickS3 USB RX when native CDC reports an active connection. BLE RX and the shared parser path are unchanged. The current build baseline on `m5sticks3` after this slice is RAM `98700 / 327680` and Flash `1255813 / 4194304`.
 
 ## Architecture Direction
 
@@ -46,7 +46,7 @@ The key implementation constraint is still the same: current firmware skips `Ser
 
 ## Suggested Next Steps
 
-1. Continue Milestone B at Task 2 in `docs/superpowers/plans/2026-04-27-stick-s3-usb-cdc-rx-milestone-b.md`.
+1. Continue Milestone B at Task 3 in `docs/superpowers/plans/2026-04-27-stick-s3-usb-cdc-rx-milestone-b.md`.
 
 2. The unchanged firmware baseline already passed:
 

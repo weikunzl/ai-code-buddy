@@ -142,6 +142,11 @@ Last updated: 2026-04-26
   - added `docs/superpowers/specs/2026-04-27-stick-s3-usb-cdc-rx-design.md`,
   - added `docs/superpowers/plans/2026-04-27-stick-s3-usb-cdc-rx-milestone-b.md`,
   - updated `docs/adr/README.md` to index the new milestone.
+- Implemented Milestone B Task 2 firmware USB CDC gating:
+  - added `_serialRxReady()` in `src/data.h`,
+  - re-enabled StickS3 `Serial` RX only when native USB CDC reports an active connection,
+  - left BLE RX and the existing JSON parser path unchanged.
+- Ran `pio run -e m5sticks3` after implementing Milestone B Task 2: PASS, RAM `98700 / 327680`, Flash `1255813 / 4194304`.
 
 ## Current Workspace State
 

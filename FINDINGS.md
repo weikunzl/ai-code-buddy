@@ -148,6 +148,7 @@ Last updated: 2026-04-26
 - User-observed interactive verification now confirms the decision return path end to end: `A` produces the host-side terminal decision log and a `Done` dialog on-device, while `B` produces the error outcome dialog.
 - Even with the transport fix, fully automated BLE confirmation from this workspace is still not reliable enough to record PASS. A temporary local `bleak`-based probe did not produce a clean observable confirmation, so end-to-end BLE behavior still needs direct device observation when resumed.
 - The local ESP32 Arduino USB CDC implementation exposes connection state through `USBCDC::operator bool()` and line-state events. That gives the firmware a concrete way to re-enable StickS3 USB RX safely: gate `Serial.available()` behind actual CDC connectivity instead of trusting `available()` alone.
+- Milestone B Task 2 now applies that rule directly in firmware: on StickS3, `dataPoll()` only feeds `_usbLine` when `Serial` reports an active CDC connection. That is the smallest possible change that re-opens USB RX without changing the shared parser path or BLE behavior.
 - First practical code slice should be a minimal bridge/state schema and firmware parser changes, preserving compatibility with the current simple heartbeat.
 - Second slice should be StickS3 UI state/pages for action, focused session, session list, latest message, and idle/status.
 - Third slice should add tone alerts and countdown overlays before richer WAV effects, CJK font loading, or microphone recording.

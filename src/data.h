@@ -344,6 +344,16 @@ struct _LineBuf {
 
 static _LineBuf<8192> _usbLine, _btLine;
 
+static bool _serialRxReady() {
+#ifdef BUDDY_BOARD_S3
+  // On StickS3 native USB CDC, only trust RX once the host has asserted
+  // the CDC line state; otherwise Serial.available() can report phantom bytes.
+  return Serial;
+#else
+  return true;
+#endif
+}
+
 inline void dataPoll(TamaState* out) {
   uint32_t now = millis();
 
@@ -357,13 +367,12 @@ inline void dataPoll(TamaState* out) {
     return;
   }
 
-#ifndef BUDDY_BOARD_S3
-  // Original StickC Plus: Serial goes through the AXP192 UART bridge and
-  // is a reliable command channel. StickS3 native USB CDC reports phantom
-  // bytes in Serial.available() when no host is attached, so we skip it
-  // there — BLE is the primary transport anyway.
-  _usbLine.feed(Serial, out);
-#endif
+  // Original StickC Plus always has a reliable UART-backed Serial path.
+  // StickS3 native USB CDC can surface phantom available() bytes until the
+  // host has actually opened the CDC session, so gate RX on real connectivity.
+  if (_serialRxReady()) {
+    _usbLine.feed(Serial, out);
+  }
   // BLE ring buffer is drained manually since it's not a Stream.
   while (bleAvailable()) {
     int c = bleRead();
