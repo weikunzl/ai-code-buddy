@@ -144,8 +144,13 @@ class BridgeState:
             pending = self.pending.pop(pid, None)
             if pending and pending.sid in self.sessions:
                 sess = self.sessions[pending.sid]
-                sess.phase = "running"
-                sess.waiting_since = 0
+                remaining = [p for p in self.pending.values() if p.sid == pending.sid]
+                if remaining:
+                    sess.phase = "waiting"
+                    sess.waiting_since = min(p.pending_since for p in remaining)
+                else:
+                    sess.phase = "running"
+                    sess.waiting_since = 0
 
     def handle_device_command(self, obj: dict[str, Any]) -> bool:
         cmd = obj.get("cmd")

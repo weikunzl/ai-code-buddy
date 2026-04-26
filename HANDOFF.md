@@ -23,7 +23,7 @@ Start with:
 - `src/main.cpp`
 - `src/data.h`
 
-The immediate technical baseline is: this firmware already targets `m5sticks3`, and StickS3 hardware/library details are now documented before changing code. The session-console design is recorded in `docs/sticks3-session-console-design.md`, accepted architecture decisions for Milestone A are recorded in `docs/adr/`, and the formal design/implementation plan are recorded in `docs/superpowers/`. Milestone A Task 1 has been executed: `pio run -e m5sticks3` passed before firmware source changes. Milestone A Task 2 is complete: `tools/session_bridge.py` now contains the initial bridge state model and `tools/test_session_bridge.py` covers heartbeat construction, pending FIFO behavior, permission/focus commands, and compact JSON line encoding. The current firmware still expects a simple heartbeat and minimal approval prompt; it does not yet include parser/UI support for the richer state model.
+The immediate technical baseline is: this firmware already targets `m5sticks3`, and StickS3 hardware/library details are now documented before changing code. The session-console design is recorded in `docs/sticks3-session-console-design.md`, accepted architecture decisions for Milestone A are recorded in `docs/adr/`, and the formal design/implementation plan are recorded in `docs/superpowers/`. Milestone A Task 1 has been executed: `pio run -e m5sticks3` passed before firmware source changes. Milestone A Task 2 is complete, including the review fix for queued prompts on the same session: `tools/session_bridge.py` now contains the initial bridge state model and `tools/test_session_bridge.py` covers heartbeat construction, pending FIFO behavior, permission/focus commands, compact JSON line encoding, and preserving `waiting` state while same-session prompts remain queued. The current firmware still expects a simple heartbeat and minimal approval prompt; it does not yet include parser/UI support for the richer state model.
 
 ## Architecture Direction
 
@@ -144,6 +144,12 @@ Milestone A Task 2 is the bridge state model commit:
 
 ```text
 feat: add session bridge state model
+```
+
+The Task 2 quality review fix is:
+
+```text
+fix: keep bridge session waiting for queued prompts
 ```
 
 Continue implementation from Milestone A Task 3 after that commit is present.

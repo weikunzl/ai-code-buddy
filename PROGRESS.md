@@ -59,6 +59,9 @@ Last updated: 2026-04-26
   - added executable `tools/test_session_bridge.py` smoke tests,
   - confirmed the RED failure before implementation with missing `session_bridge`,
   - added executable `tools/session_bridge.py` with initial `BridgeState`, session/pending state, compact JSON line encoding, focus and decision command handling, and a temporary one-frame CLI stub.
+- Applied the Task 2 quality review fix:
+  - added a regression test for resolving one pending prompt while another prompt remains queued for the same session,
+  - updated `BridgeState.resolve_pending()` so the session stays `waiting` and `waiting_since` tracks the oldest remaining pending item for that same `sid`.
 
 ## Current Workspace State
 
@@ -90,6 +93,8 @@ No firmware source files have been edited. Milestone A Task 2 only adds the host
 - Ran `pio run -e m5sticks3` before Milestone A code changes: PASS.
 - Ran `python3 tools/test_session_bridge.py` before creating `tools/session_bridge.py`: expected RED, `ModuleNotFoundError: No module named 'session_bridge'`.
 - Ran `python3 tools/test_session_bridge.py` after creating `tools/session_bridge.py`: PASS, `Ran 4 tests` / `OK`.
+- Ran `python3 tools/test_session_bridge.py` after adding the Task 2 review regression: expected RED, `Ran 5 tests` with failure showing session `phase` was `running` instead of `waiting`.
+- Ran `python3 tools/test_session_bridge.py` after the Task 2 review fix: PASS, `Ran 5 tests` / `OK`.
 - No hardware tests were run.
 
 ## Important Context

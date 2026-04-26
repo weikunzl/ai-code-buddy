@@ -75,6 +75,46 @@ class BridgeStateTests(unittest.TestCase):
         hb = state.build_heartbeat(now=31)
         self.assertEqual(hb["pending"][0]["id"], "req_2")
 
+    def test_resolving_one_pending_keeps_session_waiting_for_remaining_prompt(self):
+        state = session_bridge.BridgeState()
+        state.upsert_session(
+            sid="s_1",
+            cwd="/tmp/a",
+            project="a",
+            branch="main",
+            dirty=0,
+            phase="running",
+            model="codex",
+            last="working",
+            now=10,
+        )
+        state.add_pending(
+            pid="req_1",
+            sid="s_1",
+            kind="permission",
+            title="Bash",
+            body="pio run",
+            options=[],
+            now=20,
+        )
+        state.add_pending(
+            pid="req_2",
+            sid="s_1",
+            kind="permission",
+            title="Edit",
+            body="src/data.h",
+            options=[],
+            now=21,
+        )
+
+        state.resolve_pending("req_1")
+        hb = state.build_heartbeat(now=31)
+
+        self.assertEqual(hb["pending"][0]["id"], "req_2")
+        self.assertEqual(hb["sessions"][0]["phase"], "waiting")
+        self.assertEqual(hb["sessions"][0]["waiting_since"], 21)
+        self.assertEqual(hb["sessions"][0]["pending_s"], 10)
+
     def test_focus_command_changes_focused_session(self):
         state = session_bridge.BridgeState()
         state.upsert_session("s_1", "/tmp/a", "a", "main", 0, "running", "codex", "a", now=1)
