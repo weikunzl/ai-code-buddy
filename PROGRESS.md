@@ -136,6 +136,7 @@ Last updated: 2026-04-26
   - Fixed a second verification gap in `tools/session_bridge.py`: non-`--once` simulator mode now holds the pending `Bash` request until the device sends a decision, instead of auto-advancing immediately to `Done`
   - Added a regression test covering the simulator decision-hold path and completion-event emission
   - `python3 tools/test_session_bridge.py`: PASS after the interactive simulator fix (`Ran 15 tests` / `OK`)
+  - User-observed interactive BLE verification: PASS; pressing `A` printed the terminal-side decision and then showed the `Done` dialog on-device, while pressing `B` showed the error outcome dialog
 
 ## Current Workspace State
 
