@@ -192,5 +192,46 @@ class SimulatorTests(unittest.TestCase):
         self.assertEqual(state.decisions["req_1"], "deny")
 
 
+class HookHandlingTests(unittest.TestCase):
+    def test_user_prompt_submit_marks_session_running(self):
+        state = session_bridge.BridgeState()
+        session_bridge.apply_hook(state, {
+            "hook_event_name": "UserPromptSubmit",
+            "session_id": "s_1",
+            "cwd": "/tmp/project",
+            "prompt": "run tests",
+        }, now=10)
+        hb = state.build_heartbeat(now=11)
+        self.assertEqual(hb["running"], 1)
+        self.assertEqual(hb["sessions"][0]["phase"], "running")
+
+    def test_pretool_adds_pending_permission(self):
+        state = session_bridge.BridgeState()
+        response = session_bridge.apply_hook(state, {
+            "hook_event_name": "PreToolUse",
+            "session_id": "s_1",
+            "cwd": "/tmp/project",
+            "tool_name": "Bash",
+            "tool_input": {"command": "pio run -e m5sticks3"},
+        }, now=20, wait_for_decision=False)
+        hb = state.build_heartbeat(now=25)
+        self.assertEqual(response, {})
+        self.assertEqual(hb["waiting"], 1)
+        self.assertEqual(hb["pending"][0]["title"], "Bash")
+        self.assertIn("pio run", hb["pending"][0]["body"])
+
+    def test_stop_creates_completion_event(self):
+        state = session_bridge.BridgeState()
+        state.upsert_session("s_1", "/tmp/project", "project", "main", 0, "running", "codex", "working", now=1)
+        session_bridge.apply_hook(state, {
+            "hook_event_name": "Stop",
+            "session_id": "s_1",
+            "cwd": "/tmp/project",
+        }, now=30)
+        hb = state.build_heartbeat(now=31)
+        self.assertEqual(hb["running"], 0)
+        self.assertEqual(hb["event"]["kind"], "complete")
+
+
 if __name__ == "__main__":
     unittest.main()

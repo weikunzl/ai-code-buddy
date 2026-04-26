@@ -76,6 +76,12 @@ Last updated: 2026-04-26
 - Applied the Task 3 quality review cleanup:
   - removed generated Python bytecode from `tools/__pycache__/`,
   - added `.gitignore` entries for `__pycache__/` and `*.pyc` so later bridge tests do not leave untracked cache files.
+- Implemented Milestone A Task 4 bridge hook runtime:
+  - added hook handler tests for `UserPromptSubmit`, `PreToolUse`, and `Stop`,
+  - confirmed the RED failure before implementation with missing `apply_hook`,
+  - added hook ingestion helpers (`project_name`, `tool_body`, `apply_hook`),
+  - added `LineReader`, `BridgeRuntime`, local HTTP hook server, `--http-port`, and `--transport stdout|ble`,
+  - added optional `BLETransport` with lazy `bleak` import so bridge tests pass without BLE dependencies.
 
 ## Current Workspace State
 
@@ -97,7 +103,7 @@ Documentation committed in `c33930d docs: record session console architecture`; 
 - `docs/superpowers/plans/2026-04-26-stick-s3-session-console-milestone-a.md`
 - `.gitignore`
 
-No firmware source files have been edited. Milestone A Task 3 only extends the host bridge simulator/tests and updates resume notes.
+No firmware source files have been edited. Milestone A Task 4 only extends the host bridge runtime/tests and updates resume notes.
 
 ## Verification Done
 
@@ -119,6 +125,11 @@ No firmware source files have been edited. Milestone A Task 3 only extends the h
 - Ran `python3 tools/test_session_frames.py` after implementing Task 3: PASS, printed 3 compact JSON frames for running, pending permission, and completion event states.
 - Ran `python3 tools/session_bridge.py --simulate --once` after implementing Task 3: PASS, printed 3 newline-delimited JSON simulator frames.
 - Task 3 quality review found generated Python bytecode under `tools/__pycache__/`; cache files were removed and `.gitignore` now ignores `__pycache__/` and `*.pyc`.
+- Ran `python3 tools/test_session_bridge.py` after adding Task 4 hook tests: expected RED, `Ran 11 tests` with `AttributeError: module 'session_bridge' has no attribute 'apply_hook'`.
+- Ran `python3 tools/test_session_bridge.py` after implementing Task 4: PASS, `Ran 11 tests` / `OK`.
+- Ran `python3 tools/session_bridge.py --simulate --once` after implementing Task 4: PASS, printed 3 newline-delimited JSON simulator frames for running, pending permission, and completion event states.
+- Ran `python3 tools/session_bridge.py --help` after implementing Task 4: PASS, showed `--http-port` and `--transport {stdout,ble}`.
+- Removed generated `tools/__pycache__/` after Task 4 test runs.
 - No hardware tests were run.
 
 ## Important Context

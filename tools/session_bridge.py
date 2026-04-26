@@ -316,10 +316,233 @@ def git_dirty(cwd: str) -> int:
     return sum(1 for line in status.splitlines() if line.strip())
 
 
+def project_name(cwd: str) -> str:
+    root = git_value(cwd, "rev-parse", "--show-toplevel") if cwd and os.path.isdir(cwd) else ""
+    return os.path.basename((root or cwd or "session").rstrip("/"))
+
+
+def tool_body(tool: str, tin: dict[str, Any]) -> str:
+    if tool == "Bash":
+        desc = _clip(tin.get("description"), 120)
+        command = _clip(tin.get("command"), 220)
+        return f"{desc}\n$ {command}" if desc else command
+    if tool in ("Edit", "MultiEdit", "Write", "Read"):
+        return _clip(tin.get("file_path"), 220)
+    if tool == "WebSearch":
+        return _clip(tin.get("query"), 220)
+    if tool == "WebFetch":
+        return _clip(tin.get("url"), 220)
+    return _clip(json.dumps(tin, ensure_ascii=False), 220)
+
+
+def apply_hook(
+    state: BridgeState,
+    payload: dict[str, Any],
+    now: int | None = None,
+    wait_for_decision: bool = True,
+    decision_timeout: float = 30.0,
+) -> dict[str, Any]:
+    now = int(now if now is not None else time.time())
+    event = str(payload.get("hook_event_name") or "")
+    sid = str(payload.get("session_id") or f"local_{now}")
+    cwd = str(payload.get("cwd") or os.getcwd())
+    project = project_name(cwd)
+    branch = git_value(cwd, "rev-parse", "--abbrev-ref", "HEAD") or ""
+    dirty = git_dirty(cwd)
+    model = _clip(payload.get("model") or "codex", 24)
+
+    if event in ("SessionStart", "UserPromptSubmit"):
+        prompt = _clip(payload.get("prompt"), 80)
+        state.upsert_session(sid, cwd, project, branch, dirty, "running", model, prompt or "running", now)
+        return {}
+
+    if event == "Stop":
+        state.upsert_session(sid, cwd, project, branch, dirty, "done", model, "session done", now)
+        with state.lock:
+            state.event = {
+                "kind": "complete",
+                "sid": sid,
+                "title": "Done",
+                "text": project or "Session complete",
+                "ttl_ms": 5000,
+            }
+        return {}
+
+    if event == "Notification":
+        message = _clip(payload.get("message"), 120)
+        lower = message.lower()
+        phase = "waiting" if "waiting" in lower or "permission" in lower else "running"
+        state.upsert_session(sid, cwd, project, branch, dirty, phase, model, message, now)
+        return {}
+
+    if event == "PreToolUse":
+        if payload.get("permission_mode") == "bypassPermissions":
+            return {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "allow",
+                    "permissionDecisionReason": "bypass-permissions mode",
+                }
+            }
+        tool = str(payload.get("tool_name") or "Tool")
+        tin = payload.get("tool_input") if isinstance(payload.get("tool_input"), dict) else {}
+        pid = f"req_{int(time.time() * 1000)}_{os.getpid()}"
+        state.upsert_session(sid, cwd, project, branch, dirty, "waiting", model, tool, now)
+        state.add_pending(pid, sid, "permission", tool, tool_body(tool, tin), [], now)
+        if not wait_for_decision:
+            return {}
+        deadline = time.time() + decision_timeout
+        decision = ""
+        while time.time() < deadline:
+            with state.lock:
+                decision = state.decisions.get(pid, "")
+            if decision:
+                break
+            time.sleep(0.05)
+        state.resolve_pending(pid)
+        if decision == "once":
+            return {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "allow",
+                    "permissionDecisionReason": "Approved on StickS3",
+                }
+            }
+        if decision == "deny":
+            return {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "deny",
+                    "permissionDecisionReason": "Denied on StickS3",
+                }
+            }
+        return {}
+
+    return {}
+
+
 class StdoutTransport:
     def write(self, data: bytes) -> None:
         sys.stdout.buffer.write(data)
         sys.stdout.buffer.flush()
+
+
+class LineReader:
+    def __init__(self, state: BridgeState) -> None:
+        self.state = state
+        self.buf = bytearray()
+
+    def feed(self, data: bytes) -> None:
+        for b in data:
+            if b in (10, 13):
+                if self.buf:
+                    handle_device_line(self.state, bytes(self.buf))
+                    self.buf.clear()
+            elif len(self.buf) < 4096:
+                self.buf.append(b)
+
+
+class BridgeRuntime:
+    def __init__(self, state: BridgeState, transport: Any) -> None:
+        self.state = state
+        self.transport = transport
+        self.bump = threading.Event()
+        self.stopped = threading.Event()
+
+    def send_snapshot(self) -> None:
+        self.transport.write(encode_line(self.state.build_heartbeat()))
+
+    def heartbeat_loop(self) -> None:
+        last = 0.0
+        while not self.stopped.is_set():
+            self.bump.wait(timeout=10.0)
+            self.bump.clear()
+            elapsed = time.time() - last
+            if elapsed < 1.0:
+                time.sleep(1.0 - elapsed)
+            self.send_snapshot()
+            last = time.time()
+
+
+def run_http(state: BridgeState, runtime: BridgeRuntime, port: int) -> HTTPServer:
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, fmt: str, *args: Any) -> None:
+            return
+
+        def do_POST(self) -> None:
+            try:
+                n = int(self.headers.get("Content-Length") or "0")
+                payload = json.loads(self.rfile.read(n).decode("utf-8")) if n else {}
+            except Exception as exc:
+                body = encode_line({"error": str(exc)})
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            response = apply_hook(state, payload)
+            runtime.bump.set()
+            body = json.dumps(response).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+    return HTTPServer(("127.0.0.1", port), Handler)
+
+
+class BLETransport:
+    def __init__(self, name_prefix: str = "Claude-") -> None:
+        self.name_prefix = name_prefix
+        self.loop = None
+        self.client = None
+        self.write_queue: "queue.Queue[bytes]" = queue.Queue()
+
+    def write(self, data: bytes) -> None:
+        self.write_queue.put(data)
+
+    def start(self, reader: LineReader) -> None:
+        threading.Thread(target=self._thread_main, args=(reader,), daemon=True).start()
+
+    def _thread_main(self, reader: LineReader) -> None:
+        try:
+            import asyncio
+            from bleak import BleakClient, BleakScanner
+        except ImportError:
+            print("[ble] install bleak to use --transport ble", file=sys.stderr)
+            return
+
+        async def run() -> None:
+            while True:
+                device = await BleakScanner.find_device_by_filter(
+                    lambda d, ad: bool(d.name) and d.name.startswith(self.name_prefix),
+                    timeout=10.0,
+                )
+                if not device:
+                    await asyncio.sleep(3.0)
+                    continue
+                try:
+                    async with BleakClient(device) as client:
+                        self.client = client
+
+                        def on_notify(_sender, data: bytearray) -> None:
+                            reader.feed(bytes(data))
+
+                        await client.start_notify(NUS_TX_UUID, on_notify)
+                        while client.is_connected:
+                            try:
+                                data = self.write_queue.get_nowait()
+                            except queue.Empty:
+                                await asyncio.sleep(0.05)
+                                continue
+                            await client.write_gatt_char(NUS_RX_UUID, data, response=False)
+                except Exception as exc:
+                    print(f"[ble] {exc!r}", file=sys.stderr)
+                    await asyncio.sleep(3.0)
+
+        asyncio.run(run())
 
 
 def run_simulator(interval: float, once: bool) -> int:
@@ -338,11 +561,25 @@ def main() -> int:
     parser.add_argument("--simulate", action="store_true", help="emit canned firmware frames")
     parser.add_argument("--once", action="store_true", help="emit one simulator cycle and exit")
     parser.add_argument("--interval", type=float, default=1.0)
+    parser.add_argument("--http-port", type=int, default=9876)
+    parser.add_argument("--transport", choices=("stdout", "ble"), default="stdout")
     args = parser.parse_args()
     if args.simulate:
         return run_simulator(args.interval, args.once)
-    parser.print_help()
-    return 0
+    state = BridgeState()
+    transport = BLETransport() if args.transport == "ble" else StdoutTransport()
+    reader = LineReader(state)
+    if hasattr(transport, "start"):
+        transport.start(reader)
+    runtime = BridgeRuntime(state, transport)
+    threading.Thread(target=runtime.heartbeat_loop, daemon=True).start()
+    server = run_http(state, runtime, args.http_port)
+    print(f"[http] listening on 127.0.0.1:{args.http_port}", file=sys.stderr)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        runtime.stopped.set()
+        return 0
 
 
 if __name__ == "__main__":

@@ -120,6 +120,8 @@ Last updated: 2026-04-26
 - Milestone A Task 3 has been executed: the bridge can now emit canned simulator frames for running, pending permission, and completion event states, and it can parse newline-delimited device JSON commands back into `BridgeState.handle_device_command()`.
 - `tools/test_session_frames.py` is a host-side smoke tool for representative firmware frames; it does not exercise firmware parsing yet.
 - Python bridge tests generate `__pycache__/`; `.gitignore` now ignores `__pycache__/` and `*.pyc` so later Python tasks do not leave generated cache files in the worktree.
+- Milestone A Task 4 has been executed: the bridge can now map Claude hook events into session state (`UserPromptSubmit`/`SessionStart` running, `PreToolUse` pending permission, `Stop` completion event, simple `Notification` phase updates), serve hooks over local HTTP, emit snapshots through stdout or optional BLE, and consume device command lines through `LineReader`.
+- BLE remains optional host functionality. `bleak` is imported only inside `BLETransport._thread_main()`, so unit tests and stdout simulation do not require the dependency.
 - First practical code slice should be a minimal bridge/state schema and firmware parser changes, preserving compatibility with the current simple heartbeat.
 - Second slice should be StickS3 UI state/pages for action, focused session, session list, latest message, and idle/status.
 - Third slice should add tone alerts and countdown overlays before richer WAV effects, CJK font loading, or microphone recording.

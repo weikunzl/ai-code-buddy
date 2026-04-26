@@ -23,7 +23,7 @@ Start with:
 - `src/main.cpp`
 - `src/data.h`
 
-The immediate technical baseline is: this firmware already targets `m5sticks3`, and StickS3 hardware/library details are now documented before changing code. The session-console design is recorded in `docs/sticks3-session-console-design.md`, accepted architecture decisions for Milestone A are recorded in `docs/adr/`, and the formal design/implementation plan are recorded in `docs/superpowers/`. Milestone A Task 1 has been executed: `pio run -e m5sticks3` passed before firmware source changes. Milestone A Task 2 is complete, including review fixes for queued prompts on the same session. Milestone A Task 3 is complete: `tools/session_bridge.py` now has simulator frame generation, device JSON command parsing, git metadata helpers, stdout transport, and `--simulate --once`; `tools/test_session_bridge.py` covers simulator frames and device command RX; `tools/test_session_frames.py` prints representative firmware frames. Task 3 review cleanup added Python bytecode ignores for bridge test runs. The current firmware still expects a simple heartbeat and minimal approval prompt; it does not yet include parser/UI support for the richer state model.
+The immediate technical baseline is: this firmware already targets `m5sticks3`, and StickS3 hardware/library details are now documented before changing code. The session-console design is recorded in `docs/sticks3-session-console-design.md`, accepted architecture decisions for Milestone A are recorded in `docs/adr/`, and the formal design/implementation plan are recorded in `docs/superpowers/`. Milestone A Task 1 has been executed: `pio run -e m5sticks3` passed before firmware source changes. Milestone A Task 2 is complete, including review fixes for queued prompts on the same session. Milestone A Task 3 is complete: `tools/session_bridge.py` now has simulator frame generation, device JSON command parsing, git metadata helpers, stdout transport, and `--simulate --once`; `tools/test_session_bridge.py` covers simulator frames and device command RX; `tools/test_session_frames.py` prints representative firmware frames. Task 3 review cleanup added Python bytecode ignores for bridge test runs. Milestone A Task 4 is complete: the bridge now ingests Claude hook payloads through `apply_hook`, exposes a local HTTP hook server, emits rate-limited snapshots through a `BridgeRuntime`, parses device command lines through `LineReader`, and offers optional BLE transport behind a lazy `bleak` import. The current firmware still expects a simple heartbeat and minimal approval prompt; it does not yet include parser/UI support for the richer state model.
 
 ## Architecture Direction
 
@@ -40,7 +40,7 @@ The immediate technical baseline is: this firmware already targets `m5sticks3`, 
 
 ## Suggested Next Steps
 
-1. Continue Milestone A at Task 4 in `docs/superpowers/plans/2026-04-26-stick-s3-session-console-milestone-a.md`.
+1. Continue Milestone A at Task 5 in `docs/superpowers/plans/2026-04-26-stick-s3-session-console-milestone-a.md`.
 
 2. The unchanged firmware baseline already passed:
 
@@ -138,7 +138,7 @@ It includes:
 - `docs/adr/`
 - `docs/superpowers/`
 
-Continue implementation from Milestone A Task 4.
+Continue implementation from Milestone A Task 5.
 
 Milestone A Task 2 is the bridge state model commit:
 
@@ -172,4 +172,10 @@ feat: add bridge simulator frames
 
 Task 3 quality review cleanup also removed generated Python bytecode and added `.gitignore` entries for `__pycache__/` and `*.pyc`.
 
-Continue implementation from Milestone A Task 4 after that commit is present.
+Milestone A Task 4 is the bridge hook runtime commit:
+
+```text
+feat: add bridge hook runtime
+```
+
+It adds hook handling, local HTTP runtime, optional BLE transport, CLI flags, and bridge tests for the hook flow. Continue implementation from Milestone A Task 5 after that commit is present.
