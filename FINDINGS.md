@@ -141,6 +141,9 @@ Last updated: 2026-04-26
 - The current `event_dismiss` path still sends an empty `sid`, matching the present bridge behavior. If host-side dismissal becomes session-specific later, the device path will need to pass through `tama.event.sid`.
 - Overlay text currently uses a simple fixed split (`17` chars per line). That is good enough for Milestone A, but long unbroken strings will still truncate rather than wrap.
 - As of this resume point, software verification is green but hardware verification is still pending. `python3 tools/test_session_bridge.py`, `python3 tools/test_session_frames.py`, and `pio run -e m5sticks3` all passed, while `pio device list` exposed no uploadable StickS3 serial device in this workspace.
+- Hardware reachability changed later in the session: `pio device list` detected `/dev/cu.usbmodem144301`, and `pio run -e m5sticks3 -t upload` succeeded against that port.
+- Verification uncovered a bridge CLI bug: `tools/session_bridge.py --simulate --transport ble` did not actually use BLE because the simulate path bypassed transport selection. That path is now fixed and covered by a regression test.
+- Even with the transport fix, fully automated BLE confirmation from this workspace is still not reliable enough to record PASS. A temporary local `bleak`-based probe did not produce a clean observable confirmation, so end-to-end BLE behavior still needs direct device observation when resumed.
 - First practical code slice should be a minimal bridge/state schema and firmware parser changes, preserving compatibility with the current simple heartbeat.
 - Second slice should be StickS3 UI state/pages for action, focused session, session list, latest message, and idle/status.
 - Third slice should add tone alerts and countdown overlays before richer WAV effects, CJK font loading, or microphone recording.

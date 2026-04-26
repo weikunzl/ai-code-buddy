@@ -125,6 +125,12 @@ Last updated: 2026-04-26
   - `pio run -e m5sticks3`: PASS, RAM `90508 / 327680`, Flash `1255621 / 4194304`
   - `pio device list`: no uploadable StickS3 serial device detected from this workspace; only host Bluetooth pseudo-ports were visible
   - Hardware upload, BLE pairing, and live simulator verification were not run in this workspace because no reachable StickS3 device was exposed.
+- Follow-up verification after the service/device became reachable:
+  - `pio device list`: PASS, detected StickS3 serial device at `/dev/cu.usbmodem144301`
+  - `pio run -e m5sticks3 -t upload`: PASS, uploaded successfully to `/dev/cu.usbmodem144301`
+  - Fixed a host-side verification bug in `tools/session_bridge.py`: `--simulate` now honors `--transport ble` instead of always forcing stdout
+  - `python3 tools/test_session_bridge.py`: PASS after the simulator transport fix (`Ran 14 tests` / `OK`)
+  - Direct BLE probing from a temporary local `bleak` virtualenv did not yield a clean automated confirmation in this workspace, so live on-device BLE simulator verification is still not recorded as PASS here.
 
 ## Current Workspace State
 

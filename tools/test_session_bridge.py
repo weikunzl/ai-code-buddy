@@ -183,6 +183,26 @@ class SimulatorTests(unittest.TestCase):
         self.assertIn("pending", frames[1])
         self.assertIn("event", frames[2])
 
+    def test_run_simulator_uses_supplied_transport(self):
+        class FakeTransport:
+            def __init__(self):
+                self.started = False
+                self.writes = []
+
+            def start(self, reader):
+                self.started = reader is not None
+
+            def write(self, data):
+                self.writes.append(data)
+
+        transport = FakeTransport()
+        rc = session_bridge.run_simulator(0.01, True, transport=transport)
+
+        self.assertEqual(rc, 0)
+        self.assertTrue(transport.started)
+        self.assertGreaterEqual(len(transport.writes), 3)
+        self.assertTrue(all(line.endswith(b"\n") for line in transport.writes))
+
     def test_parse_device_line_handles_json_command(self):
         state = session_bridge.BridgeState()
         state.upsert_session("s_1", "/tmp/a", "a", "main", 0, "running", "codex", "working", now=1)

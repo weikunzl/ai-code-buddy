@@ -578,13 +578,19 @@ class BLETransport:
         asyncio.run(run())
 
 
-def run_simulator(interval: float, once: bool) -> int:
-    transport = StdoutTransport()
+def run_simulator(interval: float, once: bool, transport: Any | None = None) -> int:
+    state = BridgeState()
+    reader = LineReader(state)
+    transport = transport or StdoutTransport()
+    if hasattr(transport, "start"):
+        transport.start(reader)
     while True:
         for frame in simulator_frames():
             transport.write(encode_line(frame))
             if not once:
                 time.sleep(interval)
+        if once and hasattr(transport, "start"):
+            time.sleep(max(interval, 0.5))
         if once:
             return 0
 
@@ -597,10 +603,10 @@ def main() -> int:
     parser.add_argument("--http-port", type=int, default=9876)
     parser.add_argument("--transport", choices=("stdout", "ble"), default="stdout")
     args = parser.parse_args()
-    if args.simulate:
-        return run_simulator(args.interval, args.once)
-    state = BridgeState()
     transport = BLETransport() if args.transport == "ble" else StdoutTransport()
+    if args.simulate:
+        return run_simulator(args.interval, args.once, transport=transport)
+    state = BridgeState()
     reader = LineReader(state)
     if hasattr(transport, "start"):
         transport.start(reader)
