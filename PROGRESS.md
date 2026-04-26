@@ -100,6 +100,13 @@ Last updated: 2026-04-26
 - Task 5 review correction:
   - widened the firmware JSON line buffers from `2560` to `8192` to match the current rich bridge heartbeat envelope,
   - changed `_LineBuf` overflow handling to discard oversized frames cleanly instead of attempting to parse truncated JSON.
+- Implemented Milestone A Task 6 firmware screens:
+  - added `DISP_SESSION` and `DISP_SESSIONS` display modes,
+  - added `sessionPage`, `lastPendingGen`, and `lastEventGen` view state for upcoming routing/alerts work,
+  - added `fmtDur()` for compact elapsed/pending timing,
+  - added `drawAction()`, `drawFocusedSession()`, and `drawSessionList()`,
+  - routed `drawHUD()` through the rich action renderer when either legacy `promptId` or rich `pending[]` exists,
+  - wired the final render path to show the new focused-session and session-list screens.
 
 ## Current Workspace State
 
@@ -153,6 +160,7 @@ No firmware source files have been edited. Milestone A Task 4 only extends the h
 - Re-ran `python3 tools/session_bridge.py --simulate --once` after the Task 4 review fix: PASS, printed 3 newline-delimited JSON simulator frames.
 - Re-ran `python3 tools/session_bridge.py --help` after the Task 4 review fix: PASS, still showed `--http-port` and `--transport {stdout,ble}`.
 - Ran `pio run -e m5sticks3` after the Task 5 transport-buffer correction: PASS, RAM `90500 / 327680` and Flash `1252677 / 4194304`.
+- Ran `pio run -e m5sticks3` after implementing Task 6 screens: PASS, RAM `90500 / 327680` and Flash `1254809 / 4194304`.
 - No hardware tests were run.
 
 ## Important Context

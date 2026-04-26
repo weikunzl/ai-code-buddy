@@ -51,13 +51,16 @@ uint8_t menuSel     = 0;
 uint8_t brightLevel = 4;           // 0..4 → ScreenBreath 20..100
 bool    btnALong    = false;
 
-enum DisplayMode { DISP_NORMAL, DISP_PET, DISP_INFO, DISP_COUNT };
+enum DisplayMode { DISP_NORMAL, DISP_SESSION, DISP_SESSIONS, DISP_PET, DISP_INFO, DISP_COUNT };
 uint8_t displayMode = DISP_NORMAL;
 uint8_t infoPage = 0;
 uint8_t petPage = 0;
 const uint8_t PET_PAGES = 2;
 uint8_t msgScroll = 0;
+uint8_t sessionPage = 0;
 uint16_t lastLineGen = 0;
+uint16_t lastPendingGen = 0;
+uint16_t lastEventGen = 0;
 char     lastPromptId[40] = "";
 uint32_t lastInteractMs = 0;
 bool     dimmed = false;
@@ -791,6 +794,61 @@ static void drawApproval() {
   }
 }
 
+static void fmtDur(uint32_t s, char* out, size_t n) {
+  if (s < 60) snprintf(out, n, "%lus", (unsigned long)s);
+  else if (s < 3600) snprintf(out, n, "%lum", (unsigned long)(s / 60));
+  else snprintf(out, n, "%luh%02lum", (unsigned long)(s / 3600), (unsigned long)((s / 60) % 60));
+}
+
+static void drawAction() {
+  if (tama.nPending == 0) { drawApproval(); return; }
+  const Palette& p = characterPalette();
+  PendingDecision& d = tama.pending[0];
+  const int AREA = 104;
+  spr.fillRect(0, H - AREA, W, AREA, p.bg);
+  spr.drawFastHLine(0, H - AREA, W, p.textDim);
+  spr.setTextSize(1);
+
+  char age[12];
+  fmtDur(d.pendingS ? d.pendingS : ((millis() - promptArrivedMs) / 1000), age, sizeof(age));
+  spr.setTextColor(HOT, p.bg);
+  spr.setCursor(4, H - AREA + 4);
+  spr.printf("%s  wait %s", d.kind[0] ? d.kind : "action", age);
+
+  spr.setTextColor(p.text, p.bg);
+  spr.setTextSize(strlen(d.title) <= 10 ? 2 : 1);
+  spr.setCursor(4, H - AREA + 18);
+  spr.print(d.title[0] ? d.title : "Decision");
+  spr.setTextSize(1);
+
+  spr.setTextColor(p.textDim, p.bg);
+  spr.setCursor(4, H - AREA + 40);
+  spr.printf("%.21s", d.body);
+  if (strlen(d.body) > 21) {
+    spr.setCursor(4, H - AREA + 50);
+    spr.printf("%.21s", d.body + 21);
+  }
+
+  if (strcmp(d.kind, "single_choice") == 0 && d.nOptions > 0) {
+    DecisionOption& opt = d.options[d.selected];
+    spr.setTextColor(p.body, p.bg);
+    spr.setCursor(4, H - 30);
+    spr.printf("%u/%u %.16s", d.selected + 1, d.nOptions, opt.label);
+    spr.setTextColor(GREEN, p.bg);
+    spr.setCursor(4, H - 12); spr.print("A: choose");
+    spr.setTextColor(p.textDim, p.bg);
+    spr.setCursor(W - 42, H - 12); spr.print("B: next");
+  } else if (responseSent) {
+    spr.setTextColor(p.textDim, p.bg);
+    spr.setCursor(4, H - 12); spr.print("sent...");
+  } else {
+    spr.setTextColor(GREEN, p.bg);
+    spr.setCursor(4, H - 12); spr.print("A: approve");
+    spr.setTextColor(HOT, p.bg);
+    spr.setCursor(W - 48, H - 12); spr.print("B: deny");
+  }
+}
+
 static void tinyHeart(int x, int y, bool filled, uint16_t col) {
   if (filled) {
     spr.fillCircle(x - 2, y, 2, col);
@@ -912,7 +970,7 @@ void drawPet() {
 }
 
 void drawHUD() {
-  if (tama.promptId[0]) { drawApproval(); return; }
+  if (tama.promptId[0] || tama.nPending > 0) { drawAction(); return; }
   const Palette& p = characterPalette();
   const int SHOW = 3, LH = 8, WIDTH = 21;
   const int AREA = SHOW * LH + 4;
@@ -957,6 +1015,83 @@ void drawHUD() {
     spr.setCursor(W - 18, H - LH - 2);
     spr.printf("-%u", msgScroll);
   }
+}
+
+static void drawFocusedSession() {
+  const Palette& p = characterPalette();
+  const int TOP = 70;
+  spr.fillRect(0, TOP, W, H - TOP, p.bg);
+  spr.setTextSize(1);
+
+  SessionSummary* s = nullptr;
+  for (uint8_t i = 0; i < tama.nSessions; i++) {
+    if (tama.sessions[i].focused) { s = &tama.sessions[i]; break; }
+  }
+  if (!s && tama.nSessions > 0) s = &tama.sessions[0];
+
+  int y = TOP + 2;
+  spr.setTextColor(p.text, p.bg);
+  spr.setCursor(4, y); spr.print("Session"); y += 12;
+
+  if (!s) {
+    spr.setTextColor(p.textDim, p.bg);
+    spr.setCursor(4, y); spr.print(tama.connected ? "No sessions" : "No bridge");
+    return;
+  }
+
+  const char* project = s->project[0] ? s->project : tama.project;
+  const char* branch = s->branch[0] ? s->branch : tama.branch;
+  const char* model = s->model[0] ? s->model : tama.model;
+  const char* last = s->last[0] ? s->last : tama.assistantMsg;
+
+  char dur[12];
+  fmtDur(s->pendingS ? s->pendingS : s->elapsedS, dur, sizeof(dur));
+  spr.setTextColor(p.body, p.bg);
+  spr.setCursor(4, y); spr.printf("%.21s", project); y += 12;
+  spr.setTextColor(p.textDim, p.bg);
+  spr.setCursor(4, y); spr.printf("%.21s", branch); y += 12;
+  spr.setCursor(4, y); spr.printf("%s %s  dirty %d", s->phase, dur, s->dirty); y += 12;
+  spr.setCursor(4, y); spr.printf("model %.16s", model); y += 16;
+  spr.setTextColor(p.text, p.bg);
+  spr.setCursor(4, y); spr.printf("%.21s", last); y += 10;
+  if (strlen(last) > 21) {
+    spr.setCursor(4, y); spr.printf("%.21s", last + 21);
+  }
+}
+
+static void drawSessionList() {
+  const Palette& p = characterPalette();
+  const int TOP = 70;
+  spr.fillRect(0, TOP, W, H - TOP, p.bg);
+  spr.setTextSize(1);
+  if (sessionPage >= tama.nSessions && tama.nSessions > 0) sessionPage = 0;
+
+  int y = TOP + 2;
+  spr.setTextColor(p.text, p.bg);
+  spr.setCursor(4, y); spr.print("Sessions");
+  spr.setTextColor(p.textDim, p.bg);
+  spr.setCursor(W - 28, y); spr.printf("%u/%u", tama.nSessions ? sessionPage + 1 : 0, tama.nSessions);
+  y += 16;
+
+  if (tama.nSessions == 0) {
+    spr.setTextColor(p.textDim, p.bg);
+    spr.setCursor(4, y); spr.print("No sessions");
+    return;
+  }
+  SessionSummary& s = tama.sessions[sessionPage];
+  char dur[12];
+  fmtDur(s.pendingS ? s.pendingS : s.elapsedS, dur, sizeof(dur));
+  spr.setTextColor(s.focused ? GREEN : p.body, p.bg);
+  spr.setCursor(4, y); spr.printf("%.21s", s.project); y += 12;
+  spr.setTextColor(p.textDim, p.bg);
+  spr.setCursor(4, y); spr.printf("%.21s", s.branch); y += 12;
+  spr.setCursor(4, y); spr.printf("%s %s", s.phase, dur); y += 16;
+  spr.setTextColor(p.text, p.bg);
+  spr.setCursor(4, y); spr.printf("%.21s", s.last);
+  spr.setTextColor(GREEN, p.bg);
+  spr.setCursor(4, H - 12); spr.print("A: focus");
+  spr.setTextColor(p.textDim, p.bg);
+  spr.setCursor(W - 42, H - 12); spr.print("B: next");
 }
 
 void setup() {
@@ -1266,6 +1401,8 @@ void loop() {
     else if (clocking) drawClock();
     else if (displayMode == DISP_INFO) drawInfo();
     else if (displayMode == DISP_PET) drawPet();
+    else if (displayMode == DISP_SESSION) drawFocusedSession();
+    else if (displayMode == DISP_SESSIONS) drawSessionList();
     else if (settings().hud) drawHUD();
     if (resetOpen) drawReset();
     else if (settingsOpen) drawSettings();

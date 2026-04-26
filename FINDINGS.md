@@ -132,6 +132,8 @@ Last updated: 2026-04-26
 - The current bridge payload envelope is much larger than the original Task 5 estimate. A max-shape synthetic heartbeat built from the current `tools/session_bridge.py` state model measured `5456` bytes, so the firmware line buffers need materially more than `2560` bytes to avoid truncating valid JSON.
 - `_LineBuf` must treat overflow as a discard condition until newline. Continuing to append until full and then parsing the truncated prefix is worse than dropping the frame, because it turns a size mismatch into undefined partial state updates.
 - The richer parser and `8192`-byte line buffers still compile comfortably on `m5sticks3`: RAM `90500 / 327680`, Flash `1252677 / 4194304`.
+- Task 6 can stay narrowly presentational in `src/main.cpp`: rich action, focused-session, and session-list rendering fit the existing sprite/view structure without forcing an early file split or a broader UI refactor.
+- The new session screens are intentionally incomplete until Task 7. `lastPendingGen`, `lastEventGen`, and the `A: focus` / `B: next` affordances exist now, but the actual device command routing and alert-tone behaviors still need to be wired before hardware behavior matches the labels.
 - First practical code slice should be a minimal bridge/state schema and firmware parser changes, preserving compatibility with the current simple heartbeat.
 - Second slice should be StickS3 UI state/pages for action, focused session, session list, latest message, and idle/status.
 - Third slice should add tone alerts and countdown overlays before richer WAV effects, CJK font loading, or microphone recording.
