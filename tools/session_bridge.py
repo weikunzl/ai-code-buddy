@@ -62,6 +62,10 @@ class BridgeState:
         self.entries: deque[str] = deque(maxlen=8)
         self.event: dict[str, Any] | None = None
 
+    def _oldest_pending_since(self, sid: str) -> int:
+        times = [p.pending_since for p in self.pending.values() if p.sid == sid]
+        return min(times) if times else 0
+
     def upsert_session(
         self,
         sid: str,
@@ -85,6 +89,10 @@ class BridgeState:
                 waiting_since = now
             if phase != "waiting":
                 waiting_since = 0
+            pending_since = self._oldest_pending_since(sid)
+            if pending_since:
+                phase = "waiting"
+                waiting_since = pending_since
             self.sessions[sid] = Session(
                 sid=sid,
                 cwd=cwd,
@@ -137,17 +145,17 @@ class BridgeState:
             )
             if sid in self.sessions:
                 self.sessions[sid].phase = "waiting"
-                self.sessions[sid].waiting_since = min(p.pending_since for p in self.pending.values() if p.sid == sid)
+                self.sessions[sid].waiting_since = self._oldest_pending_since(sid)
 
     def resolve_pending(self, pid: str) -> None:
         with self.lock:
             pending = self.pending.pop(pid, None)
             if pending and pending.sid in self.sessions:
                 sess = self.sessions[pending.sid]
-                remaining = [p for p in self.pending.values() if p.sid == pending.sid]
-                if remaining:
+                pending_since = self._oldest_pending_since(pending.sid)
+                if pending_since:
                     sess.phase = "waiting"
-                    sess.waiting_since = min(p.pending_since for p in remaining)
+                    sess.waiting_since = pending_since
                 else:
                     sess.phase = "running"
                     sess.waiting_since = 0
