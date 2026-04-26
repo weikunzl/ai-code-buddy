@@ -107,6 +107,12 @@ Last updated: 2026-04-26
   - added `drawAction()`, `drawFocusedSession()`, and `drawSessionList()`,
   - routed `drawHUD()` through the rich action renderer when either legacy `promptId` or rich `pending[]` exists,
   - wired the final render path to show the new focused-session and session-list screens.
+- Implemented Milestone A Task 7 button routing and alert tones:
+  - added `sendPermissionDecision()`, `sendAnswerChoice()`, and `sendFocusSession()` helpers,
+  - wired `pendingGen` and `eventGen` notifications to alert tones,
+  - updated rich prompt behavior so `single_choice` uses `answer` on `A` and option cycling on `B`,
+  - updated session-list controls so `A` focuses the highlighted session and `B` advances `sessionPage`,
+  - gated the legacy prompt chirp when the same arrival is mirrored from rich `pending[]`, preventing a double alert.
 
 ## Current Workspace State
 
@@ -161,6 +167,7 @@ No firmware source files have been edited. Milestone A Task 4 only extends the h
 - Re-ran `python3 tools/session_bridge.py --help` after the Task 4 review fix: PASS, still showed `--http-port` and `--transport {stdout,ble}`.
 - Ran `pio run -e m5sticks3` after the Task 5 transport-buffer correction: PASS, RAM `90500 / 327680` and Flash `1252677 / 4194304`.
 - Ran `pio run -e m5sticks3` after implementing Task 6 screens: PASS, RAM `90500 / 327680` and Flash `1254809 / 4194304`.
+- Ran `pio run -e m5sticks3` after implementing Task 7 button routing and tones: PASS, RAM `90508 / 327680` and Flash `1255093 / 4194304`.
 - No hardware tests were run.
 
 ## Important Context

@@ -132,6 +132,24 @@ static void sendCmd(const char* json) {
   bleWrite((const uint8_t*)json, n);
   bleWrite((const uint8_t*)"\n", 1);
 }
+
+static void sendPermissionDecision(const char* id, const char* decision) {
+  char cmd[128];
+  snprintf(cmd, sizeof(cmd), "{\"cmd\":\"permission\",\"id\":\"%s\",\"decision\":\"%s\"}", id, decision);
+  sendCmd(cmd);
+}
+
+static void sendAnswerChoice(const char* id, const char* choice) {
+  char cmd[144];
+  snprintf(cmd, sizeof(cmd), "{\"cmd\":\"answer\",\"id\":\"%s\",\"choice\":\"%s\"}", id, choice);
+  sendCmd(cmd);
+}
+
+static void sendFocusSession(const char* sid) {
+  char cmd[96];
+  snprintf(cmd, sizeof(cmd), "{\"cmd\":\"focus\",\"sid\":\"%s\"}", sid);
+  sendCmd(cmd);
+}
 const uint8_t INFO_PAGES = 6;
 const uint8_t INFO_PG_BUTTONS = 1;
 const uint8_t INFO_PG_CREDITS = 5;
@@ -1196,16 +1214,22 @@ void loop() {
     }
   }
 
+  bool promptChanged = strcmp(tama.promptId, lastPromptId) != 0;
+  bool pendingChanged = tama.pendingGen != lastPendingGen;
+
   // BtnA: step through fake scenarios
-  // Prompt arrival: beep, reset response flag
-  if (strcmp(tama.promptId, lastPromptId) != 0) {
+  // Prompt arrival: wake, reset response flag, and surface the approval screen.
+  if (promptChanged) {
     strncpy(lastPromptId, tama.promptId, sizeof(lastPromptId)-1);
     lastPromptId[sizeof(lastPromptId)-1] = 0;
     responseSent = false;
     if (tama.promptId[0]) {
+      bool mirroredRichPending = pendingChanged
+                              && tama.nPending > 0
+                              && strcmp(tama.promptId, tama.pending[0].id) == 0;
       promptArrivedMs = millis();
       wake();
-      beep(1200, 80);   // alert chirp
+      if (!mirroredRichPending) beep(1200, 80);
       // Jump to the approval screen no matter what was open — drawApproval
       // only runs from drawHUD which only runs in DISP_NORMAL.
       displayMode = DISP_NORMAL;
@@ -1213,6 +1237,26 @@ void loop() {
       applyDisplayMode();
       characterInvalidate();
       if (buddyMode) buddyInvalidate();
+    }
+  }
+  if (pendingChanged) {
+    lastPendingGen = tama.pendingGen;
+    if (tama.nPending > 0) {
+      wake();
+      beep(1200, 80);
+    }
+  }
+  if (tama.eventGen != lastEventGen) {
+    lastEventGen = tama.eventGen;
+    if (tama.event.active) {
+      if (strcmp(tama.event.kind, "error") == 0) beep(500, 120);
+      else if (strcmp(tama.event.kind, "complete") == 0) {
+        beep(1600, 60);
+        delay(80);
+        beep(2200, 60);
+      } else {
+        beep(1000, 60);
+      }
     }
   }
 
@@ -1256,14 +1300,22 @@ void loop() {
   if (M5.BtnA.wasReleased()) {
     if (!btnALong && !swallowBtnA) {
       if (inPrompt) {
-        char cmd[96];
-        snprintf(cmd, sizeof(cmd), "{\"cmd\":\"permission\",\"id\":\"%s\",\"decision\":\"once\"}", tama.promptId);
-        sendCmd(cmd);
+        if (tama.nPending > 0 && strcmp(tama.pending[0].kind, "single_choice") == 0 && tama.pending[0].nOptions > 0) {
+          PendingDecision& d = tama.pending[0];
+          sendAnswerChoice(d.id, d.options[d.selected].id);
+        } else {
+          sendPermissionDecision(tama.promptId, "once");
+          uint32_t tookS = (millis() - promptArrivedMs) / 1000;
+          statsOnApproval(tookS);
+          if (tookS < 5) triggerOneShot(P_HEART, 2000);
+        }
         responseSent = true;
-        uint32_t tookS = (millis() - promptArrivedMs) / 1000;
-        statsOnApproval(tookS);
         beep(2400, 60);
-        if (tookS < 5) triggerOneShot(P_HEART, 2000);
+      } else if (displayMode == DISP_SESSIONS && tama.nSessions > 0) {
+        if (sessionPage >= tama.nSessions) sessionPage = 0;
+        sendFocusSession(tama.sessions[sessionPage].sid);
+        displayMode = DISP_SESSION;
+        applyDisplayMode();
       } else if (resetOpen) {
         beep(1800, 30);
         resetSel = (resetSel + 1) % RESET_N;
@@ -1289,12 +1341,20 @@ void loop() {
     if (swallowBtnB) { swallowBtnB = false; }
     else
     if (inPrompt) {
-      char cmd[96];
-      snprintf(cmd, sizeof(cmd), "{\"cmd\":\"permission\",\"id\":\"%s\",\"decision\":\"deny\"}", tama.promptId);
-      sendCmd(cmd);
-      responseSent = true;
-      statsOnDenial();
-      beep(600, 60);
+      if (tama.nPending > 0 && strcmp(tama.pending[0].kind, "single_choice") == 0 && tama.pending[0].nOptions > 0) {
+        PendingDecision& d = tama.pending[0];
+        d.selected = (d.selected + 1) % d.nOptions;
+        beep(1800, 30);
+      } else {
+        sendPermissionDecision(tama.promptId, "deny");
+        responseSent = true;
+        statsOnDenial();
+        beep(600, 60);
+      }
+    } else if (displayMode == DISP_SESSIONS && tama.nSessions > 0) {
+      beep(2400, 30);
+      sessionPage = (sessionPage + 1) % tama.nSessions;
+      applyDisplayMode();
     } else if (resetOpen) {
       beep(2400, 30);
       applyReset(resetSel);
