@@ -767,6 +767,14 @@ static uint8_t wrapInto(const char* in, char out[][24], uint8_t maxRows, uint8_t
   return row;
 }
 
+static bool eventVisible() {
+  return tama.event.active
+      && tama.event.ttlMs > 0
+      && (millis() - tama.event.receivedMs) < tama.event.ttlMs
+      && !tama.promptId[0]
+      && tama.nPending == 0;
+}
+
 static void drawApproval() {
   const Palette& p = characterPalette();
   const int AREA = 78;
@@ -1112,6 +1120,31 @@ static void drawSessionList() {
   spr.setCursor(W - 42, H - 12); spr.print("B: next");
 }
 
+static void drawEventOverlay() {
+  const Palette& p = characterPalette();
+  uint32_t age = millis() - tama.event.receivedMs;
+  uint32_t left = (age < tama.event.ttlMs) ? (tama.event.ttlMs - age) : 0;
+  int mw = 118, mh = 72;
+  int mx = (W - mw) / 2, my = H - mh - 10;
+  spr.fillRoundRect(mx, my, mw, mh, 4, PANEL);
+  spr.drawRoundRect(mx, my, mw, mh, 4, strcmp(tama.event.kind, "error") == 0 ? HOT : GREEN);
+  spr.setTextSize(1);
+  spr.setTextColor(p.text, PANEL);
+  spr.setCursor(mx + 6, my + 8);
+  spr.printf("%.17s", tama.event.title[0] ? tama.event.title : tama.event.kind);
+  spr.setTextColor(p.textDim, PANEL);
+  spr.setCursor(mx + 6, my + 24);
+  spr.printf("%.17s", tama.event.text);
+  if (strlen(tama.event.text) > 17) {
+    spr.setCursor(mx + 6, my + 34);
+    spr.printf("%.17s", tama.event.text + 17);
+  }
+  int barW = mw - 12;
+  spr.drawRect(mx + 6, my + mh - 14, barW, 5, p.textDim);
+  int fill = tama.event.ttlMs ? (int)((uint64_t)barW * left / tama.event.ttlMs) : 0;
+  if (fill > 1) spr.fillRect(mx + 7, my + mh - 13, fill - 2, 3, p.body);
+}
+
 void setup() {
   // M5Unified's begin() initializes Display, Imu, Rtc, Speaker, and the
   // power management on the detected board (StickS3 → PY32 PMIC), so the
@@ -1364,6 +1397,10 @@ void loop() {
     } else if (menuOpen) {
       beep(2400, 30);
       menuConfirm();
+    } else if (eventVisible()) {
+      tama.event.active = false;
+      sendCmd("{\"cmd\":\"event_dismiss\",\"sid\":\"\"}");
+      beep(1200, 30);
     } else if (displayMode == DISP_INFO) {
       beep(2400, 30);
       infoPage = (infoPage + 1) % INFO_PAGES;
@@ -1464,6 +1501,7 @@ void loop() {
     else if (displayMode == DISP_SESSION) drawFocusedSession();
     else if (displayMode == DISP_SESSIONS) drawSessionList();
     else if (settings().hud) drawHUD();
+    if (eventVisible()) drawEventOverlay();
     if (resetOpen) drawReset();
     else if (settingsOpen) drawSettings();
     else if (menuOpen) drawMenu();

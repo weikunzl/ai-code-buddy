@@ -137,6 +137,9 @@ Last updated: 2026-04-26
 - Rich pending now mirrors into the legacy prompt fields, so prompt-arrival alerts have to distinguish between legacy-only prompt traffic and rich `pending[]` arrivals. Without that guard, the device will chirp twice for the same decision.
 - Session-console commands are now wired from the device side, but command JSON is still built with raw `%s` interpolation in `src/main.cpp`. If prompt ids or choice labels ever contain quotes or backslashes, the command helpers will need string escaping.
 - The current completion-event alert uses a deliberate `delay(80)` between tones. That is acceptable for Milestone A, but it is still a small blocking pause in the main loop and should stay in mind if later interactions become more timing-sensitive.
+- The event overlay behaves correctly only if dismissal takes precedence over the underlying page controls. Putting the dismiss branch after screen-specific `BtnB` handlers would leave a visible overlay that the user cannot clear without also paging the hidden screen below it.
+- The current `event_dismiss` path still sends an empty `sid`, matching the present bridge behavior. If host-side dismissal becomes session-specific later, the device path will need to pass through `tama.event.sid`.
+- Overlay text currently uses a simple fixed split (`17` chars per line). That is good enough for Milestone A, but long unbroken strings will still truncate rather than wrap.
 - First practical code slice should be a minimal bridge/state schema and firmware parser changes, preserving compatibility with the current simple heartbeat.
 - Second slice should be StickS3 UI state/pages for action, focused session, session list, latest message, and idle/status.
 - Third slice should add tone alerts and countdown overlays before richer WAV effects, CJK font loading, or microphone recording.

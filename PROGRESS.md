@@ -113,6 +113,11 @@ Last updated: 2026-04-26
   - updated rich prompt behavior so `single_choice` uses `answer` on `A` and option cycling on `B`,
   - updated session-list controls so `A` focuses the highlighted session and `B` advances `sessionPage`,
   - gated the legacy prompt chirp when the same arrival is mirrored from rich `pending[]`, preventing a double alert.
+- Implemented Milestone A Task 8 event overlay:
+  - added `eventVisible()` gating on active TTL plus no active prompt/pending decision,
+  - added `drawEventOverlay()` with title/text panel and TTL progress bar,
+  - rendered the overlay before reset/settings/menu overlays,
+  - added `BtnB` dismissal that marks the local event inactive and sends `event_dismiss`.
 
 ## Current Workspace State
 
@@ -168,6 +173,7 @@ No firmware source files have been edited. Milestone A Task 4 only extends the h
 - Ran `pio run -e m5sticks3` after the Task 5 transport-buffer correction: PASS, RAM `90500 / 327680` and Flash `1252677 / 4194304`.
 - Ran `pio run -e m5sticks3` after implementing Task 6 screens: PASS, RAM `90500 / 327680` and Flash `1254809 / 4194304`.
 - Ran `pio run -e m5sticks3` after implementing Task 7 button routing and tones: PASS, RAM `90508 / 327680` and Flash `1255093 / 4194304`.
+- Ran `pio run -e m5sticks3` after implementing Task 8 event overlay: PASS, RAM `90508 / 327680` and Flash `1255621 / 4194304`.
 - No hardware tests were run.
 
 ## Important Context
