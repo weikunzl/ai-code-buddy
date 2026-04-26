@@ -140,6 +140,7 @@ Last updated: 2026-04-26
 - The event overlay behaves correctly only if dismissal takes precedence over the underlying page controls. Putting the dismiss branch after screen-specific `BtnB` handlers would leave a visible overlay that the user cannot clear without also paging the hidden screen below it.
 - The current `event_dismiss` path still sends an empty `sid`, matching the present bridge behavior. If host-side dismissal becomes session-specific later, the device path will need to pass through `tama.event.sid`.
 - Overlay text currently uses a simple fixed split (`17` chars per line). That is good enough for Milestone A, but long unbroken strings will still truncate rather than wrap.
+- As of this resume point, software verification is green but hardware verification is still pending. `python3 tools/test_session_bridge.py`, `python3 tools/test_session_frames.py`, and `pio run -e m5sticks3` all passed, while `pio device list` exposed no uploadable StickS3 serial device in this workspace.
 - First practical code slice should be a minimal bridge/state schema and firmware parser changes, preserving compatibility with the current simple heartbeat.
 - Second slice should be StickS3 UI state/pages for action, focused session, session list, latest message, and idle/status.
 - Third slice should add tone alerts and countdown overlays before richer WAV effects, CJK font loading, or microphone recording.

@@ -119,6 +119,12 @@ Last updated: 2026-04-26
   - rendered the overlay before reset/settings/menu overlays,
   - added `BtnB` dismissal that marks the local event inactive and sends `event_dismiss`.
 - Documented the session-console protocol and simulator usage in `REFERENCE.md` and `README.md`.
+- Verification pass after Milestone A implementation:
+  - `python3 tools/test_session_bridge.py`: PASS (`Ran 13 tests` / `OK`)
+  - `python3 tools/test_session_frames.py`: PASS (printed 3 representative rich heartbeat frames)
+  - `pio run -e m5sticks3`: PASS, RAM `90508 / 327680`, Flash `1255621 / 4194304`
+  - `pio device list`: no uploadable StickS3 serial device detected from this workspace; only host Bluetooth pseudo-ports were visible
+  - Hardware upload, BLE pairing, and live simulator verification were not run in this workspace because no reachable StickS3 device was exposed.
 
 ## Current Workspace State
 
