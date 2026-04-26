@@ -82,6 +82,11 @@ Last updated: 2026-04-26
   - added hook ingestion helpers (`project_name`, `tool_body`, `apply_hook`),
   - added `LineReader`, `BridgeRuntime`, local HTTP hook server, `--http-port`, and `--transport stdout|ble`,
   - added optional `BLETransport` with lazy `bleak` import so bridge tests pass without BLE dependencies.
+- Applied the Task 4 quality review fix:
+  - added regressions for prompt publication during blocking `PreToolUse`, clearing contradictory pending state on `Stop`, and BLE chunk splitting,
+  - added an `on_state_change` callback path so blocking `PreToolUse` can publish pending state before waiting for a decision,
+  - cleared same-session pending items on `Stop` before emitting completion state,
+  - added `chunk_bytes()` and BLE write chunking for large heartbeat frames.
 
 ## Current Workspace State
 
@@ -130,6 +135,10 @@ No firmware source files have been edited. Milestone A Task 4 only extends the h
 - Ran `python3 tools/session_bridge.py --simulate --once` after implementing Task 4: PASS, printed 3 newline-delimited JSON simulator frames for running, pending permission, and completion event states.
 - Ran `python3 tools/session_bridge.py --help` after implementing Task 4: PASS, showed `--http-port` and `--transport {stdout,ble}`.
 - Removed generated `tools/__pycache__/` after Task 4 test runs.
+- Ran `python3 tools/test_session_bridge.py` after adding Task 4 review-fix regressions: expected RED, `Ran 13 tests` with failures for missing `on_state_change`, missing `chunk_bytes`, and `Stop` leaving `waiting == 1`.
+- Ran `python3 tools/test_session_bridge.py` after the Task 4 review fix: PASS, `Ran 13 tests` / `OK`.
+- Re-ran `python3 tools/session_bridge.py --simulate --once` after the Task 4 review fix: PASS, printed 3 newline-delimited JSON simulator frames.
+- Re-ran `python3 tools/session_bridge.py --help` after the Task 4 review fix: PASS, still showed `--http-port` and `--transport {stdout,ble}`.
 - No hardware tests were run.
 
 ## Important Context

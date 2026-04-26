@@ -122,6 +122,10 @@ Last updated: 2026-04-26
 - Python bridge tests generate `__pycache__/`; `.gitignore` now ignores `__pycache__/` and `*.pyc` so later Python tasks do not leave generated cache files in the worktree.
 - Milestone A Task 4 has been executed: the bridge can now map Claude hook events into session state (`UserPromptSubmit`/`SessionStart` running, `PreToolUse` pending permission, `Stop` completion event, simple `Notification` phase updates), serve hooks over local HTTP, emit snapshots through stdout or optional BLE, and consume device command lines through `LineReader`.
 - BLE remains optional host functionality. `bleak` is imported only inside `BLETransport._thread_main()`, so unit tests and stdout simulation do not require the dependency.
+- Task 4 quality review clarified three bridge runtime constraints:
+  - blocking `PreToolUse` must publish pending state before waiting for a device decision,
+  - `Stop` must not leave same-session pending prompts active while emitting a completion event,
+  - BLE writes need chunking before richer heartbeat frames are practical.
 - First practical code slice should be a minimal bridge/state schema and firmware parser changes, preserving compatibility with the current simple heartbeat.
 - Second slice should be StickS3 UI state/pages for action, focused session, session list, latest message, and idle/status.
 - Third slice should add tone alerts and countdown overlays before richer WAV effects, CJK font loading, or microphone recording.

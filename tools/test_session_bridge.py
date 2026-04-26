@@ -193,6 +193,26 @@ class SimulatorTests(unittest.TestCase):
 
 
 class HookHandlingTests(unittest.TestCase):
+    def test_pretool_notifies_pending_state_before_waiting_returns(self):
+        state = session_bridge.BridgeState()
+        snapshots = []
+
+        def on_state_change() -> None:
+            snapshots.append(state.build_heartbeat(now=25))
+
+        response = session_bridge.apply_hook(state, {
+            "hook_event_name": "PreToolUse",
+            "session_id": "s_1",
+            "cwd": "/tmp/project",
+            "tool_name": "Bash",
+            "tool_input": {"command": "pio run -e m5sticks3"},
+        }, now=20, decision_timeout=0.01, on_state_change=on_state_change)
+
+        self.assertEqual(response, {})
+        self.assertGreaterEqual(len(snapshots), 1)
+        self.assertIn("pending", snapshots[0])
+        self.assertEqual(snapshots[0]["pending"][0]["title"], "Bash")
+
     def test_user_prompt_submit_marks_session_running(self):
         state = session_bridge.BridgeState()
         session_bridge.apply_hook(state, {
@@ -223,6 +243,7 @@ class HookHandlingTests(unittest.TestCase):
     def test_stop_creates_completion_event(self):
         state = session_bridge.BridgeState()
         state.upsert_session("s_1", "/tmp/project", "project", "main", 0, "running", "codex", "working", now=1)
+        state.add_pending("req_1", "s_1", "permission", "Bash", "pio run", [], now=20)
         session_bridge.apply_hook(state, {
             "hook_event_name": "Stop",
             "session_id": "s_1",
@@ -230,7 +251,19 @@ class HookHandlingTests(unittest.TestCase):
         }, now=30)
         hb = state.build_heartbeat(now=31)
         self.assertEqual(hb["running"], 0)
+        self.assertEqual(hb["waiting"], 0)
+        self.assertNotIn("pending", hb)
+        self.assertEqual(hb["sessions"][0]["phase"], "done")
         self.assertEqual(hb["event"]["kind"], "complete")
+
+
+class TransportTests(unittest.TestCase):
+    def test_chunk_bytes_splits_payload_at_requested_limit(self):
+        payload = b"abcdefghijklmnopqrstuvwxyz"
+        chunks = list(session_bridge.chunk_bytes(payload, 8))
+
+        self.assertEqual(chunks, [b"abcdefgh", b"ijklmnop", b"qrstuvwx", b"yz"])
+        self.assertEqual(b"".join(chunks), payload)
 
 
 if __name__ == "__main__":

@@ -26,6 +26,13 @@ def encode_line(obj: dict[str, Any]) -> bytes:
     return (json.dumps(obj, ensure_ascii=False, separators=(",", ":")) + "\n").encode("utf-8")
 
 
+def chunk_bytes(data: bytes, max_size: int):
+    if max_size <= 0:
+        raise ValueError("max_size must be positive")
+    for start in range(0, len(data), max_size):
+        yield data[start:start + max_size]
+
+
 @dataclass
 class Session:
     sid: str
@@ -65,6 +72,19 @@ class BridgeState:
     def _oldest_pending_since(self, sid: str) -> int:
         times = [p.pending_since for p in self.pending.values() if p.sid == sid]
         return min(times) if times else 0
+
+    def clear_pending_for_session(self, sid: str) -> None:
+        with self.lock:
+            removed = [pid for pid, pending in self.pending.items() if pending.sid == sid]
+            for pid in removed:
+                self.pending.pop(pid, None)
+                self.decisions.pop(pid, None)
+            sess = self.sessions.get(sid)
+            if not sess:
+                return
+            sess.waiting_since = 0
+            if sess.phase == "waiting":
+                sess.phase = "running"
 
     def upsert_session(
         self,
@@ -341,7 +361,12 @@ def apply_hook(
     now: int | None = None,
     wait_for_decision: bool = True,
     decision_timeout: float = 30.0,
+    on_state_change: Any = None,
 ) -> dict[str, Any]:
+    def notify_state_change() -> None:
+        if on_state_change:
+            on_state_change()
+
     now = int(now if now is not None else time.time())
     event = str(payload.get("hook_event_name") or "")
     sid = str(payload.get("session_id") or f"local_{now}")
@@ -354,9 +379,11 @@ def apply_hook(
     if event in ("SessionStart", "UserPromptSubmit"):
         prompt = _clip(payload.get("prompt"), 80)
         state.upsert_session(sid, cwd, project, branch, dirty, "running", model, prompt or "running", now)
+        notify_state_change()
         return {}
 
     if event == "Stop":
+        state.clear_pending_for_session(sid)
         state.upsert_session(sid, cwd, project, branch, dirty, "done", model, "session done", now)
         with state.lock:
             state.event = {
@@ -366,6 +393,7 @@ def apply_hook(
                 "text": project or "Session complete",
                 "ttl_ms": 5000,
             }
+        notify_state_change()
         return {}
 
     if event == "Notification":
@@ -373,6 +401,7 @@ def apply_hook(
         lower = message.lower()
         phase = "waiting" if "waiting" in lower or "permission" in lower else "running"
         state.upsert_session(sid, cwd, project, branch, dirty, phase, model, message, now)
+        notify_state_change()
         return {}
 
     if event == "PreToolUse":
@@ -389,6 +418,7 @@ def apply_hook(
         pid = f"req_{int(time.time() * 1000)}_{os.getpid()}"
         state.upsert_session(sid, cwd, project, branch, dirty, "waiting", model, tool, now)
         state.add_pending(pid, sid, "permission", tool, tool_body(tool, tin), [], now)
+        notify_state_change()
         if not wait_for_decision:
             return {}
         deadline = time.time() + decision_timeout
@@ -400,6 +430,7 @@ def apply_hook(
                 break
             time.sleep(0.05)
         state.resolve_pending(pid)
+        notify_state_change()
         if decision == "once":
             return {
                 "hookSpecificOutput": {
@@ -481,7 +512,7 @@ def run_http(state: BridgeState, runtime: BridgeRuntime, port: int) -> HTTPServe
                 self.end_headers()
                 self.wfile.write(body)
                 return
-            response = apply_hook(state, payload)
+            response = apply_hook(state, payload, on_state_change=runtime.bump.set)
             runtime.bump.set()
             body = json.dumps(response).encode("utf-8")
             self.send_response(200)
@@ -537,7 +568,9 @@ class BLETransport:
                             except queue.Empty:
                                 await asyncio.sleep(0.05)
                                 continue
-                            await client.write_gatt_char(NUS_RX_UUID, data, response=False)
+                            for chunk in chunk_bytes(data, 180):
+                                await client.write_gatt_char(NUS_RX_UUID, chunk, response=False)
+                                await asyncio.sleep(0)
                 except Exception as exc:
                     print(f"[ble] {exc!r}", file=sys.stderr)
                     await asyncio.sleep(3.0)
