@@ -87,6 +87,16 @@ Last updated: 2026-04-26
   - added an `on_state_change` callback path so blocking `PreToolUse` can publish pending state before waiting for a decision,
   - cleared same-session pending items on `Stop` before emitting completion state,
   - added `chunk_bytes()` and BLE write chunking for large heartbeat frames.
+- Implemented Milestone A Task 5 firmware parser changes:
+  - extended `TamaState` with bounded session, pending decision, and event structures,
+  - added bounded field copy and integer helpers,
+  - added parsing for top-level focused/project/branch/model metadata, `sessions[]`, `pending[]`, and `event`,
+  - preserved the legacy `prompt` path by mirroring the first rich pending item into the old prompt fields,
+  - increased the line buffers from `1024` to `2560`.
+- Closed Task 5 parser edge cases before UI work:
+  - missing `sessions` and `pending` fields now clear stale rich state, matching the bridge's sparse heartbeat encoding,
+  - repeated identical `event` payloads no longer reset the event timer or retrigger event generation,
+  - expired or locally dismissed events can be cleared once the bridge stops sending them.
 
 ## Current Workspace State
 
@@ -139,6 +149,7 @@ No firmware source files have been edited. Milestone A Task 4 only extends the h
 - Ran `python3 tools/test_session_bridge.py` after the Task 4 review fix: PASS, `Ran 13 tests` / `OK`.
 - Re-ran `python3 tools/session_bridge.py --simulate --once` after the Task 4 review fix: PASS, printed 3 newline-delimited JSON simulator frames.
 - Re-ran `python3 tools/session_bridge.py --help` after the Task 4 review fix: PASS, still showed `--http-port` and `--transport {stdout,ble}`.
+- Ran `pio run -e m5sticks3` after closing Task 5 parser changes: PASS, RAM `84868 / 327680` and Flash `1252673 / 4194304`.
 - No hardware tests were run.
 
 ## Important Context

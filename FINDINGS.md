@@ -126,6 +126,10 @@ Last updated: 2026-04-26
   - blocking `PreToolUse` must publish pending state before waiting for a device decision,
   - `Stop` must not leave same-session pending prompts active while emitting a completion event,
   - BLE writes need chunking before richer heartbeat frames are practical.
+- Milestone A Task 5 has been executed at the parser layer: `src/data.h` now accepts focused project/session metadata, bounded `sessions[]`, bounded `pending[]`, and `event` objects while still preserving the legacy `prompt` path by mirroring the first rich pending item.
+- The bridge emits sparse heartbeats: it omits `sessions`, `pending`, and `event` when those collections are empty. The firmware parser therefore has to clear stale `sessions[]` and `pending[]` when those keys disappear instead of treating absence as "keep old state".
+- Repeated identical `event` frames from the bridge must not reset `receivedMs` or bump `eventGen`, otherwise later tone/event-overlay logic will retrigger on every heartbeat and the TTL countdown will never advance.
+- The richer parser and larger `2560`-byte line buffers still compile comfortably on `m5sticks3`: RAM `84868 / 327680`, Flash `1252673 / 4194304`.
 - First practical code slice should be a minimal bridge/state schema and firmware parser changes, preserving compatibility with the current simple heartbeat.
 - Second slice should be StickS3 UI state/pages for action, focused session, session list, latest message, and idle/status.
 - Third slice should add tone alerts and countdown overlays before richer WAV effects, CJK font loading, or microphone recording.
