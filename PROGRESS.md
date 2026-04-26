@@ -130,6 +130,7 @@ Last updated: 2026-04-26
   - `pio run -e m5sticks3 -t upload`: PASS, uploaded successfully to `/dev/cu.usbmodem144301`
   - Fixed a host-side verification bug in `tools/session_bridge.py`: `--simulate` now honors `--transport ble` instead of always forcing stdout
   - `python3 tools/test_session_bridge.py`: PASS after the simulator transport fix (`Ran 14 tests` / `OK`)
+  - User-observed live BLE simulator result: PASS for display path; after running the simulator, the StickS3 showed the `Bash` request and then `Done`
   - Direct BLE probing from a temporary local `bleak` virtualenv did not yield a clean automated confirmation in this workspace, so live on-device BLE simulator verification is still not recorded as PASS here.
 
 ## Current Workspace State
