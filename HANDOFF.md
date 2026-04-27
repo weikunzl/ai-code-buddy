@@ -132,21 +132,34 @@ Milestone D is now complete:
    - keep the host as the source of truth for project/session/prompt state
    - use persistent USB serial for local debug and BLE for wireless operation
 
-8. Extend `src/data.h` conservatively:
+8. The next milestone is now recorded for hook-produced choice prompts:
+   - `docs/adr/0009-hook-produced-choice-prompts.md`
+   - `docs/superpowers/specs/2026-04-28-stick-s3-hook-choice-prompts-design.md`
+   - `docs/superpowers/plans/2026-04-28-stick-s3-hook-choice-prompts-milestone-e.md`
+   - narrow contract: `Notification` may carry a bounded bridge-local
+     `prompt` object
+   - supported prompt kinds: `single_choice`, `multi_choice`
+   - bridge returns plain JSON answers to the caller:
+     - `{"decision":"usb"}`
+     - `{"choices":["ble","usb"]}`
+   - invalid prompt envelopes fall back to the existing plain-notification
+     path
+
+9. Extend `src/data.h` conservatively:
    - add optional `project`, `branch`, `dirty`, `model`, `assistant_msg`, `budget`,
    - add optional `sessions[]`,
    - extend `prompt` with `body`, `kind`, `options`, `project`, and short `sid`,
    - include optional timing fields like `started_at`, `updated_at`, `waiting_since`, `pending_since`, `elapsed_s`, and `pending_s`,
    - increase line buffers if richer heartbeats exceed the current 1024 byte cap.
 
-9. Add a StickS3 compact work UI:
+10. Add a StickS3 compact work UI:
    - approval screen remains highest priority,
    - focused project/session status page,
    - short session list page,
    - latest assistant/message page,
    - existing pet/menu/status screens preserved where practical.
 
-10. Add notification sound first, voice later:
+11. Add notification sound first, voice later:
    - short tone patterns for waiting approval, completion, denial, timeout, and DND,
    - after tone validation, replace simple tones with converted OpenPeon sound effects,
    - select 4-6 clips: input required, approve/ack, complete, error/deny, resource warning, optional session start,

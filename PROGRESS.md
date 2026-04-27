@@ -279,6 +279,11 @@ No firmware source files have been edited. Milestone A Task 4 only extends the h
 - Ran `pio run -e m5sticks3` after implementing Task 7 button routing and tones: PASS, RAM `90508 / 327680` and Flash `1255093 / 4194304`.
 - Ran `pio run -e m5sticks3` after implementing Task 8 event overlay: PASS, RAM `90508 / 327680` and Flash `1255621 / 4194304`.
 - No hardware tests were run.
+- Recorded the next post-multi-choice milestone for real hook-produced choice prompts:
+  - added `docs/adr/0009-hook-produced-choice-prompts.md`
+  - added `docs/superpowers/specs/2026-04-28-stick-s3-hook-choice-prompts-design.md`
+  - added `docs/superpowers/plans/2026-04-28-stick-s3-hook-choice-prompts-milestone-e.md`
+  - updated `docs/adr/README.md`, `FINDINGS.md`, and `HANDOFF.md` so future resumes start from the bridge-local `Notification.prompt` contract instead of the simulator-only prompt path
 
 ## Important Context
 

@@ -169,6 +169,9 @@ Last updated: 2026-04-28
   - `A hold` submits the selected set,
   - the host simulator received the returned array `['ble', 'usb']`.
 - The firmware parser did not need a new state container for multi-choice. Reusing `PendingDecision.selected` for the cursor and `DecisionOption.selected` for the toggle set was sufficient once rollover logic preserved option state only for the same pending id and reset it for a new first pending item.
+- The next narrow product gap is real hook-side prompt production, not more device-side prompt mechanics. Today the bridge only creates real pending items from `PreToolUse`; verified `single_choice` and `multi_choice` flows are still simulator-produced.
+- The smallest honest producer contract is bridge-local: allow `Notification` payloads to carry an optional bounded `prompt` object, reuse the existing pending queue, and return plain JSON answers from the bridge (`{"decision":"..."}` or `{"choices":[...]}`).
+- This slice should not change the firmware protocol. The existing pending shapes, button grammar, and verified BLE/USB transport paths are already sufficient once the bridge can publish those prompts from real incoming payloads.
 - First practical code slice should be a minimal bridge/state schema and firmware parser changes, preserving compatibility with the current simple heartbeat.
 - Second slice should be StickS3 UI state/pages for action, focused session, session list, latest message, and idle/status.
 - Third slice should add tone alerts and countdown overlays before richer WAV effects, CJK font loading, or microphone recording.

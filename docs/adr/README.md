@@ -14,6 +14,7 @@ console.
 - [ADR-0006: Validate StickS3 USB CDC RX As A Separate Post-A Slice](0006-validate-stick-s3-usb-cdc-rx.md)
 - [ADR-0007: Implement Choice Prompts After The USB Bridge Slice](0007-choice-prompts-after-usb-bridge.md)
 - [ADR-0008: Treat Multi-Choice As A Separate Milestone](0008-separate-multi-choice-milestone.md)
+- [ADR-0009: Add Hook-Produced Choice Prompts In The Bridge](0009-hook-produced-choice-prompts.md)
 
 ## Implementation Plan
 
@@ -32,6 +33,10 @@ The next implementation plan after the verified USB bridge slice is:
 The next implementation plan after verified single-choice is:
 
 - `docs/superpowers/plans/2026-04-28-stick-s3-multi-choice-prompts-milestone-d.md`
+
+The next implementation plan after verified multi-choice is:
+
+- `docs/superpowers/plans/2026-04-28-stick-s3-hook-choice-prompts-milestone-e.md`
 
 It starts with:
 
