@@ -167,6 +167,46 @@ The `id` must match the pending item exactly. Every value in `choices[]`
 must match one of that pending item's `options[].id` values, and duplicates
 are invalid.
 
+## Bridge-local hook prompt contract
+
+For bridge-driven local integrations, `Notification` may also carry a
+bounded `prompt` object. This is a bridge-local contract, not a claim about
+Claude's native hook schema.
+
+Example request:
+
+```json
+{
+  "hook_event_name": "Notification",
+  "session_id": "s_123",
+  "cwd": "/repo",
+  "message": "Choose transport",
+  "prompt": {
+    "id": "q_transport",
+    "kind": "single_choice",
+    "title": "Transport",
+    "body": "pick transport",
+    "options": [
+      { "id": "ble", "label": "BLE", "desc": "Wireless" },
+      { "id": "usb", "label": "USB", "desc": "Serial" }
+    ]
+  }
+}
+```
+
+With `wait_for_decision` enabled in the bridge, the response is:
+
+```json
+{"decision":"usb"}
+```
+
+For `multi_choice`, the same request shape applies but `kind` is
+`"multi_choice"`, and the bridge responds with:
+
+```json
+{"choices":["ble","usb"]}
+```
+
 ## One-shot on connect
 
 Time sync (epoch seconds + timezone offset in seconds):

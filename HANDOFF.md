@@ -132,11 +132,11 @@ Milestone D is now complete:
    - keep the host as the source of truth for project/session/prompt state
    - use persistent USB serial for local debug and BLE for wireless operation
 
-8. The next milestone is now recorded for hook-produced choice prompts:
+8. Milestone E is now complete for hook-produced choice prompts:
    - `docs/adr/0009-hook-produced-choice-prompts.md`
    - `docs/superpowers/specs/2026-04-28-stick-s3-hook-choice-prompts-design.md`
    - `docs/superpowers/plans/2026-04-28-stick-s3-hook-choice-prompts-milestone-e.md`
-   - narrow contract: `Notification` may carry a bounded bridge-local
+   - `Notification` may carry a bounded bridge-local
      `prompt` object
    - supported prompt kinds: `single_choice`, `multi_choice`
    - bridge returns plain JSON answers to the caller:
@@ -144,6 +144,7 @@ Milestone D is now complete:
      - `{"choices":["ble","usb"]}`
    - invalid prompt envelopes fall back to the existing plain-notification
      path
+   - stale device decisions are cleared on pending-id reuse and on resolve
 
 9. Extend `src/data.h` conservatively:
    - add optional `project`, `branch`, `dirty`, `model`, `assistant_msg`, `budget`,
@@ -168,6 +169,12 @@ Milestone D is now complete:
    - use `M5.Speaker.playWav()` only with embedded bytes or a persistent in-memory buffer; it does not take a LittleFS path directly,
    - if using LittleFS later, load the selected WAV fully into a buffer and keep that buffer alive until `M5.Speaker.isPlaying()` reports playback is done,
    - defer spoken notices until speaker behavior is validated and a host-generated audio or fixed-phrase strategy is chosen.
+
+12. Recommended next milestone after hook-produced choice prompts:
+   - real upstream hook producer integration that emits the new
+     `Notification.prompt` envelope from a concrete host-side workflow,
+     or, if staying inside the bridge/device boundary, free-text prompt
+     handling as its own separate milestone.
 
 ## Cautions
 

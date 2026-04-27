@@ -284,6 +284,23 @@ No firmware source files have been edited. Milestone A Task 4 only extends the h
   - added `docs/superpowers/specs/2026-04-28-stick-s3-hook-choice-prompts-design.md`
   - added `docs/superpowers/plans/2026-04-28-stick-s3-hook-choice-prompts-milestone-e.md`
   - updated `docs/adr/README.md`, `FINDINGS.md`, and `HANDOFF.md` so future resumes start from the bridge-local `Notification.prompt` contract instead of the simulator-only prompt path
+- Implemented Milestone E hook-produced choice prompts:
+  - `tools/session_bridge.py` now accepts a bounded `Notification.prompt` envelope for `single_choice` and `multi_choice`
+  - valid prompt envelopes are published through the existing pending queue and, when waiting is enabled, return `{"decision":"..."}` or `{"choices":[...]}` to the caller
+  - invalid prompt envelopes fall back to the existing plain-notification behavior
+  - pending-id reuse now clears stale stored device answers on add and resolve so caller-supplied prompt ids cannot be satisfied by old decisions
+  - `tools/test_session_bridge.py` now covers:
+    - blocking single-choice notification prompts
+    - blocking multi-choice notification prompts
+    - invalid prompt fallback
+    - non-blocking prompt publication
+    - stale-decision clearing for reused prompt ids
+  - `REFERENCE.md` and `README.md` now document the bridge-local `Notification.prompt` contract and a minimal HTTP POST example
+- Milestone E software verification:
+  - `python3 tools/test_session_bridge.py`: PASS (`Ran 31 tests` / `OK`)
+  - `python3 tools/test_session_frames.py`: PASS
+  - `python3 -m py_compile tools/session_bridge.py tools/test_session_frames.py tools/test_session_bridge.py`: PASS
+  - No firmware build or hardware rerun was needed for this slice because it only changed the Python bridge/tests/docs and reused the already-verified pending protocol
 
 ## Important Context
 

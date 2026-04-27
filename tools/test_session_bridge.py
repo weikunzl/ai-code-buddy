@@ -460,6 +460,116 @@ class HookHandlingTests(unittest.TestCase):
         self.assertEqual(hb["sessions"][0]["phase"], "done")
         self.assertEqual(hb["event"]["kind"], "complete")
 
+    def test_notification_single_choice_prompt_waits_for_and_returns_decision(self):
+        state = session_bridge.BridgeState()
+        snapshots = []
+
+        def on_state_change() -> None:
+            hb = state.build_heartbeat(now=25)
+            snapshots.append(hb)
+            pending = hb.get("pending") or []
+            if pending:
+                state.decisions[pending[0]["id"]] = "usb"
+
+        response = session_bridge.apply_hook(state, {
+            "hook_event_name": "Notification",
+            "session_id": "s_1",
+            "cwd": "/tmp/project",
+            "message": "Choose transport",
+            "prompt": {
+                "id": "q_transport",
+                "kind": "single_choice",
+                "title": "Transport",
+                "body": "pick transport",
+                "options": [{"id": "ble", "label": "BLE"}, {"id": "usb", "label": "USB"}],
+            },
+        }, now=20, decision_timeout=0.1, on_state_change=on_state_change)
+
+        self.assertEqual(response, {"decision": "usb"})
+        self.assertGreaterEqual(len(snapshots), 1)
+        self.assertEqual(snapshots[0]["pending"][0]["kind"], "single_choice")
+        self.assertEqual(snapshots[0]["pending"][0]["options"][1]["id"], "usb")
+
+    def test_notification_multi_choice_prompt_waits_for_and_returns_choices(self):
+        state = session_bridge.BridgeState()
+
+        def on_state_change() -> None:
+            hb = state.build_heartbeat(now=25)
+            pending = hb.get("pending") or []
+            if pending:
+                state.decisions[pending[0]["id"]] = ["ble", "usb"]
+
+        response = session_bridge.apply_hook(state, {
+            "hook_event_name": "Notification",
+            "session_id": "s_1",
+            "cwd": "/tmp/project",
+            "message": "Choose transport",
+            "prompt": {
+                "id": "q_transport",
+                "kind": "multi_choice",
+                "title": "Transport",
+                "body": "pick one or more",
+                "options": [{"id": "ble", "label": "BLE"}, {"id": "usb", "label": "USB"}],
+            },
+        }, now=20, decision_timeout=0.1, on_state_change=on_state_change)
+
+        self.assertEqual(response, {"choices": ["ble", "usb"]})
+
+    def test_notification_invalid_prompt_falls_back_to_plain_status(self):
+        state = session_bridge.BridgeState()
+        response = session_bridge.apply_hook(state, {
+            "hook_event_name": "Notification",
+            "session_id": "s_1",
+            "cwd": "/tmp/project",
+            "message": "still working",
+            "prompt": {
+                "id": "q_transport",
+                "kind": "single_choice",
+            },
+        }, now=20)
+        hb = state.build_heartbeat(now=21)
+
+        self.assertEqual(response, {})
+        self.assertNotIn("pending", hb)
+        self.assertEqual(hb["sessions"][0]["last"], "still working")
+        self.assertEqual(hb["sessions"][0]["phase"], "running")
+
+    def test_notification_prompt_can_publish_without_waiting(self):
+        state = session_bridge.BridgeState()
+        response = session_bridge.apply_hook(state, {
+            "hook_event_name": "Notification",
+            "session_id": "s_1",
+            "cwd": "/tmp/project",
+            "message": "Choose transport",
+            "prompt": {
+                "id": "q_transport",
+                "kind": "single_choice",
+                "title": "Transport",
+                "body": "pick transport",
+                "options": [{"id": "ble", "label": "BLE"}, {"id": "usb", "label": "USB"}],
+            },
+        }, now=20, wait_for_decision=False)
+        hb = state.build_heartbeat(now=21)
+
+        self.assertEqual(response, {})
+        self.assertEqual(hb["pending"][0]["id"], "q_transport")
+        self.assertEqual(hb["pending"][0]["kind"], "single_choice")
+
+    def test_add_pending_clears_stale_decision_for_reused_prompt_id(self):
+        state = session_bridge.BridgeState()
+        state.decisions["q_transport"] = "usb"
+        state.add_pending(
+            "q_transport",
+            "s_1",
+            "single_choice",
+            "Transport",
+            "pick transport",
+            [{"id": "ble", "label": "BLE"}, {"id": "usb", "label": "USB"}],
+            now=2,
+        )
+
+        self.assertNotIn("q_transport", state.decisions)
+
 
 class TransportTests(unittest.TestCase):
     def test_chunk_bytes_splits_payload_at_requested_limit(self):

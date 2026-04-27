@@ -174,6 +174,7 @@ class BridgeState:
                 desc = ""
             normalized.append({"id": oid, "label": label, "desc": desc})
         with self.lock:
+            self.decisions.pop(pid, None)
             self.pending[pid] = Pending(
                 pid=pid,
                 sid=sid,
@@ -189,6 +190,7 @@ class BridgeState:
 
     def resolve_pending(self, pid: str) -> None:
         with self.lock:
+            self.decisions.pop(pid, None)
             pending = self.pending.pop(pid, None)
             if pending and pending.sid in self.sessions:
                 sess = self.sessions[pending.sid]
@@ -555,6 +557,39 @@ def tool_body(tool: str, tin: dict[str, Any]) -> str:
     return _clip(json.dumps(tin, ensure_ascii=False), 220)
 
 
+def notification_prompt(payload: dict[str, Any]) -> dict[str, Any] | None:
+    raw = payload.get("prompt")
+    if not isinstance(raw, dict):
+        return None
+    pid = _clip(raw.get("id"), 40)
+    kind = _clip(raw.get("kind"), 20)
+    options = raw.get("options")
+    if not pid or kind not in ("single_choice", "multi_choice") or not isinstance(options, list) or not options:
+        return None
+    title = _clip(raw.get("title") or payload.get("message") or kind, 40)
+    body = _clip(raw.get("body") or payload.get("message") or "", 240)
+    return {
+        "id": pid,
+        "kind": kind,
+        "title": title,
+        "body": body,
+        "options": options,
+    }
+
+
+def await_pending_decision(
+    state: BridgeState,
+    pid: str,
+    deadline: float,
+) -> Any:
+    while time.time() < deadline:
+        with state.lock:
+            if pid in state.decisions:
+                return state.decisions.pop(pid)
+        time.sleep(0.05)
+    return ""
+
+
 def apply_hook(
     state: BridgeState,
     payload: dict[str, Any],
@@ -598,6 +633,21 @@ def apply_hook(
 
     if event == "Notification":
         message = _clip(payload.get("message"), 120)
+        prompt = notification_prompt(payload)
+        if prompt:
+            state.upsert_session(sid, cwd, project, branch, dirty, "waiting", model, prompt["title"], now)
+            state.add_pending(prompt["id"], sid, prompt["kind"], prompt["title"], prompt["body"], prompt["options"], now)
+            notify_state_change()
+            if not wait_for_decision:
+                return {}
+            decision = await_pending_decision(state, prompt["id"], time.time() + decision_timeout)
+            state.resolve_pending(prompt["id"])
+            notify_state_change()
+            if prompt["kind"] == "single_choice" and isinstance(decision, str) and decision:
+                return {"decision": decision}
+            if prompt["kind"] == "multi_choice" and isinstance(decision, list) and decision:
+                return {"choices": decision}
+            return {}
         lower = message.lower()
         phase = "waiting" if "waiting" in lower or "permission" in lower else "running"
         state.upsert_session(sid, cwd, project, branch, dirty, phase, model, message, now)
@@ -621,14 +671,7 @@ def apply_hook(
         notify_state_change()
         if not wait_for_decision:
             return {}
-        deadline = time.time() + decision_timeout
-        decision = ""
-        while time.time() < deadline:
-            with state.lock:
-                decision = state.decisions.get(pid, "")
-            if decision:
-                break
-            time.sleep(0.05)
+        decision = await_pending_decision(state, pid, time.time() + decision_timeout)
         state.resolve_pending(pid)
         notify_state_change()
         if decision == "once":

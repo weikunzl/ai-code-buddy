@@ -153,6 +153,33 @@ once a StickS3 is paired.
 Use `python3 tools/session_bridge.py --transport serial --serial-port /dev/tty.usbmodem...`
 for the live native-USB bridge on StickS3.
 
+For bridge-local choice-prompt integration tests, POST a `Notification`
+payload with a bounded `prompt` object to the local bridge HTTP endpoint.
+Example:
+
+```bash
+python3 tools/session_bridge.py --transport serial --serial-port /dev/tty.usbmodem...
+curl -sS http://127.0.0.1:8765 -X POST -H 'content-type: application/json' -d '{
+  "hook_event_name":"Notification",
+  "session_id":"s_demo",
+  "cwd":"'"$PWD"'",
+  "message":"Choose transport",
+  "prompt":{
+    "id":"q_transport",
+    "kind":"single_choice",
+    "title":"Transport",
+    "body":"pick transport",
+    "options":[
+      {"id":"ble","label":"BLE","desc":"Wireless"},
+      {"id":"usb","label":"USB","desc":"Serial"}
+    ]
+  }
+}'
+```
+
+When the device answers, the bridge returns `{"decision":"..."}` for
+`single_choice` or `{"choices":[...]}` for `multi_choice`.
+
 ## The seven states
 
 | State       | Trigger                     | Feel                        |
