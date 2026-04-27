@@ -176,6 +176,27 @@ class BridgeStateTests(unittest.TestCase):
 
 
 class SimulatorTests(unittest.TestCase):
+    def test_serial_port_candidates_prefer_tty_usbmodem(self):
+        def fake_glob(pattern: str):
+            mapping = {
+                "/dev/tty.usbmodem*": ["/dev/tty.usbmodem200"],
+                "/dev/cu.usbmodem*": ["/dev/cu.usbmodem100"],
+                "/dev/tty.usbserial-*": ["/dev/tty.usbserial-1"],
+                "/dev/cu.usbserial-*": ["/dev/cu.usbserial-1"],
+            }
+            return mapping.get(pattern, [])
+
+        self.assertEqual(
+            session_bridge.serial_port_candidates(fake_glob),
+            [
+                "/dev/tty.usbmodem200",
+                "/dev/cu.usbmodem100",
+                "/dev/tty.usbserial-1",
+                "/dev/cu.usbserial-1",
+            ],
+        )
+        self.assertEqual(session_bridge.pick_serial_port("", fake_glob), "/dev/tty.usbmodem200")
+
     def test_simulator_frames_include_pending_and_event(self):
         frames = list(session_bridge.simulator_frames(now=100))
         self.assertGreaterEqual(len(frames), 3)
@@ -202,6 +223,12 @@ class SimulatorTests(unittest.TestCase):
         self.assertTrue(transport.started)
         self.assertGreaterEqual(len(transport.writes), 3)
         self.assertTrue(all(line.endswith(b"\n") for line in transport.writes))
+
+    def test_pick_serial_port_honors_explicit_value(self):
+        self.assertEqual(
+            session_bridge.pick_serial_port("/dev/tty.usbmodem999", lambda _pattern: []),
+            "/dev/tty.usbmodem999",
+        )
 
     def test_publish_simulator_decision_cycle_waits_for_device_decision(self):
         state = session_bridge.BridgeState()

@@ -1,6 +1,6 @@
 # Handoff
 
-Last updated: 2026-04-26
+Last updated: 2026-04-28
 
 ## Where To Resume
 
@@ -29,7 +29,16 @@ The immediate technical baseline is: this firmware already targets `m5sticks3`, 
 - `docs/superpowers/specs/2026-04-27-stick-s3-usb-cdc-rx-design.md`
 - `docs/superpowers/plans/2026-04-27-stick-s3-usb-cdc-rx-milestone-b.md`
 
-Milestone B Task 2 is now complete: `src/data.h` adds `_serialRxReady()` and only feeds StickS3 USB RX when native CDC reports an active connection. BLE RX and the shared parser path are unchanged. The current build baseline on `m5sticks3` after this slice is RAM `98700 / 327680` and Flash `1255813 / 4194304`.
+Milestone B is now complete. The earlier `_serialRxReady()` gating approach was wrong for this board/runtime and has been replaced with the actual working USB CDC fix:
+
+- `src/main.cpp` explicitly initializes StickS3 native USB CDC with `Serial.setRxBufferSize(1024); Serial.begin(115200);`
+- `src/main.cpp` keeps `Serial.setTxTimeoutMs(0)` so host-absent writes do not stall boot
+- `src/data.h` now polls USB RX with `available() > 0` semantics and ignores `read() < 0`, which avoids the `HWCDC::available() == -1` busy-loop freeze
+- `_LineBuf` still ignores bytes until a real JSON `{` arrives, so phantom USB noise does not corrupt framing
+- `tools/session_bridge.py` now has a persistent `--transport serial` mode for StickS3 native USB
+- `tools/test_serial.py` was upgraded to prefer the actual modem path and hold the port open long enough for prompt-sized frames
+
+Current `m5sticks3` build baseline after the working USB slice is RAM `98700 / 327680` and Flash `1255861 / 4194304`.
 
 ## Architecture Direction
 
@@ -46,15 +55,17 @@ Milestone B Task 2 is now complete: `src/data.h` adds `_serialRxReady()` and onl
 
 ## Suggested Next Steps
 
-1. Continue Milestone B at Task 3 in `docs/superpowers/plans/2026-04-27-stick-s3-usb-cdc-rx-milestone-b.md`.
+1. Treat Milestone B as complete and move to the next product slice.
 
-2. The unchanged firmware baseline already passed:
+2. Recommended next milestone: richer single-/multi-choice interaction on top of the now-verified BLE and USB transports.
+
+3. The current firmware baseline passed:
 
    ```bash
    pio run -e m5sticks3
    ```
 
-3. Flash and verify board basics when hardware is ready:
+4. Flash when hardware is connected:
 
    ```bash
    pio run -e m5sticks3 -t upload
@@ -82,27 +93,30 @@ Milestone B Task 2 is now complete: `src/data.h` adds `_serialRxReady()` and onl
    - treat Chinese/CJK font support as a separate UTF-8-safe rendering slice,
    - include audio conversion after tone-pattern validation.
 
-6. Implement the smallest useful hook bridge slice:
-   - add a Python daemon under `tools/` that receives Claude Code hooks,
-   - track sessions by `session_id`,
-   - collect `cwd`, project name, git branch, dirty count, recent hook phase, and pending approval,
-   - push compact line-delimited JSON over BLE first, with USB serial enabled after StickS3 native USB RX is verified.
+6. Live bridge transport options are now:
+   - BLE: `python3 tools/session_bridge.py --transport ble`
+   - USB serial: `python3 tools/session_bridge.py --transport serial --serial-port /dev/tty.usbmodem...`
 
-7. Extend `src/data.h` conservatively:
+7. Continue the hook bridge and UI work from this verified base:
+   - keep tracking sessions by `session_id`
+   - keep the host as the source of truth for project/session/prompt state
+   - use persistent USB serial for local debug and BLE for wireless operation
+
+8. Extend `src/data.h` conservatively:
    - add optional `project`, `branch`, `dirty`, `model`, `assistant_msg`, `budget`,
    - add optional `sessions[]`,
    - extend `prompt` with `body`, `kind`, `options`, `project`, and short `sid`,
    - include optional timing fields like `started_at`, `updated_at`, `waiting_since`, `pending_since`, `elapsed_s`, and `pending_s`,
    - increase line buffers if richer heartbeats exceed the current 1024 byte cap.
 
-8. Add a StickS3 compact work UI:
+9. Add a StickS3 compact work UI:
    - approval screen remains highest priority,
    - focused project/session status page,
    - short session list page,
    - latest assistant/message page,
    - existing pet/menu/status screens preserved where practical.
 
-9. Add notification sound first, voice later:
+10. Add notification sound first, voice later:
    - short tone patterns for waiting approval, completion, denial, timeout, and DND,
    - after tone validation, replace simple tones with converted OpenPeon sound effects,
    - select 4-6 clips: input required, approve/ack, complete, error/deny, resource warning, optional session start,
@@ -116,7 +130,8 @@ Milestone B Task 2 is now complete: `src/data.h` adds `_serialRxReady()` and onl
 
 - Do not rely on `BtnPWR` until tested on hardware.
 - Do not assume microphone works through local M5Unified without checking the StickS3 branch or adding config.
-- Do not assume native USB CDC RX is reliable on StickS3. Current firmware skips Serial RX under `BUDDY_BOARD_S3` because of phantom bytes; verify before making USB the default transport.
+- Do not regress the `HWCDC` fix by reintroducing `while (Serial.available())` style polling. On this board/runtime, `available()` can be `-1` before RX init and will freeze the main loop if treated as truthy.
+- Do not use one-shot open/write/close host probes for prompt-sized USB frames. Keep the CDC port open persistently or hold it open after writes; otherwise long frames can be truncated before the trailing newline reaches firmware.
 - Re-enable external 5 V with `M5.Power.setExtOutput(true)` when testing Grove/Hat power or IR.
 - Keep speaker volume below 75% on battery, per official docs.
 - The OpenPeon files are 16-bit stereo 44.1 kHz PCM WAV and should be compatible in principle with M5Unified, but full-size files are 40-88 KB each. Downsample to mono for a practical firmware asset set.
@@ -144,7 +159,7 @@ It includes:
 - `docs/adr/`
 - `docs/superpowers/`
 
-Continue implementation from Milestone A Task 5.
+Continue implementation from the post-Milestone-B baseline.
 
 Milestone A Task 2 is the bridge state model commit:
 

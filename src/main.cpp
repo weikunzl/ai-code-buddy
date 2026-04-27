@@ -1152,10 +1152,12 @@ void setup() {
   auto cfg = M5.config();
   M5.begin(cfg);
 #ifdef BUDDY_BOARD_S3
+  Serial.setRxBufferSize(1024);
+  Serial.begin(115200);
   // Native-USB S3: when no host is reading CDC, Serial writes can block
   // for a long time (default per-byte timeout accumulates). Zero means
   // fire-and-forget — writes drop silently instead of stalling boot.
-  // setTxTimeoutMs only exists on USBCDC, so this is S3-only.
+  // StickS3 uses HWCDC here, so only the TX timeout control is available.
   Serial.setTxTimeoutMs(0);
 #endif
   M5.Speaker.begin();
@@ -1199,7 +1201,8 @@ void setup() {
       spr.setTextColor(p.textDim, p.bg);
       spr.drawString("a buddy appears", W/2, H/2 + 12);
     }
-    spr.setTextDatum(TL_DATUM); spr.setTextSize(1);
+    spr.setTextDatum(TL_DATUM);
+    spr.setTextSize(1);
     spr.pushSprite(0, 0);
     delay(1800);
   }

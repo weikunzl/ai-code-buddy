@@ -142,11 +142,29 @@ Last updated: 2026-04-26
   - added `docs/superpowers/specs/2026-04-27-stick-s3-usb-cdc-rx-design.md`,
   - added `docs/superpowers/plans/2026-04-27-stick-s3-usb-cdc-rx-milestone-b.md`,
   - updated `docs/adr/README.md` to index the new milestone.
-- Implemented Milestone B Task 2 firmware USB CDC gating:
-  - added `_serialRxReady()` in `src/data.h`,
-  - re-enabled StickS3 `Serial` RX only when native USB CDC reports an active connection,
-  - left BLE RX and the existing JSON parser path unchanged.
-- Ran `pio run -e m5sticks3` after implementing Milestone B Task 2: PASS, RAM `98700 / 327680`, Flash `1255813 / 4194304`.
+- Initial Milestone B Task 2 implementation was not correct on real StickS3 hardware:
+  - gating on `Serial` truthiness prevented useful RX in practice,
+  - a later debug pass found the actual freeze root cause was `HWCDC::available() == -1` interacting with `while (s.available())` in `_LineBuf::feed()`,
+  - the freeze reproduced on-device as the splash or setup screen staying visible while the main loop never reached its first normal frame.
+- Final Milestone B implementation:
+  - `src/main.cpp` now explicitly initializes native USB CDC on StickS3 with `Serial.setRxBufferSize(1024); Serial.begin(115200);`
+  - `src/main.cpp` keeps `Serial.setTxTimeoutMs(0)` for non-blocking host-absent writes
+  - `src/data.h` now polls with `available() > 0` semantics and ignores `read() < 0`, which fixes the `HWCDC` busy-loop freeze
+  - `_LineBuf` still ignores bytes until `{`, preserving protection against phantom USB noise
+  - `tools/session_bridge.py` now supports `--transport serial` with a persistent USB CDC connection and background reader
+  - `tools/test_serial.py` now prefers `tty.usbmodem*`, supports settle timing, and holds the port open after writes so long prompt frames are delivered completely
+- Milestone B software verification:
+  - `python3 test_session_bridge.py`: PASS (`Ran 17 tests` / `OK`)
+  - `python3 tools/test_session_frames.py`: PASS
+  - `python3 -m py_compile tools/session_bridge.py tools/test_serial.py`: PASS
+  - `python3 tools/session_bridge.py --help`: PASS, now shows `--transport {stdout,ble,serial}` plus `--serial-port` and `--serial-baud`
+  - `pio run -e m5sticks3`: PASS, RAM `98700 / 327680`, Flash `1255861 / 4194304`
+- Milestone B hardware verification on connected StickS3:
+  - `pio device list`: PASS, detected `/dev/cu.usbmodem144301`
+  - `pio run -e m5sticks3 -t upload`: PASS
+  - USB CDC heartbeat RX verified: the device showed the focused-session `editing firmware UI` frame from `--transport serial`
+  - USB CDC large-frame behavior was root-caused on hardware: one-shot writes could truncate prompt-sized frames before newline, while a persistent serial transport delivered them correctly
+  - USB CDC simulator prompt path verified with persistent transport: `tools/session_bridge.py --transport serial --serial-port /dev/tty.usbmodem144301 --simulate` surfaced the same `Bash` request flow as BLE and returned device decisions back to the host (`[sim] decision=once` / `deny`)
 
 ## Current Workspace State
 

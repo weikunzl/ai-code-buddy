@@ -1,6 +1,6 @@
 # Findings
 
-Last updated: 2026-04-26
+Last updated: 2026-04-28
 
 ## Repository
 
@@ -147,8 +147,17 @@ Last updated: 2026-04-26
 - The original non-`--once` simulator was also not suitable for validating button return traffic: it auto-advanced through the canned frames instead of holding the pending request. That path now waits for a device decision and logs the received `once`/`deny` result on the host side.
 - User-observed interactive verification now confirms the decision return path end to end: `A` produces the host-side terminal decision log and a `Done` dialog on-device, while `B` produces the error outcome dialog.
 - Even with the transport fix, fully automated BLE confirmation from this workspace is still not reliable enough to record PASS. A temporary local `bleak`-based probe did not produce a clean observable confirmation, so end-to-end BLE behavior still needs direct device observation when resumed.
-- The local ESP32 Arduino USB CDC implementation exposes connection state through `USBCDC::operator bool()` and line-state events. That gives the firmware a concrete way to re-enable StickS3 USB RX safely: gate `Serial.available()` behind actual CDC connectivity instead of trusting `available()` alone.
-- Milestone B Task 2 now applies that rule directly in firmware: on StickS3, `dataPoll()` only feeds `_usbLine` when `Serial` reports an active CDC connection. That is the smallest possible change that re-opens USB RX without changing the shared parser path or BLE behavior.
+- StickS3 does not use `USBCDC` in this environment; it uses ESP32 Arduino `HWCDC`. That matters because the earlier `USBCDC` assumptions were wrong: `enableReboot(false)` is unavailable, and `available()` returns `-1` until the RX queue exists.
+- The real firmware freeze root cause during Milestone B was `_LineBuf::feed()` using `while (s.available())` against `HWCDC`. On StickS3, `available() == -1` before the RX queue is initialized, and `-1` is truthy, so the main loop could spin forever in USB polling immediately after boot.
+- The working firmware fix is:
+  - explicitly initialize native USB CDC on StickS3 in `setup()` with `Serial.setRxBufferSize(1024); Serial.begin(115200);`
+  - keep `Serial.setTxTimeoutMs(0)` for non-blocking writes
+  - in `src/data.h`, poll the stream with `for (int avail = s.available(); avail > 0; avail = s.available())` and ignore `read() < 0`
+  - keep `_LineBuf` in "ignore until `{`" mode so phantom bytes do not poison framing.
+- Native USB serial on StickS3 is now hardware-verified, but long JSON frames exposed a second host-side issue: opening the port, writing one frame, flushing, and closing immediately can truncate larger CDC writes before the trailing newline reaches firmware.
+- The correct host-side rule for StickS3 USB CDC is to keep the serial port open persistently and stream newline-delimited frames through that connection. A persistent bridge thread works reliably; one-shot open/write/close probes are only safe for very small frames.
+- `tools/session_bridge.py` now has a real `serial` transport alongside `stdout` and `ble`. It auto-detects `tty.usbmodem*`/`cu.usbmodem*`, keeps the port open, drains device command lines, and is the correct path for live USB bridge verification.
+- `tools/test_serial.py` is now also safer for hardware verification: it prefers `tty.usbmodem*`, supports a settle delay, and holds the port open briefly after the last write so prompt-sized frames are not truncated.
 - First practical code slice should be a minimal bridge/state schema and firmware parser changes, preserving compatibility with the current simple heartbeat.
 - Second slice should be StickS3 UI state/pages for action, focused session, session list, latest message, and idle/status.
 - Third slice should add tone alerts and countdown overlays before richer WAV effects, CJK font loading, or microphone recording.
@@ -159,5 +168,5 @@ Last updated: 2026-04-26
 - Local M5Unified StickS3 branch does not clearly configure internal mic despite official MEMS mic hardware.
 - IR receive requires ESP32 RMT and speaker amplifier disabled.
 - Project comments still mention PY32 PMIC in places; official and local library sources indicate M5PM1 for StickS3.
-- Native USB serial behavior on StickS3 needs hardware testing before relying on USB as the primary command channel. Current code skips Serial RX on `BUDDY_BOARD_S3` due to phantom bytes, while a hook bridge would benefit from reliable USB.
+- Native USB serial behavior on StickS3 is now verified for heartbeat RX and simulator decision return, provided the host uses a persistent serial transport instead of one-shot writes.
 - Speaker and mic behavior should be validated on battery and USB power before adding notice voice or push-to-talk flows.

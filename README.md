@@ -145,8 +145,11 @@ python3 tools/test_session_bridge.py
 python3 tools/test_session_frames.py
 ```
 
-Use `python3 tools/session_bridge.py --transport ble` for the live bridge
+Use `python3 tools/session_bridge.py --transport ble` for the live BLE bridge
 once a StickS3 is paired.
+
+Use `python3 tools/session_bridge.py --transport serial --serial-port /dev/tty.usbmodem...`
+for the live native-USB bridge on StickS3.
 
 ## The seven states
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import glob
 import json
 import os
 import queue
@@ -31,6 +32,25 @@ def chunk_bytes(data: bytes, max_size: int):
         raise ValueError("max_size must be positive")
     for start in range(0, len(data), max_size):
         yield data[start:start + max_size]
+
+
+def serial_port_candidates(globber: Any = glob.glob) -> list[str]:
+    ports: list[str] = []
+    for pattern in (
+        "/dev/tty.usbmodem*",
+        "/dev/cu.usbmodem*",
+        "/dev/tty.usbserial-*",
+        "/dev/cu.usbserial-*",
+    ):
+        ports.extend(sorted(globber(pattern)))
+    return ports
+
+
+def pick_serial_port(explicit: str = "", globber: Any = glob.glob) -> str:
+    if explicit:
+        return explicit
+    ports = serial_port_candidates(globber)
+    return ports[0] if ports else ""
 
 
 @dataclass
@@ -625,6 +645,54 @@ class BLETransport:
         asyncio.run(run())
 
 
+class SerialTransport:
+    def __init__(self, port: str = "", baud: int = 115200, settle: float = 1.0) -> None:
+        self.port = port
+        self.baud = baud
+        self.settle = settle
+        self.write_queue: "queue.Queue[bytes]" = queue.Queue()
+
+    def write(self, data: bytes) -> None:
+        self.write_queue.put(data)
+
+    def start(self, reader: LineReader) -> None:
+        threading.Thread(target=self._thread_main, args=(reader,), daemon=True).start()
+
+    def _thread_main(self, reader: LineReader) -> None:
+        try:
+            import serial
+        except ImportError:
+            print("[serial] install pyserial to use --transport serial", file=sys.stderr)
+            return
+
+        while True:
+            port = pick_serial_port(self.port)
+            if not port:
+                print("[serial] no compatible USB serial device found", file=sys.stderr)
+                time.sleep(2.0)
+                continue
+            try:
+                with serial.Serial(port, self.baud, timeout=0.1, write_timeout=1) as dev:
+                    print(f"[serial] connected {port}", file=sys.stderr)
+                    time.sleep(self.settle)
+                    while True:
+                        try:
+                            data = self.write_queue.get(timeout=0.05)
+                        except queue.Empty:
+                            data = b""
+                        if data:
+                            dev.write(data)
+                            dev.flush()
+                        waiting = dev.in_waiting if hasattr(dev, "in_waiting") else 0
+                        if waiting:
+                            chunk = dev.read(waiting)
+                            if chunk:
+                                reader.feed(chunk)
+            except Exception as exc:
+                print(f"[serial] {exc!r}", file=sys.stderr)
+                time.sleep(1.0)
+
+
 def run_simulator(interval: float, once: bool, transport: Any | None = None) -> int:
     state = BridgeState()
     reader = LineReader(state)
@@ -658,9 +726,16 @@ def main() -> int:
     parser.add_argument("--once", action="store_true", help="emit one simulator cycle and exit")
     parser.add_argument("--interval", type=float, default=1.0)
     parser.add_argument("--http-port", type=int, default=9876)
-    parser.add_argument("--transport", choices=("stdout", "ble"), default="stdout")
+    parser.add_argument("--transport", choices=("stdout", "ble", "serial"), default="stdout")
+    parser.add_argument("--serial-port", default="", help="USB serial device path")
+    parser.add_argument("--serial-baud", type=int, default=115200)
     args = parser.parse_args()
-    transport = BLETransport() if args.transport == "ble" else StdoutTransport()
+    if args.transport == "ble":
+        transport = BLETransport()
+    elif args.transport == "serial":
+        transport = SerialTransport(port=args.serial_port, baud=args.serial_baud)
+    else:
+        transport = StdoutTransport()
     if args.simulate:
         return run_simulator(args.interval, args.once, transport=transport)
     state = BridgeState()
