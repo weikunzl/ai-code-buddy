@@ -99,6 +99,22 @@ devices ignore them.
 Devices should prefer `pending[0]` for an action screen and fall back to
 legacy `prompt` when `pending[]` is absent.
 
+For `single_choice`, each pending item may include up to 4 options:
+
+```json
+{
+  "id": "q_transport",
+  "sid": "s_123",
+  "kind": "single_choice",
+  "title": "Transport",
+  "body": "pick transport",
+  "options": [
+    { "id": "ble", "label": "BLE", "desc": "Wireless" },
+    { "id": "usb", "label": "USB", "desc": "Serial" }
+  ]
+}
+```
+
 ## Turn events
 
 Each completed turn also fires a one-shot event containing the raw SDK
@@ -125,6 +141,17 @@ When `prompt` is present, your device can return a response. Send one of:
 
 The `id` must match `prompt.id` exactly. The desktop forwards this to the
 session manager: `"once"` approves the tool call, `"deny"` rejects it.
+
+## Choice answers
+
+For `single_choice`, the device returns the selected option id:
+
+```json
+{"cmd":"answer","id":"q_transport","choice":"usb"}
+```
+
+The `id` must match the pending item exactly, and `choice` must match one of
+that pending item's `options[].id` values.
 
 ## One-shot on connect
 

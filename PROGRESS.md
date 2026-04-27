@@ -10,6 +10,27 @@ Last updated: 2026-04-28
   - added `docs/superpowers/plans/2026-04-28-stick-s3-choice-prompts-milestone-c.md`,
   - updated `docs/adr/README.md`,
   - updated `FINDINGS.md` and `HANDOFF.md` so future resumes start from the choice-prompt slice instead of rediscovering it.
+- Narrowed Milestone C to the conservative slice:
+  - end-to-end `single_choice`,
+  - explicit deferral of `multi_choice`,
+  - protocol and simulator work first, because the existing firmware UI already had the core `A choose` / `B next` behavior.
+- Implemented Milestone C bridge/protocol work:
+  - `tools/session_bridge.py` now validates `answer.choice` against the matching pending item's `options[].id`
+  - `tools/session_bridge.py` now supports `--simulate-profile permission|single`
+  - single-choice simulator frames now emit bounded options and a distinct completion event
+  - `REFERENCE.md` now documents `single_choice` pending options and `{"cmd":"answer","id","choice"}`
+  - `README.md` now includes single-choice simulator bring-up
+  - `tools/test_session_frames.py` now prints both permission and single-choice simulator profiles
+- Milestone C software verification:
+  - `python3 test_session_bridge.py`: PASS (`Ran 22 tests` / `OK`)
+  - `python3 tools/test_session_frames.py`: PASS
+  - `python3 -m py_compile tools/session_bridge.py tools/test_session_frames.py`: PASS
+  - `pio run -e m5sticks3`: PASS, RAM `98700 / 327680`, Flash `1255861 / 4194304`
+- Milestone C hardware verification on connected StickS3:
+  - ran `tools/session_bridge.py --transport serial --serial-port /dev/tty.usbmodem144301 --simulate --simulate-profile single`
+  - device showed the `Transport` single-choice prompt
+  - user confirmed `B` cycles the option label and `A` submits the choice
+  - host simulator logged `[sim] choice=ble`, confirming end-to-end return of the selected option id over native USB serial
 
 - Created `AGENTS.md` as a contributor guide for this repository.
 - Inspected repository layout, PlatformIO environments, README, CONTRIBUTING notes, and helper scripts.

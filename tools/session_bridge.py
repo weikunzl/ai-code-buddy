@@ -84,7 +84,7 @@ class BridgeState:
         self.lock = threading.RLock()
         self.sessions: OrderedDict[str, Session] = OrderedDict()
         self.pending: OrderedDict[str, Pending] = OrderedDict()
-        self.decisions: dict[str, str] = {}
+        self.decisions: dict[str, Any] = {}
         self.focused_sid: str = ""
         self.entries: deque[str] = deque(maxlen=8)
         self.event: dict[str, Any] | None = None
@@ -212,10 +212,12 @@ class BridgeState:
                 return False
             if cmd == "answer":
                 pid = str(obj.get("id") or "")
+                pending = self.pending.get(pid)
                 choice = str(obj.get("choice") or "")
-                if pid in self.pending and choice:
-                    self.decisions[pid] = choice
-                    return True
+                if pending and pending.kind == "single_choice" and choice:
+                    if any(opt.get("id") == choice for opt in pending.options):
+                        self.decisions[pid] = choice
+                        return True
                 return False
             if cmd == "focus":
                 sid = str(obj.get("sid") or "")
@@ -304,7 +306,27 @@ class BridgeState:
             return hb
 
 
-def simulator_frames(now: int | None = None):
+def _sim_permission_pending(state: BridgeState, now: int) -> None:
+    state.add_pending("req_demo", "s_demo", "permission", "Bash", "pio run -e m5sticks3", [], now=now - 15)
+
+
+def _sim_single_pending(state: BridgeState, now: int) -> None:
+    state.add_pending(
+        "choice_demo",
+        "s_demo",
+        "single_choice",
+        "Transport",
+        "pick transport",
+        [
+            {"id": "ble", "label": "BLE", "desc": "Wireless"},
+            {"id": "usb", "label": "USB", "desc": "Serial"},
+            {"id": "wifi", "label": "WiFi", "desc": "Later"},
+        ],
+        now=now - 15,
+    )
+
+
+def simulator_frames(now: int | None = None, profile: str = "permission"):
     now = int(now if now is not None else time.time())
     cwd = os.getcwd()
     state = BridgeState()
@@ -320,7 +342,20 @@ def simulator_frames(now: int | None = None):
         now=now - 120,
     )
     yield state.build_heartbeat(now=now)
-    state.add_pending("req_demo", "s_demo", "permission", "Bash", "pio run -e m5sticks3", [], now=now - 15)
+    if profile == "single":
+        _sim_single_pending(state, now)
+        yield state.build_heartbeat(now=now)
+        state.resolve_pending("choice_demo")
+        state.event = {
+            "kind": "complete",
+            "sid": "s_demo",
+            "title": "Saved",
+            "text": "Choice submitted",
+            "ttl_ms": 5000,
+        }
+        yield state.build_heartbeat(now=now)
+        return
+    _sim_permission_pending(state, now)
     yield state.build_heartbeat(now=now)
     state.resolve_pending("req_demo")
     state.event = {
@@ -359,19 +394,47 @@ def seed_simulator_state(state: BridgeState, now: int | None = None) -> None:
     )
 
 
-def publish_simulator_decision_cycle(state: BridgeState, transport: Any, interval: float) -> None:
-    pending_id = "req_demo"
+def publish_simulator_decision_cycle(state: BridgeState, transport: Any, interval: float, profile: str = "permission") -> None:
     now = int(time.time())
     seed_simulator_state(state, now=now)
     transport.write(encode_line(state.build_heartbeat(now=now)))
 
-    state.add_pending(pending_id, "s_demo", "permission", "Bash", "pio run -e m5sticks3", [], now=now - 1)
+    if profile == "single":
+        pending_id = "choice_demo"
+        _sim_single_pending(state, now)
+        transport.write(encode_line(state.build_heartbeat(now=now)))
+
+        decision = ""
+        while not decision:
+            with state.lock:
+                raw = state.decisions.pop(pending_id, "")
+                decision = raw if isinstance(raw, str) else ""
+            if decision:
+                break
+            time.sleep(interval)
+            transport.write(encode_line(state.build_heartbeat(now=int(time.time()))))
+
+        state.resolve_pending(pending_id)
+        state.event = {
+            "kind": "complete",
+            "sid": "s_demo",
+            "title": "Saved",
+            "text": f"Choice {decision}",
+            "ttl_ms": 5000,
+        }
+        print(f"[sim] choice={decision}", file=sys.stderr)
+        transport.write(encode_line(state.build_heartbeat(now=int(time.time()))))
+        return
+
+    pending_id = "req_demo"
+    _sim_permission_pending(state, now)
     transport.write(encode_line(state.build_heartbeat(now=now)))
 
     decision = ""
     while not decision:
         with state.lock:
-            decision = state.decisions.pop(pending_id, "")
+            raw = state.decisions.pop(pending_id, "")
+            decision = raw if isinstance(raw, str) else ""
         if decision:
             break
         time.sleep(interval)
@@ -693,21 +756,21 @@ class SerialTransport:
                 time.sleep(1.0)
 
 
-def run_simulator(interval: float, once: bool, transport: Any | None = None) -> int:
+def run_simulator(interval: float, once: bool, transport: Any | None = None, profile: str = "permission") -> int:
     state = BridgeState()
     reader = LineReader(state)
     transport = transport or StdoutTransport()
     if hasattr(transport, "start"):
         transport.start(reader)
     if once:
-        for frame in simulator_frames():
+        for frame in simulator_frames(profile=profile):
             transport.write(encode_line(frame))
             time.sleep(interval)
         if hasattr(transport, "start"):
             time.sleep(max(interval, 0.5))
         return 0
     while True:
-        publish_simulator_decision_cycle(state, transport, max(interval, 0.25))
+        publish_simulator_decision_cycle(state, transport, max(interval, 0.25), profile=profile)
         time.sleep(interval)
         with state.lock:
             state.pending.clear()
@@ -726,6 +789,7 @@ def main() -> int:
     parser.add_argument("--once", action="store_true", help="emit one simulator cycle and exit")
     parser.add_argument("--interval", type=float, default=1.0)
     parser.add_argument("--http-port", type=int, default=9876)
+    parser.add_argument("--simulate-profile", choices=("permission", "single"), default="permission")
     parser.add_argument("--transport", choices=("stdout", "ble", "serial"), default="stdout")
     parser.add_argument("--serial-port", default="", help="USB serial device path")
     parser.add_argument("--serial-baud", type=int, default=115200)
@@ -737,7 +801,7 @@ def main() -> int:
     else:
         transport = StdoutTransport()
     if args.simulate:
-        return run_simulator(args.interval, args.once, transport=transport)
+        return run_simulator(args.interval, args.once, transport=transport, profile=args.simulate_profile)
     state = BridgeState()
     reader = LineReader(state)
     if hasattr(transport, "start"):

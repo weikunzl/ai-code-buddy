@@ -46,6 +46,14 @@ The next milestone is now recorded for richer choice prompts:
 - `docs/superpowers/specs/2026-04-28-stick-s3-choice-prompts-design.md`
 - `docs/superpowers/plans/2026-04-28-stick-s3-choice-prompts-milestone-c.md`
 
+Milestone C is now narrowed and partially complete:
+
+- scope is end-to-end `single_choice`, not multi-choice
+- `tools/session_bridge.py` now validates `choice` against pending option ids
+- simulator profiles now cover `permission` and `single`
+- protocol docs now define `single_choice` options and `{"cmd":"answer","id","choice"}`
+- hardware verification over persistent USB serial confirmed `B` cycles options and `A` returns the selected option id to the host simulator
+
 ## Architecture Direction
 
 - Use the M5Paper project as the main architecture reference:
@@ -63,10 +71,10 @@ The next milestone is now recorded for richer choice prompts:
 
 1. Treat Milestone B as complete and move to the next product slice.
 
-2. Recommended next milestone: richer single-/multi-choice interaction on top of the now-verified BLE and USB transports.
-   - complete `single_choice`,
-   - add minimal `multi_choice`,
-   - verify through simulator profiles over BLE and USB serial.
+2. Continue Milestone C from the verified single-choice base.
+   - current state: bridge validation, simulator profiles, and protocol docs are done
+   - next practical step: decide whether to stop at verified `single_choice` or proceed into a new, explicitly scoped `multi_choice` milestone
+   - do not fold multi-choice in casually; it needs its own interaction contract
 
 3. The current firmware baseline passed:
 
