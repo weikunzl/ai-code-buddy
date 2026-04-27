@@ -162,6 +162,7 @@ Last updated: 2026-04-28
 - The next prompt-product slice should stay narrow. The codebase already has a working but previously unverified `single_choice` path end to end, while `multi_choice` is still only a design topic. Treating `single_choice` as the next real milestone is materially safer than inventing multi-select semantics immediately.
 - The bridge-side gap for `single_choice` was validation, not transport. Before this slice, `answer` accepted any non-empty string for any pending id. The correct rule is: only accept `choice` answers for `pending.kind == "single_choice"`, and only if the returned option id matches one of `pending.options[].id`.
 - Hardware verification confirmed the existing firmware single-choice UI is sufficient for now: over persistent USB serial, `B` cycles the option label on-device and `A` returns the selected option id back to the host simulator.
+- Multi-choice should remain a separate milestone. It needs a different device grammar and a different host validation shape, especially because prompt-mode `A hold` currently conflicts with the menu gesture.
 - First practical code slice should be a minimal bridge/state schema and firmware parser changes, preserving compatibility with the current simple heartbeat.
 - Second slice should be StickS3 UI state/pages for action, focused session, session list, latest message, and idle/status.
 - Third slice should add tone alerts and countdown overlays before richer WAV effects, CJK font loading, or microphone recording.

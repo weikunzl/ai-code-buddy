@@ -31,6 +31,11 @@ Last updated: 2026-04-28
   - device showed the `Transport` single-choice prompt
   - user confirmed `B` cycles the option label and `A` submits the choice
   - host simulator logged `[sim] choice=ble`, confirming end-to-end return of the selected option id over native USB serial
+- Recorded the next post-single-choice milestone for bounded multi-choice prompts:
+  - added `docs/adr/0008-separate-multi-choice-milestone.md`
+  - added `docs/superpowers/specs/2026-04-28-stick-s3-multi-choice-prompts-design.md`
+  - added `docs/superpowers/plans/2026-04-28-stick-s3-multi-choice-prompts-milestone-d.md`
+  - updated `docs/adr/README.md`, `FINDINGS.md`, and `HANDOFF.md` so future resumes start from the multi-choice slice explicitly
 
 - Created `AGENTS.md` as a contributor guide for this repository.
 - Inspected repository layout, PlatformIO environments, README, CONTRIBUTING notes, and helper scripts.

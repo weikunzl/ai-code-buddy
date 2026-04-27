@@ -54,6 +54,12 @@ Milestone C is now narrowed and partially complete:
 - protocol docs now define `single_choice` options and `{"cmd":"answer","id","choice"}`
 - hardware verification over persistent USB serial confirmed `B` cycles options and `A` returns the selected option id to the host simulator
 
+The next milestone is now recorded for bounded multi-choice prompts:
+
+- `docs/adr/0008-separate-multi-choice-milestone.md`
+- `docs/superpowers/specs/2026-04-28-stick-s3-multi-choice-prompts-design.md`
+- `docs/superpowers/plans/2026-04-28-stick-s3-multi-choice-prompts-milestone-d.md`
+
 ## Architecture Direction
 
 - Use the M5Paper project as the main architecture reference:
@@ -71,10 +77,10 @@ Milestone C is now narrowed and partially complete:
 
 1. Treat Milestone B as complete and move to the next product slice.
 
-2. Continue Milestone C from the verified single-choice base.
-   - current state: bridge validation, simulator profiles, and protocol docs are done
-   - next practical step: decide whether to stop at verified `single_choice` or proceed into a new, explicitly scoped `multi_choice` milestone
-   - do not fold multi-choice in casually; it needs its own interaction contract
+2. Continue with Milestone D from the verified single-choice base.
+   - current state: bridge validation, simulator profiles, protocol docs, and hardware verification are done for `single_choice`
+   - next practical step: implement bounded `multi_choice` with a distinct button contract
+   - do not collapse `A hold` menu-open and multi-choice submit; prompt-mode handling must be kind-aware
 
 3. The current firmware baseline passed:
 
