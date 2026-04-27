@@ -12,6 +12,7 @@ console.
 - [ADR-0004: Keep StickS3 Firmware A Compact View Controller](0004-stick-s3-view-controller-ui.md)
 - [ADR-0005: Use BLE-First Transport And Tone-First Audio](0005-ble-first-transport-tone-first-audio.md)
 - [ADR-0006: Validate StickS3 USB CDC RX As A Separate Post-A Slice](0006-validate-stick-s3-usb-cdc-rx.md)
+- [ADR-0007: Implement Choice Prompts After The USB Bridge Slice](0007-choice-prompts-after-usb-bridge.md)
 
 ## Implementation Plan
 
@@ -22,6 +23,10 @@ The detailed implementation plan for Milestone A is:
 The next implementation plan for post-A USB CDC RX work is:
 
 - `docs/superpowers/plans/2026-04-27-stick-s3-usb-cdc-rx-milestone-b.md`
+
+The next implementation plan after the verified USB bridge slice is:
+
+- `docs/superpowers/plans/2026-04-28-stick-s3-choice-prompts-milestone-c.md`
 
 It starts with:
 

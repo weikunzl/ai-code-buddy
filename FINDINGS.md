@@ -108,6 +108,7 @@ Last updated: 2026-04-28
 - Temporary event screens should use countdown/TTL behavior and return to the previous main state when expired or dismissed.
 - Heartbeat/session snapshots should include timing metadata from the host, such as session start/update times and pending-decision age. Firmware should display elapsed/pending time for user context, while host-side ranking remains authoritative.
 - Audio conversion is part of the implementation plan: start with `M5.Speaker.tone()` validation, then convert selected WAVs to compact mono PCM WAV assets before embedding or loading them.
+- The next practical product slice after the verified USB bridge is richer choice prompts. Current code already parses `options[]`, supports a `single_choice` action screen, and can send a scalar `choice`, but multi-choice is still only documented and prompt-mode `A hold` is still globally reserved for the menu.
 
 ## Later Implementation Starting Point
 

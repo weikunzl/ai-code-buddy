@@ -1,8 +1,15 @@
 # Progress
 
-Last updated: 2026-04-26
+Last updated: 2026-04-28
 
 ## Completed
+
+- Recorded the next post-USB milestone for richer choice prompts:
+  - added `docs/adr/0007-choice-prompts-after-usb-bridge.md`,
+  - added `docs/superpowers/specs/2026-04-28-stick-s3-choice-prompts-design.md`,
+  - added `docs/superpowers/plans/2026-04-28-stick-s3-choice-prompts-milestone-c.md`,
+  - updated `docs/adr/README.md`,
+  - updated `FINDINGS.md` and `HANDOFF.md` so future resumes start from the choice-prompt slice instead of rediscovering it.
 
 - Created `AGENTS.md` as a contributor guide for this repository.
 - Inspected repository layout, PlatformIO environments, README, CONTRIBUTING notes, and helper scripts.

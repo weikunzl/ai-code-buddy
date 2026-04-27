@@ -40,6 +40,12 @@ Milestone B is now complete. The earlier `_serialRxReady()` gating approach was 
 
 Current `m5sticks3` build baseline after the working USB slice is RAM `98700 / 327680` and Flash `1255861 / 4194304`.
 
+The next milestone is now recorded for richer choice prompts:
+
+- `docs/adr/0007-choice-prompts-after-usb-bridge.md`
+- `docs/superpowers/specs/2026-04-28-stick-s3-choice-prompts-design.md`
+- `docs/superpowers/plans/2026-04-28-stick-s3-choice-prompts-milestone-c.md`
+
 ## Architecture Direction
 
 - Use the M5Paper project as the main architecture reference:
@@ -58,6 +64,9 @@ Current `m5sticks3` build baseline after the working USB slice is RAM `98700 / 3
 1. Treat Milestone B as complete and move to the next product slice.
 
 2. Recommended next milestone: richer single-/multi-choice interaction on top of the now-verified BLE and USB transports.
+   - complete `single_choice`,
+   - add minimal `multi_choice`,
+   - verify through simulator profiles over BLE and USB serial.
 
 3. The current firmware baseline passed:
 
