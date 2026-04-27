@@ -235,7 +235,11 @@ static void _applyJson(const char* line, TamaState* out) {
     for (JsonObject p : pending) {
       if (n >= MAX_PENDING) break;
       PendingDecision& pd = out->pending[n];
-      _copyField(pd.id, sizeof(pd.id), p["id"] | "");
+      char oldId[40];
+      _copyField(oldId, sizeof(oldId), pd.id);
+      char newId[40];
+      _copyField(newId, sizeof(newId), p["id"] | "");
+      _copyField(pd.id, sizeof(pd.id), newId);
       _copyField(pd.sid, sizeof(pd.sid), p["sid"] | "");
       _copyField(pd.kind, sizeof(pd.kind), p["kind"] | "permission");
       _copyField(pd.title, sizeof(pd.title), p["title"] | p["tool"] | "");
@@ -246,6 +250,8 @@ static void _applyJson(const char* line, TamaState* out) {
       for (JsonVariant opt : opts) {
         if (oi >= MAX_OPTIONS) break;
         DecisionOption& o = pd.options[oi];
+        char oldOptId[20];
+        _copyField(oldOptId, sizeof(oldOptId), o.id);
         if (opt.is<const char*>()) {
           _copyField(o.id, sizeof(o.id), opt.as<const char*>());
           _copyField(o.label, sizeof(o.label), opt.as<const char*>());
@@ -256,7 +262,7 @@ static void _applyJson(const char* line, TamaState* out) {
           _copyField(o.label, sizeof(o.label), oo["label"] | oo["id"] | "");
           _copyField(o.desc, sizeof(o.desc), oo["desc"] | "");
         }
-        o.selected = false;
+        o.selected = strcmp(oldId, newId) == 0 && strcmp(oldOptId, o.id) == 0 ? o.selected : false;
         oi++;
       }
       pd.nOptions = oi;
@@ -265,7 +271,12 @@ static void _applyJson(const char* line, TamaState* out) {
     }
     if (strcmp(oldFirst, n ? out->pending[0].id : "") != 0) {
       out->pendingGen++;
-      if (n) out->pending[0].selected = 0;
+      if (n) {
+        out->pending[0].selected = 0;
+        for (uint8_t i = 0; i < out->pending[0].nOptions; i++) {
+          out->pending[0].options[i].selected = false;
+        }
+      }
     }
     out->nPending = n;
   } else if (out->nPending != 0) {

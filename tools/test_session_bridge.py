@@ -199,6 +199,25 @@ class BridgeStateTests(unittest.TestCase):
 
         self.assertFalse(state.handle_device_command({"cmd": "answer", "id": "req_1", "choice": "usb"}))
 
+    def test_multi_choice_answer_requires_unique_matching_option_ids(self):
+        state = session_bridge.BridgeState()
+        state.upsert_session("s_1", "/tmp/a", "a", "main", 0, "running", "codex", "working", now=1)
+        state.add_pending(
+            "m_1",
+            "s_1",
+            "multi_choice",
+            "Transport",
+            "pick one or more",
+            [{"id": "ble", "label": "BLE"}, {"id": "usb", "label": "USB"}],
+            now=2,
+        )
+
+        self.assertFalse(state.handle_device_command({"cmd": "answer", "id": "m_1", "choices": []}))
+        self.assertFalse(state.handle_device_command({"cmd": "answer", "id": "m_1", "choices": ["ble", "ble"]}))
+        self.assertFalse(state.handle_device_command({"cmd": "answer", "id": "m_1", "choices": ["bogus"]}))
+        self.assertTrue(state.handle_device_command({"cmd": "answer", "id": "m_1", "choices": ["ble", "usb"]}))
+        self.assertEqual(state.decisions["m_1"], ["ble", "usb"])
+
 
 class SimulatorTests(unittest.TestCase):
     def test_serial_port_candidates_prefer_tty_usbmodem(self):
@@ -233,6 +252,12 @@ class SimulatorTests(unittest.TestCase):
         frames = list(session_bridge.simulator_frames(now=100, profile="single"))
         self.assertEqual(frames[1]["pending"][0]["kind"], "single_choice")
         self.assertEqual(frames[1]["pending"][0]["options"][0]["id"], "ble")
+        self.assertEqual(frames[2]["event"]["title"], "Saved")
+
+    def test_multi_choice_simulator_frames_include_options(self):
+        frames = list(session_bridge.simulator_frames(now=100, profile="multi"))
+        self.assertEqual(frames[1]["pending"][0]["kind"], "multi_choice")
+        self.assertEqual(frames[1]["pending"][0]["options"][1]["id"], "usb")
         self.assertEqual(frames[2]["event"]["title"], "Saved")
 
     def test_run_simulator_uses_supplied_transport(self):
@@ -273,6 +298,25 @@ class SimulatorTests(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertTrue(transport.started)
         self.assertEqual(transport.writes[1]["pending"][0]["kind"], "single_choice")
+
+    def test_run_multi_choice_simulator_uses_supplied_transport(self):
+        class FakeTransport:
+            def __init__(self):
+                self.started = False
+                self.writes = []
+
+            def start(self, reader):
+                self.started = reader is not None
+
+            def write(self, data):
+                self.writes.append(json.loads(data.decode("utf-8")))
+
+        transport = FakeTransport()
+        rc = session_bridge.run_simulator(0.01, True, transport=transport, profile="multi")
+
+        self.assertEqual(rc, 0)
+        self.assertTrue(transport.started)
+        self.assertEqual(transport.writes[1]["pending"][0]["kind"], "multi_choice")
 
     def test_pick_serial_port_honors_explicit_value(self):
         self.assertEqual(
@@ -321,6 +365,27 @@ class SimulatorTests(unittest.TestCase):
         self.assertEqual(transport.frames[1]["pending"][0]["kind"], "single_choice")
         self.assertEqual(transport.frames[-1]["event"]["title"], "Saved")
         self.assertEqual(transport.frames[-1]["event"]["text"], "Choice usb")
+
+    def test_publish_multi_choice_simulator_waits_for_choices(self):
+        state = session_bridge.BridgeState()
+
+        class InteractiveTransport:
+            def __init__(self):
+                self.frames = []
+
+            def write(self, data):
+                frame = json.loads(data.decode("utf-8"))
+                self.frames.append(frame)
+                if "pending" in frame:
+                    state.decisions["multi_demo"] = ["ble", "usb"]
+
+        transport = InteractiveTransport()
+        session_bridge.publish_simulator_decision_cycle(state, transport, 0.0, profile="multi")
+
+        self.assertGreaterEqual(len(transport.frames), 3)
+        self.assertEqual(transport.frames[1]["pending"][0]["kind"], "multi_choice")
+        self.assertEqual(transport.frames[-1]["event"]["title"], "Saved")
+        self.assertEqual(transport.frames[-1]["event"]["text"], "ble,usb")
 
     def test_parse_device_line_handles_json_command(self):
         state = session_bridge.BridgeState()

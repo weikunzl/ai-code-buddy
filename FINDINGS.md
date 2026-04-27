@@ -163,6 +163,12 @@ Last updated: 2026-04-28
 - The bridge-side gap for `single_choice` was validation, not transport. Before this slice, `answer` accepted any non-empty string for any pending id. The correct rule is: only accept `choice` answers for `pending.kind == "single_choice"`, and only if the returned option id matches one of `pending.options[].id`.
 - Hardware verification confirmed the existing firmware single-choice UI is sufficient for now: over persistent USB serial, `B` cycles the option label on-device and `A` returns the selected option id back to the host simulator.
 - Multi-choice should remain a separate milestone. It needs a different device grammar and a different host validation shape, especially because prompt-mode `A hold` currently conflicts with the menu gesture.
+- The bounded multi-choice contract now works on real hardware over persistent USB serial:
+  - `A click` toggles the current option,
+  - `B click` moves the cursor,
+  - `A hold` submits the selected set,
+  - the host simulator received the returned array `['ble', 'usb']`.
+- The firmware parser did not need a new state container for multi-choice. Reusing `PendingDecision.selected` for the cursor and `DecisionOption.selected` for the toggle set was sufficient once rollover logic preserved option state only for the same pending id and reset it for a new first pending item.
 - First practical code slice should be a minimal bridge/state schema and firmware parser changes, preserving compatibility with the current simple heartbeat.
 - Second slice should be StickS3 UI state/pages for action, focused session, session list, latest message, and idle/status.
 - Third slice should add tone alerts and countdown overlays before richer WAV effects, CJK font loading, or microphone recording.

@@ -145,6 +145,27 @@ static void sendAnswerChoice(const char* id, const char* choice) {
   sendCmd(cmd);
 }
 
+static uint8_t multiChoiceCount(const PendingDecision& d) {
+  uint8_t n = 0;
+  for (uint8_t i = 0; i < d.nOptions; i++) {
+    if (d.options[i].selected) n++;
+  }
+  return n;
+}
+
+static void sendAnswerChoices(const PendingDecision& d) {
+  char cmd[256];
+  size_t used = snprintf(cmd, sizeof(cmd), "{\"cmd\":\"answer\",\"id\":\"%s\",\"choices\":[", d.id);
+  bool first = true;
+  for (uint8_t i = 0; i < d.nOptions && used < sizeof(cmd); i++) {
+    if (!d.options[i].selected) continue;
+    used += snprintf(cmd + used, sizeof(cmd) - used, "%s\"%s\"", first ? "" : ",", d.options[i].id);
+    first = false;
+  }
+  if (used < sizeof(cmd)) snprintf(cmd + used, sizeof(cmd) - used, "]}");
+  sendCmd(cmd);
+}
+
 static void sendFocusSession(const char* sid) {
   char cmd[96];
   snprintf(cmd, sizeof(cmd), "{\"cmd\":\"focus\",\"sid\":\"%s\"}", sid);
@@ -830,7 +851,7 @@ static void drawAction() {
   if (tama.nPending == 0) { drawApproval(); return; }
   const Palette& p = characterPalette();
   PendingDecision& d = tama.pending[0];
-  const int AREA = 104;
+  const int AREA = strcmp(d.kind, "multi_choice") == 0 ? 128 : 104;
   spr.fillRect(0, H - AREA, W, AREA, p.bg);
   spr.drawFastHLine(0, H - AREA, W, p.textDim);
   spr.setTextSize(1);
@@ -862,6 +883,19 @@ static void drawAction() {
     spr.printf("%u/%u %.16s", d.selected + 1, d.nOptions, opt.label);
     spr.setTextColor(GREEN, p.bg);
     spr.setCursor(4, H - 12); spr.print("A: choose");
+    spr.setTextColor(p.textDim, p.bg);
+    spr.setCursor(W - 42, H - 12); spr.print("B: next");
+  } else if (strcmp(d.kind, "multi_choice") == 0 && d.nOptions > 0) {
+    int y = H - 54;
+    for (uint8_t i = 0; i < d.nOptions && i < MAX_OPTIONS; i++) {
+      DecisionOption& opt = d.options[i];
+      spr.setTextColor(i == d.selected ? p.body : p.textDim, p.bg);
+      spr.setCursor(4, y);
+      spr.printf("%c [%c] %.12s", i == d.selected ? '>' : ' ', opt.selected ? 'x' : ' ', opt.label);
+      y += 10;
+    }
+    spr.setTextColor(GREEN, p.bg);
+    spr.setCursor(4, H - 12); spr.print("A: toggle");
     spr.setTextColor(p.textDim, p.bg);
     spr.setCursor(W - 42, H - 12); spr.print("B: next");
   } else if (responseSent) {
@@ -1323,15 +1357,26 @@ void loop() {
 
   if (M5.BtnA.pressedFor(600) && !btnALong && !swallowBtnA) {
     btnALong = true;
-    beep(800, 60);
-    if (resetOpen) { resetOpen = false; }
-    else if (settingsOpen) { settingsOpen = false; characterInvalidate(); }
-    else {
-      menuOpen = !menuOpen;
-      menuSel = 0;
-      if (!menuOpen) characterInvalidate();
+    if (inPrompt && tama.nPending > 0 && strcmp(tama.pending[0].kind, "multi_choice") == 0 && tama.pending[0].nOptions > 0) {
+      PendingDecision& d = tama.pending[0];
+      if (multiChoiceCount(d) > 0) {
+        sendAnswerChoices(d);
+        responseSent = true;
+        beep(2400, 60);
+      } else {
+        beep(600, 60);
+      }
+    } else {
+      beep(800, 60);
+      if (resetOpen) { resetOpen = false; }
+      else if (settingsOpen) { settingsOpen = false; characterInvalidate(); }
+      else {
+        menuOpen = !menuOpen;
+        menuSel = 0;
+        if (!menuOpen) characterInvalidate();
+      }
+      Serial.println(menuOpen ? "menu open" : "menu close");
     }
-    Serial.println(menuOpen ? "menu open" : "menu close");
   }
   if (M5.BtnA.wasReleased()) {
     if (!btnALong && !swallowBtnA) {
@@ -1339,14 +1384,20 @@ void loop() {
         if (tama.nPending > 0 && strcmp(tama.pending[0].kind, "single_choice") == 0 && tama.pending[0].nOptions > 0) {
           PendingDecision& d = tama.pending[0];
           sendAnswerChoice(d.id, d.options[d.selected].id);
+        } else if (tama.nPending > 0 && strcmp(tama.pending[0].kind, "multi_choice") == 0 && tama.pending[0].nOptions > 0) {
+          PendingDecision& d = tama.pending[0];
+          d.options[d.selected].selected = !d.options[d.selected].selected;
+          beep(d.options[d.selected].selected ? 2200 : 1200, 30);
         } else {
           sendPermissionDecision(tama.promptId, "once");
           uint32_t tookS = (millis() - promptArrivedMs) / 1000;
           statsOnApproval(tookS);
           if (tookS < 5) triggerOneShot(P_HEART, 2000);
         }
-        responseSent = true;
-        beep(2400, 60);
+        if (!(tama.nPending > 0 && strcmp(tama.pending[0].kind, "multi_choice") == 0 && tama.pending[0].nOptions > 0)) {
+          responseSent = true;
+          beep(2400, 60);
+        }
       } else if (displayMode == DISP_SESSIONS && tama.nSessions > 0) {
         if (sessionPage >= tama.nSessions) sessionPage = 0;
         sendFocusSession(tama.sessions[sessionPage].sid);
@@ -1377,7 +1428,10 @@ void loop() {
     if (swallowBtnB) { swallowBtnB = false; }
     else
     if (inPrompt) {
-      if (tama.nPending > 0 && strcmp(tama.pending[0].kind, "single_choice") == 0 && tama.pending[0].nOptions > 0) {
+      if (tama.nPending > 0
+          && (strcmp(tama.pending[0].kind, "single_choice") == 0
+              || strcmp(tama.pending[0].kind, "multi_choice") == 0)
+          && tama.pending[0].nOptions > 0) {
         PendingDecision& d = tama.pending[0];
         d.selected = (d.selected + 1) % d.nOptions;
         beep(1800, 30);

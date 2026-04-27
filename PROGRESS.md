@@ -36,6 +36,30 @@ Last updated: 2026-04-28
   - added `docs/superpowers/specs/2026-04-28-stick-s3-multi-choice-prompts-design.md`
   - added `docs/superpowers/plans/2026-04-28-stick-s3-multi-choice-prompts-milestone-d.md`
   - updated `docs/adr/README.md`, `FINDINGS.md`, and `HANDOFF.md` so future resumes start from the multi-choice slice explicitly
+- Implemented Milestone D bounded multi-choice support:
+  - `tools/session_bridge.py` now validates `choices[]` for `pending.kind == "multi_choice"`
+  - simulator profile `multi` now emits a bounded multi-choice prompt and completion event
+  - `src/data.h` now preserves per-option toggle state only for the same pending id and resets it on first-pending rollover
+  - `src/main.cpp` now renders multi-choice rows and uses:
+    - `A click`: toggle
+    - `B click`: next
+    - `A hold`: submit selected options
+  - prompt long-press handling is now kind-aware so menu-open does not steal multi-choice submit
+  - `REFERENCE.md`, `README.md`, and `tools/test_session_frames.py` now cover `choices[]` and the `multi` simulator profile
+- Milestone D software verification:
+  - `python3 test_session_bridge.py`: PASS (`Ran 26 tests` / `OK`)
+  - `python3 tools/test_session_frames.py`: PASS
+  - `python3 -m py_compile tools/session_bridge.py tools/test_session_frames.py`: PASS
+  - `pio run -e m5sticks3`: PASS, RAM `98700 / 327680`, Flash `1256793 / 4194304`
+- Milestone D hardware verification on connected StickS3:
+  - flashed current firmware with `pio run -e m5sticks3 -t upload`: PASS
+  - ran `tools/session_bridge.py --transport serial --serial-port /dev/tty.usbmodem144301 --simulate --simulate-profile multi`
+  - user confirmed:
+    - `A` toggles options,
+    - `B` advances the cursor,
+    - `A hold` submits,
+    - device returns to the normal session screen after submit
+  - host simulator logged `[sim] choices=['ble', 'usb']`, confirming end-to-end array return over native USB serial
 
 - Created `AGENTS.md` as a contributor guide for this repository.
 - Inspected repository layout, PlatformIO environments, README, CONTRIBUTING notes, and helper scripts.

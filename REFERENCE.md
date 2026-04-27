@@ -115,6 +115,9 @@ For `single_choice`, each pending item may include up to 4 options:
 }
 ```
 
+For `multi_choice`, the pending shape is the same except `kind` is
+`"multi_choice"` and the device may select more than one `options[].id`.
+
 ## Turn events
 
 Each completed turn also fires a one-shot event containing the raw SDK
@@ -152,6 +155,17 @@ For `single_choice`, the device returns the selected option id:
 
 The `id` must match the pending item exactly, and `choice` must match one of
 that pending item's `options[].id` values.
+
+For `multi_choice`, the device returns a non-empty array of selected option
+ids:
+
+```json
+{"cmd":"answer","id":"q_transport","choices":["ble","usb"]}
+```
+
+The `id` must match the pending item exactly. Every value in `choices[]`
+must match one of that pending item's `options[].id` values, and duplicates
+are invalid.
 
 ## One-shot on connect
 

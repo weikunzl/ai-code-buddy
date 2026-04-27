@@ -218,6 +218,21 @@ class BridgeState:
                     if any(opt.get("id") == choice for opt in pending.options):
                         self.decisions[pid] = choice
                         return True
+                raw_choices = obj.get("choices")
+                if pending and pending.kind == "multi_choice" and isinstance(raw_choices, list):
+                    allowed = {opt.get("id") for opt in pending.options}
+                    seen: set[str] = set()
+                    selected: list[str] = []
+                    for raw in raw_choices:
+                        if not isinstance(raw, str) or not raw:
+                            return False
+                        if raw in seen or raw not in allowed:
+                            return False
+                        seen.add(raw)
+                        selected.append(raw)
+                    if selected:
+                        self.decisions[pid] = selected
+                        return True
                 return False
             if cmd == "focus":
                 sid = str(obj.get("sid") or "")
@@ -326,6 +341,22 @@ def _sim_single_pending(state: BridgeState, now: int) -> None:
     )
 
 
+def _sim_multi_pending(state: BridgeState, now: int) -> None:
+    state.add_pending(
+        "multi_demo",
+        "s_demo",
+        "multi_choice",
+        "Transport",
+        "pick one or more",
+        [
+            {"id": "ble", "label": "BLE", "desc": "Wireless"},
+            {"id": "usb", "label": "USB", "desc": "Serial"},
+            {"id": "wifi", "label": "WiFi", "desc": "Later"},
+        ],
+        now=now - 15,
+    )
+
+
 def simulator_frames(now: int | None = None, profile: str = "permission"):
     now = int(now if now is not None else time.time())
     cwd = os.getcwd()
@@ -351,6 +382,19 @@ def simulator_frames(now: int | None = None, profile: str = "permission"):
             "sid": "s_demo",
             "title": "Saved",
             "text": "Choice submitted",
+            "ttl_ms": 5000,
+        }
+        yield state.build_heartbeat(now=now)
+        return
+    if profile == "multi":
+        _sim_multi_pending(state, now)
+        yield state.build_heartbeat(now=now)
+        state.resolve_pending("multi_demo")
+        state.event = {
+            "kind": "complete",
+            "sid": "s_demo",
+            "title": "Saved",
+            "text": "Choices submitted",
             "ttl_ms": 5000,
         }
         yield state.build_heartbeat(now=now)
@@ -423,6 +467,32 @@ def publish_simulator_decision_cycle(state: BridgeState, transport: Any, interva
             "ttl_ms": 5000,
         }
         print(f"[sim] choice={decision}", file=sys.stderr)
+        transport.write(encode_line(state.build_heartbeat(now=int(time.time()))))
+        return
+    if profile == "multi":
+        pending_id = "multi_demo"
+        _sim_multi_pending(state, now)
+        transport.write(encode_line(state.build_heartbeat(now=now)))
+
+        decision: list[str] = []
+        while not decision:
+            with state.lock:
+                raw = state.decisions.pop(pending_id, [])
+                decision = raw if isinstance(raw, list) else []
+            if decision:
+                break
+            time.sleep(interval)
+            transport.write(encode_line(state.build_heartbeat(now=int(time.time()))))
+
+        state.resolve_pending(pending_id)
+        state.event = {
+            "kind": "complete",
+            "sid": "s_demo",
+            "title": "Saved",
+            "text": ",".join(decision),
+            "ttl_ms": 5000,
+        }
+        print(f"[sim] choices={decision}", file=sys.stderr)
         transport.write(encode_line(state.build_heartbeat(now=int(time.time()))))
         return
 
@@ -789,7 +859,7 @@ def main() -> int:
     parser.add_argument("--once", action="store_true", help="emit one simulator cycle and exit")
     parser.add_argument("--interval", type=float, default=1.0)
     parser.add_argument("--http-port", type=int, default=9876)
-    parser.add_argument("--simulate-profile", choices=("permission", "single"), default="permission")
+    parser.add_argument("--simulate-profile", choices=("permission", "single", "multi"), default="permission")
     parser.add_argument("--transport", choices=("stdout", "ble", "serial"), default="stdout")
     parser.add_argument("--serial-port", default="", help="USB serial device path")
     parser.add_argument("--serial-baud", type=int, default=115200)

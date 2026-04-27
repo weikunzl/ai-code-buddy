@@ -142,6 +142,7 @@ For local session-console bring-up without Claude/Codex hooks:
 ```bash
 python3 tools/session_bridge.py --simulate --once
 python3 tools/session_bridge.py --simulate --once --simulate-profile single
+python3 tools/session_bridge.py --simulate --once --simulate-profile multi
 python3 tools/test_session_bridge.py
 python3 tools/test_session_frames.py
 ```

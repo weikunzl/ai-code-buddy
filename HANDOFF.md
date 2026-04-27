@@ -60,6 +60,14 @@ The next milestone is now recorded for bounded multi-choice prompts:
 - `docs/superpowers/specs/2026-04-28-stick-s3-multi-choice-prompts-design.md`
 - `docs/superpowers/plans/2026-04-28-stick-s3-multi-choice-prompts-milestone-d.md`
 
+Milestone D is now complete:
+
+- bridge accepts and validates `choices[]` for `multi_choice`
+- simulator profile `multi` exists
+- firmware renders bounded multi-choice rows
+- `A click` toggles, `B click` moves, `A hold` submits
+- hardware verification over persistent USB serial confirmed end-to-end return of `['ble', 'usb']`
+
 ## Architecture Direction
 
 - Use the M5Paper project as the main architecture reference:
@@ -77,10 +85,9 @@ The next milestone is now recorded for bounded multi-choice prompts:
 
 1. Treat Milestone B as complete and move to the next product slice.
 
-2. Continue with Milestone D from the verified single-choice base.
-   - current state: bridge validation, simulator profiles, protocol docs, and hardware verification are done for `single_choice`
-   - next practical step: implement bounded `multi_choice` with a distinct button contract
-   - do not collapse `A hold` menu-open and multi-choice submit; prompt-mode handling must be kind-aware
+2. Treat Milestone D as complete and move to the next product slice.
+   - current state: permission, single-choice, and bounded multi-choice are all verified over the bridge/runtime
+   - next practical step is a new slice, not more prompt-kind drift inside this one
 
 3. The current firmware baseline passed:
 
