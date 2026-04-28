@@ -239,9 +239,14 @@ Milestone D is now complete:
      - `free_text_required` prompt helper
 
 22. Recommended next phase after runnable examples:
-   - audio/microphone exploration,
-   - or concrete hardware verification of the new `notice` /
-     `free_text_required` flows on the StickS3.
+   - concrete hardware verification of the new `notice` /
+     `free_text_required` flows on the StickS3
+   - use dedicated serial smoke profiles instead of ad hoc JSON edits
+
+23. The stop-and-wait hardware-verification milestone is now recorded in:
+   - `docs/adr/0014-verify-stop-and-wait-prompts-on-hardware.md`
+   - `docs/superpowers/specs/2026-04-28-stop-and-wait-hardware-verification-design.md`
+   - `docs/superpowers/plans/2026-04-28-stop-and-wait-hardware-verification-milestone-j.md`
 
 ## Cautions
 

@@ -392,6 +392,11 @@ No firmware source files have been edited. Milestone A Task 4 only extends the h
   - `python3 tools/test_post_notification_prompt.py`: PASS (`Ran 9 tests` / `OK`)
   - `python3 -m py_compile tools/test_workflow_examples.py`: PASS
   - no firmware build or hardware rerun was needed for this slice because it only added example artifacts, docs, and smoke validation on top of already-verified tooling
+- Recorded the next post-examples milestone for stop-and-wait hardware verification:
+  - added `docs/adr/0014-verify-stop-and-wait-prompts-on-hardware.md`
+  - added `docs/superpowers/specs/2026-04-28-stop-and-wait-hardware-verification-design.md`
+  - added `docs/superpowers/plans/2026-04-28-stop-and-wait-hardware-verification-milestone-j.md`
+  - updated `docs/adr/README.md`, `FINDINGS.md`, and `HANDOFF.md` so future resumes start from connected-device verification of `notice` and `free_text_required`
 
 ## Important Context
 

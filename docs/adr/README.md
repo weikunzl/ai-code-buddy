@@ -19,6 +19,7 @@ console.
 - [ADR-0011: Add A Notification Prompt Helper](0011-add-a-notification-prompt-helper.md)
 - [ADR-0012: Bound Free-Text To Notice And Quick Replies](0012-bound-free-text-to-notice-and-quick-replies.md)
 - [ADR-0013: Add Runnable Upstream Workflow Examples](0013-add-runnable-upstream-workflow-examples.md)
+- [ADR-0014: Verify Stop-And-Wait Prompts On Hardware](0014-verify-stop-and-wait-prompts-on-hardware.md)
 
 ## Implementation Plan
 
@@ -57,6 +58,10 @@ The next implementation plan after the notification prompt helper is:
 The next implementation plan after bounded free-text-required prompts is:
 
 - `docs/superpowers/plans/2026-04-28-upstream-workflow-examples-milestone-i.md`
+
+The next implementation plan after runnable upstream workflow examples is:
+
+- `docs/superpowers/plans/2026-04-28-stop-and-wait-hardware-verification-milestone-j.md`
 
 It starts with:
 

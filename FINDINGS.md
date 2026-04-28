@@ -197,6 +197,7 @@ Last updated: 2026-04-28
 - The safest example shape is checked-in JSON plus shell invocation. That stays honest about what we can verify locally and avoids claiming a specific vendor hook config format we do not own in this repo.
 - Runnable upstream examples now exist as checked-in JSON payloads under `docs/examples/` plus a focused guide in `docs/upstream-workflow-examples.md`. That is a better fit for this repo than another helper script because it exercises the real relay/helper surfaces directly.
 - Example drift is now testable. `tools/test_workflow_examples.py` runs the checked-in payloads through `hook_relay.forward_hook()` and `post_notification_prompt.forward_notification_prompt()` with fake HTTP so the examples stay aligned with the runtime contracts.
+- The next concrete risk is hardware behavior for the new stop-and-wait prompt kinds. `notice` and `free_text_required` now build and test green, but their actual on-device readability and button behavior still need user-observed verification on the connected StickS3.
 - First practical code slice should be a minimal bridge/state schema and firmware parser changes, preserving compatibility with the current simple heartbeat.
 - Second slice should be StickS3 UI state/pages for action, focused session, session list, latest message, and idle/status.
 - Third slice should add tone alerts and countdown overlays before richer WAV effects, CJK font loading, or microphone recording.
