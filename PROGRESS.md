@@ -415,6 +415,19 @@ No firmware source files have been edited. Milestone A Task 4 only extends the h
   - added `docs/superpowers/specs/2026-04-29-tone-patterns-design.md`
   - added `docs/superpowers/plans/2026-04-29-tone-patterns-milestone-k.md`
   - updated `docs/adr/README.md`, `FINDINGS.md`, and `HANDOFF.md` so future resumes start from the named-tone refactor
+- Implemented Milestone K named tone patterns:
+  - `src/main.cpp` now defines named alert helpers for:
+    - input required
+    - answer sent
+    - denied
+    - complete
+    - stop-and-wait focus acknowledgement
+    - neutral / error event tones
+  - prompt-arrival, pending-arrival, event-overlay, answer-sent, deny, and stop-and-wait focus paths now use those helpers instead of scattered raw `beep()` values
+- Milestone K software verification:
+  - `pio run -e m5sticks3`: PASS
+  - RAM `98700 / 327680`
+  - Flash `1257285 / 4194304`
 
 ## Important Context
 

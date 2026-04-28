@@ -126,6 +126,36 @@ static void beep(uint16_t freq, uint16_t dur) {
   if (settings().sound) M5.Speaker.tone(freq, dur);
 }
 
+static void toneInputRequired() {
+  beep(1200, 80);
+}
+
+static void toneAnswerSent() {
+  beep(2400, 60);
+}
+
+static void toneDenied() {
+  beep(600, 60);
+}
+
+static void toneComplete() {
+  beep(1600, 60);
+  delay(80);
+  beep(2200, 60);
+}
+
+static void toneFocusAck() {
+  beep(1800, 30);
+}
+
+static void toneEventError() {
+  beep(500, 120);
+}
+
+static void toneEventNeutral() {
+  beep(1000, 60);
+}
+
 static void sendCmd(const char* json) {
   Serial.println(json);
   size_t n = strlen(json);
@@ -1309,7 +1339,7 @@ void loop() {
                               && strcmp(tama.promptId, tama.pending[0].id) == 0;
       promptArrivedMs = millis();
       wake();
-      if (!mirroredRichPending) beep(1200, 80);
+      if (!mirroredRichPending) toneInputRequired();
       // Jump to the approval screen no matter what was open — drawApproval
       // only runs from drawHUD which only runs in DISP_NORMAL.
       displayMode = DISP_NORMAL;
@@ -1323,19 +1353,17 @@ void loop() {
     lastPendingGen = tama.pendingGen;
     if (tama.nPending > 0) {
       wake();
-      beep(1200, 80);
+      toneInputRequired();
     }
   }
   if (tama.eventGen != lastEventGen) {
     lastEventGen = tama.eventGen;
     if (tama.event.active) {
-      if (strcmp(tama.event.kind, "error") == 0) beep(500, 120);
+      if (strcmp(tama.event.kind, "error") == 0) toneEventError();
       else if (strcmp(tama.event.kind, "complete") == 0) {
-        beep(1600, 60);
-        delay(80);
-        beep(2200, 60);
+        toneComplete();
       } else {
-        beep(1000, 60);
+        toneEventNeutral();
       }
     }
   }
@@ -1372,9 +1400,9 @@ void loop() {
       if (multiChoiceCount(d) > 0) {
         sendAnswerChoices(d);
         responseSent = true;
-        beep(2400, 60);
+        toneAnswerSent();
       } else {
-        beep(600, 60);
+        toneDenied();
       }
     } else {
       beep(800, 60);
@@ -1406,7 +1434,7 @@ void loop() {
                 || strcmp(tama.pending[0].kind, "free_text_required") == 0)) {
           PendingDecision& d = tama.pending[0];
           sendFocusSession(d.sid);
-          beep(1800, 30);
+          toneFocusAck();
         } else {
           sendPermissionDecision(tama.promptId, "once");
           uint32_t tookS = (millis() - promptArrivedMs) / 1000;
@@ -1418,7 +1446,7 @@ void loop() {
                 || strcmp(tama.pending[0].kind, "notice") == 0
                 || (strcmp(tama.pending[0].kind, "free_text_required") == 0 && tama.pending[0].nOptions == 0)))) {
           responseSent = true;
-          beep(2400, 60);
+          toneAnswerSent();
         }
       } else if (displayMode == DISP_SESSIONS && tama.nSessions > 0) {
         if (sessionPage >= tama.nSessions) sessionPage = 0;
@@ -1466,7 +1494,7 @@ void loop() {
         sendPermissionDecision(tama.promptId, "deny");
         responseSent = true;
         statsOnDenial();
-        beep(600, 60);
+        toneDenied();
       }
     } else if (displayMode == DISP_SESSIONS && tama.nSessions > 0) {
       beep(2400, 30);

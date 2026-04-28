@@ -204,6 +204,8 @@ Last updated: 2026-04-28
 - Quick-reply `free_text_required` is also hardware-confirmed end to end. Using the real serial bridge plus `tools/post_notification_prompt.py`, pressing `B` then `A` on-device returned `{"decision":"tmp"}` to the host.
 - The raw `focus` action does not produce an obvious on-screen state change by itself, which is acceptable: it is a host-side intent, not a local UI transition. The important verified behavior is that the stop-and-wait screens no longer misrender as approve/deny prompts.
 - The next practical audio slice is not WAV playback yet. The firmware already has the right tone-first direction, but prompt/event sounds are still scattered as raw `beep()` calls and should be centralized behind named alert patterns before asset work begins.
+- The tone-first audio cleanup now exists as named helpers in firmware. Prompt arrival, event overlay, answer-sent, deny/error, and stop-and-wait focus acknowledgements no longer hardcode raw frequencies at each call site.
+- This keeps the next WAV phase bounded. Later `playWav()` adoption can replace named alert helpers one by one without changing prompt/event logic again.
 - First practical code slice should be a minimal bridge/state schema and firmware parser changes, preserving compatibility with the current simple heartbeat.
 - Second slice should be StickS3 UI state/pages for action, focused session, session list, latest message, and idle/status.
 - Third slice should add tone alerts and countdown overlays before richer WAV effects, CJK font loading, or microphone recording.

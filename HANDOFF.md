@@ -271,6 +271,19 @@ Milestone D is now complete:
    - `docs/superpowers/specs/2026-04-29-tone-patterns-design.md`
    - `docs/superpowers/plans/2026-04-29-tone-patterns-milestone-k.md`
 
+27. Milestone K is now complete for named tone patterns:
+   - `src/main.cpp` now centralizes alert tones behind named helpers
+   - prompt arrival and pending arrival use the same input-required tone
+   - event overlay uses named complete / error / neutral tones
+   - answer-sent, deny, and stop-and-wait focus acknowledgement no longer
+     hardcode raw frequencies at each call site
+
+28. Recommended next phase after named tones:
+   - embed a first small WAV asset set and replace one or two named tone
+     helpers with `playWav()`,
+   - or begin microphone feasibility work if you want to explore voice-note
+     response paths instead of host typing.
+
 ## Cautions
 
 - Do not rely on `BtnPWR` until tested on hardware.
