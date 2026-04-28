@@ -331,6 +331,27 @@ No firmware source files have been edited. Milestone A Task 4 only extends the h
   - added `docs/superpowers/specs/2026-04-28-notification-prompt-helper-design.md`
   - added `docs/superpowers/plans/2026-04-28-notification-prompt-helper-milestone-g.md`
   - updated `docs/adr/README.md`, `FINDINGS.md`, and `HANDOFF.md` so future resumes start from the producer-helper boundary
+- Implemented Milestone G notification-prompt producer helper:
+  - added `tools/post_notification_prompt.py`
+  - helper accepts a smaller producer-local payload, validates `session_id` plus the bounded choice-prompt shape, wraps it as `hook_event_name = "Notification"`, and forwards it through `hook_relay.forward_hook()`
+  - invalid producer input fails with exit `2`
+  - bridge failures are strict by default and can be downgraded with `--fail-open`
+  - helper default timeout is `35s`, intentionally longer than the generic relay timeout so bridge-side device decision waits are not cut off early
+  - added `tools/test_post_notification_prompt.py` coverage for:
+    - valid single-choice wrapping,
+    - valid multi-choice defaults,
+    - invalid producer input,
+    - strict bridge failure,
+    - fail-open bridge failure,
+    - wrapped payload forwarding,
+    - default timeout forwarding
+  - updated `README.md` and `REFERENCE.md` with helper usage and the producer-local payload shape
+- Milestone G software verification:
+  - `python3 tools/test_post_notification_prompt.py`: PASS (`Ran 7 tests` / `OK`)
+  - `python3 tools/test_hook_relay.py`: PASS (`Ran 7 tests` / `OK`)
+  - `python3 tools/test_session_bridge.py`: PASS (`Ran 31 tests` / `OK`)
+  - `python3 -m py_compile tools/post_notification_prompt.py tools/test_post_notification_prompt.py tools/hook_relay.py`: PASS
+  - no firmware build or hardware rerun was needed for this slice because it only changed Python tooling and docs around the already-verified bridge
 
 ## Important Context
 

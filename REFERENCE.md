@@ -177,6 +177,31 @@ For bridge-driven local integrations, `Notification` may also carry a
 bounded `prompt` object. This is a bridge-local contract, not a claim about
 Claude's native hook schema.
 
+For a smaller producer-local input, this repo also ships
+`tools/post_notification_prompt.py`. It accepts:
+
+```json
+{
+  "session_id": "s_123",
+  "cwd": "/repo",
+  "message": "Choose transport",
+  "model": "codex",
+  "prompt": {
+    "id": "q_transport",
+    "kind": "single_choice",
+    "title": "Transport",
+    "body": "pick transport",
+    "options": [
+      { "id": "ble", "label": "BLE", "desc": "Wireless" },
+      { "id": "usb", "label": "USB", "desc": "Serial" }
+    ]
+  }
+}
+```
+
+The helper wraps that payload into the full bridge-local `Notification`
+shape and forwards it through `tools/hook_relay.py`.
+
 Example request:
 
 ```json

@@ -192,6 +192,31 @@ curl -sS http://127.0.0.1:9876 -X POST -H 'content-type: application/json' -d '{
 When the device answers, the bridge returns `{"decision":"..."}` for
 `single_choice` or `{"choices":[...]}` for `multi_choice`.
 
+For a smaller producer-local input shape, use:
+
+```bash
+printf '%s\n' '{
+  "session_id":"s_demo",
+  "cwd":"'"$PWD"'",
+  "message":"Choose transport",
+  "prompt":{
+    "id":"q_transport",
+    "kind":"single_choice",
+    "title":"Transport",
+    "body":"pick transport",
+    "options":[
+      {"id":"ble","label":"BLE","desc":"Wireless"},
+      {"id":"usb","label":"USB","desc":"Serial"}
+    ]
+  }
+}' | python3 tools/post_notification_prompt.py
+```
+
+`tools/post_notification_prompt.py` wraps that payload as
+`hook_event_name = "Notification"` and reuses the relay transport. It is
+strict by default; use `--fail-open` if you want bridge failures to degrade
+to `{}`.
+
 ## The seven states
 
 | State       | Trigger                     | Feel                        |

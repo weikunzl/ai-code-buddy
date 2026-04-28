@@ -184,6 +184,10 @@ Last updated: 2026-04-28
 - The next upstream ergonomics gap is producer shape, not transport. `tools/hook_relay.py` is the right generic transport, but custom workflows still have to construct a full `hook_event_name = "Notification"` payload manually.
 - The right next helper should wrap a smaller producer-local payload into the existing `Notification.prompt` envelope and then reuse the relay path. That keeps one transport implementation and avoids another HTTP adapter with drift.
 - Unlike the generic relay, the producer helper should be strict by default. A caller that explicitly asks the device a question generally expects either a real answer or a visible failure.
+- The producer-shape gap is now closed with `tools/post_notification_prompt.py`. It accepts a smaller producer-local JSON payload, validates the bounded choice-prompt shape, wraps it into `hook_event_name = "Notification"`, and reuses `hook_relay.forward_hook()`.
+- The helper defaults are intentionally different from the generic relay: invalid input is always an error, and bridge failures are strict by default because the caller is explicitly asking a question. `--fail-open` is still available for workflows that prefer `{}` on bridge failure.
+- Reusing the relay transport kept this slice narrow. The helper does not open a second HTTP implementation and does not duplicate any bridge waiting/answer behavior.
+- Prompt-producing helpers need a longer timeout than the generic relay. The bridge can legitimately wait for a device answer, so the helper now defaults to `35s` instead of the relay's shorter transport-oriented timeout.
 - First practical code slice should be a minimal bridge/state schema and firmware parser changes, preserving compatibility with the current simple heartbeat.
 - Second slice should be StickS3 UI state/pages for action, focused session, session list, latest message, and idle/status.
 - Third slice should add tone alerts and countdown overlays before richer WAV effects, CJK font loading, or microphone recording.
