@@ -178,6 +178,9 @@ Last updated: 2026-04-28
 - The next narrow integration gap is hook transport, not bridge behavior. The repo now has the right local HTTP bridge semantics, but still lacks a small stdin-to-HTTP relay command that a real Claude/Codex hook runner can invoke directly.
 - That relay should stay transport-only. Re-implementing `apply_hook()` logic in a second script would create drift; the right design is hook runner -> relay CLI -> `tools/session_bridge.py`.
 - The safest default for the relay is fail-open. If the local bridge is unreachable, printing `{}` and exiting `0` preserves the user's normal hook workflow instead of turning the hardware buddy into a hard dependency.
+- The hook transport gap is now closed with `tools/hook_relay.py`. It reads one JSON object from stdin, POSTs it to the local bridge, prints the bridge response to stdout unchanged, and stays stdlib-only.
+- Fail-open behavior is useful in practice for this repo. When the bridge is absent or returns malformed data, the relay can safely degrade to `{}` by default, while `--strict` still exposes real integration errors for debugging and CI-style checks.
+- The README had a stale manual bridge example on port `8765` while `tools/session_bridge.py` actually defaults to `9876`. That mismatch is now corrected so docs match the runtime.
 - First practical code slice should be a minimal bridge/state schema and firmware parser changes, preserving compatibility with the current simple heartbeat.
 - Second slice should be StickS3 UI state/pages for action, focused session, session list, latest message, and idle/status.
 - Third slice should add tone alerts and countdown overlays before richer WAV effects, CJK font loading, or microphone recording.

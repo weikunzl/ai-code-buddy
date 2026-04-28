@@ -306,6 +306,26 @@ No firmware source files have been edited. Milestone A Task 4 only extends the h
   - added `docs/superpowers/specs/2026-04-28-hook-relay-cli-design.md`
   - added `docs/superpowers/plans/2026-04-28-hook-relay-cli-milestone-f.md`
   - updated `docs/adr/README.md`, `FINDINGS.md`, and `HANDOFF.md` so future resumes start from the stdin-to-HTTP relay boundary
+- Implemented Milestone F hook relay transport:
+  - added `tools/hook_relay.py`
+  - relay reads one JSON object from stdin, forwards it to the local bridge HTTP endpoint, and prints the bridge response unchanged to stdout
+  - default behavior is fail-open with `{}` when stdin is invalid, the bridge is unavailable, or the bridge response is malformed
+  - `--strict` makes those same cases fail non-zero with stderr diagnostics
+  - relay stays stdlib-only and does not duplicate any `apply_hook()` logic from `tools/session_bridge.py`
+  - added `tools/test_hook_relay.py` coverage for:
+    - successful forwarding,
+    - invalid stdin JSON,
+    - bridge-unavailable fail-open,
+    - bridge-unavailable strict failure,
+    - invalid bridge response fail-open,
+    - CLI port selection
+  - updated `README.md` with hook-relay usage and fixed the stale manual HTTP example port from `8765` to `9876`
+  - updated `REFERENCE.md` to document the relay role
+- Milestone F software verification:
+  - `python3 tools/test_hook_relay.py`: PASS (`Ran 7 tests` / `OK`)
+  - `python3 tools/test_session_bridge.py`: PASS (`Ran 31 tests` / `OK`)
+  - `python3 -m py_compile tools/hook_relay.py tools/test_hook_relay.py tools/session_bridge.py`: PASS
+  - no firmware build or hardware rerun was needed for this slice because it only changed Python tooling and docs around the already-verified bridge
 
 ## Important Context
 

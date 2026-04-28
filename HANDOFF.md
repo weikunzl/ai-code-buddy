@@ -170,16 +170,25 @@ Milestone D is now complete:
    - if using LittleFS later, load the selected WAV fully into a buffer and keep that buffer alive until `M5.Speaker.isPlaying()` reports playback is done,
    - defer spoken notices until speaker behavior is validated and a host-generated audio or fixed-phrase strategy is chosen.
 
-12. Recommended next milestone after hook-produced choice prompts:
-   - add a hook relay CLI that reads hook JSON from stdin and forwards it to
-     `tools/session_bridge.py`
-   - keep it transport-only; do not duplicate bridge state logic
-   - fail open by default when the bridge is absent
+12. Milestone F is now complete for real hook relay transport:
+   - `tools/hook_relay.py` reads hook JSON from stdin and forwards it to the
+     local bridge HTTP endpoint
+   - it prints the bridge response body unchanged to stdout
+   - it fails open by default with `{}` when the bridge is unavailable
+   - `--strict` turns invalid stdin, bridge-unavailable, and invalid bridge
+     response paths into non-zero failures
+   - no bridge state logic was duplicated outside `tools/session_bridge.py`
 
-13. The relay milestone is now recorded in:
+13. The relay milestone is recorded in:
    - `docs/adr/0010-add-a-hook-relay-cli.md`
    - `docs/superpowers/specs/2026-04-28-hook-relay-cli-design.md`
    - `docs/superpowers/plans/2026-04-28-hook-relay-cli-milestone-f.md`
+
+14. Recommended next milestone after the relay:
+   - add a focused upstream producer helper or config example for emitting
+     bridge-local `Notification.prompt` payloads from a concrete workflow,
+     or, if staying protocol-local, treat free-text prompts as their own
+     separate milestone.
 
 ## Cautions
 

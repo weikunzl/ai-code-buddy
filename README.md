@@ -153,13 +153,25 @@ once a StickS3 is paired.
 Use `python3 tools/session_bridge.py --transport serial --serial-port /dev/tty.usbmodem...`
 for the live native-USB bridge on StickS3.
 
+For real hook integration, run the bridge and relay hook stdin into it:
+
+```bash
+python3 tools/session_bridge.py --transport serial --serial-port /dev/tty.usbmodem...
+printf '%s\n' '{"hook_event_name":"UserPromptSubmit","session_id":"s_demo","cwd":"'"$PWD"'","prompt":"run tests"}' | python3 tools/hook_relay.py
+```
+
+`tools/hook_relay.py` reads one JSON object from stdin, POSTs it to the
+local bridge, and prints the bridge response to stdout. If the bridge is not
+running, it prints `{}` and exits successfully by default; use `--strict` to
+make bridge failures non-zero.
+
 For bridge-local choice-prompt integration tests, POST a `Notification`
 payload with a bounded `prompt` object to the local bridge HTTP endpoint.
 Example:
 
 ```bash
 python3 tools/session_bridge.py --transport serial --serial-port /dev/tty.usbmodem...
-curl -sS http://127.0.0.1:8765 -X POST -H 'content-type: application/json' -d '{
+curl -sS http://127.0.0.1:9876 -X POST -H 'content-type: application/json' -d '{
   "hook_event_name":"Notification",
   "session_id":"s_demo",
   "cwd":"'"$PWD"'",

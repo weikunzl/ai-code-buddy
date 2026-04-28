@@ -169,6 +169,10 @@ are invalid.
 
 ## Bridge-local hook prompt contract
 
+For real hook-runner transport, this repo also ships `tools/hook_relay.py`,
+which reads one hook JSON object from stdin, POSTs it to the local bridge,
+and prints the bridge response to stdout.
+
 For bridge-driven local integrations, `Notification` may also carry a
 bounded `prompt` object. This is a bridge-local contract, not a claim about
 Claude's native hook schema.
