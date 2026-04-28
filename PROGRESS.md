@@ -301,6 +301,11 @@ No firmware source files have been edited. Milestone A Task 4 only extends the h
   - `python3 tools/test_session_frames.py`: PASS
   - `python3 -m py_compile tools/session_bridge.py tools/test_session_frames.py tools/test_session_bridge.py`: PASS
   - No firmware build or hardware rerun was needed for this slice because it only changed the Python bridge/tests/docs and reused the already-verified pending protocol
+- Recorded the next post-hook-choice milestone for a real hook relay CLI:
+  - added `docs/adr/0010-add-a-hook-relay-cli.md`
+  - added `docs/superpowers/specs/2026-04-28-hook-relay-cli-design.md`
+  - added `docs/superpowers/plans/2026-04-28-hook-relay-cli-milestone-f.md`
+  - updated `docs/adr/README.md`, `FINDINGS.md`, and `HANDOFF.md` so future resumes start from the stdin-to-HTTP relay boundary
 
 ## Important Context
 

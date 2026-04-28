@@ -171,10 +171,15 @@ Milestone D is now complete:
    - defer spoken notices until speaker behavior is validated and a host-generated audio or fixed-phrase strategy is chosen.
 
 12. Recommended next milestone after hook-produced choice prompts:
-   - real upstream hook producer integration that emits the new
-     `Notification.prompt` envelope from a concrete host-side workflow,
-     or, if staying inside the bridge/device boundary, free-text prompt
-     handling as its own separate milestone.
+   - add a hook relay CLI that reads hook JSON from stdin and forwards it to
+     `tools/session_bridge.py`
+   - keep it transport-only; do not duplicate bridge state logic
+   - fail open by default when the bridge is absent
+
+13. The relay milestone is now recorded in:
+   - `docs/adr/0010-add-a-hook-relay-cli.md`
+   - `docs/superpowers/specs/2026-04-28-hook-relay-cli-design.md`
+   - `docs/superpowers/plans/2026-04-28-hook-relay-cli-milestone-f.md`
 
 ## Cautions
 

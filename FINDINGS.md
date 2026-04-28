@@ -175,6 +175,9 @@ Last updated: 2026-04-28
 - Hook-produced choice prompts now work through the bridge on the same verified pending protocol. `apply_hook()` accepts a bounded `Notification.prompt` envelope for `single_choice` and `multi_choice`, publishes it to the device, waits for the returned answer when enabled, and responds with plain JSON (`decision` or `choices`).
 - Caller-supplied prompt ids needed one extra guard that `PreToolUse` did not: stale decisions must be cleared when a pending item with the same id is created or resolved. Without that, reused prompt ids could be satisfied immediately by an old device answer.
 - Invalid `Notification.prompt` envelopes deliberately fall back to the old plain-status notification path. That keeps the bridge tolerant of partial or malformed upstream payloads instead of turning a status update into a broken wait state.
+- The next narrow integration gap is hook transport, not bridge behavior. The repo now has the right local HTTP bridge semantics, but still lacks a small stdin-to-HTTP relay command that a real Claude/Codex hook runner can invoke directly.
+- That relay should stay transport-only. Re-implementing `apply_hook()` logic in a second script would create drift; the right design is hook runner -> relay CLI -> `tools/session_bridge.py`.
+- The safest default for the relay is fail-open. If the local bridge is unreachable, printing `{}` and exiting `0` preserves the user's normal hook workflow instead of turning the hardware buddy into a hard dependency.
 - First practical code slice should be a minimal bridge/state schema and firmware parser changes, preserving compatibility with the current simple heartbeat.
 - Second slice should be StickS3 UI state/pages for action, focused session, session list, latest message, and idle/status.
 - Third slice should add tone alerts and countdown overlays before richer WAV effects, CJK font loading, or microphone recording.
