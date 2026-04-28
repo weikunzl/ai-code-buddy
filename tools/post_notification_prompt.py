@@ -29,10 +29,12 @@ def build_notification_prompt(obj: dict[str, Any], cwd_default: str | None = Non
     options = prompt.get("options")
     if not prompt_id:
         raise ValueError("prompt.id is required")
-    if kind not in ("single_choice", "multi_choice"):
-        raise ValueError("prompt.kind must be single_choice or multi_choice")
-    if not isinstance(options, list) or not options:
+    if kind not in ("single_choice", "multi_choice", "notice", "free_text_required"):
+        raise ValueError("prompt.kind must be single_choice, multi_choice, notice, or free_text_required")
+    if kind in ("single_choice", "multi_choice") and (not isinstance(options, list) or not options):
         raise ValueError("prompt.options must be a non-empty list")
+    if kind in ("notice", "free_text_required") and not isinstance(options, list):
+        options = []
 
     cwd = _clip(obj.get("cwd") or cwd_default or os.getcwd(), 220)
     title = _clip(prompt.get("title"), 40)

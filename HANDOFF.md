@@ -209,6 +209,21 @@ Milestone D is now complete:
    - `docs/superpowers/specs/2026-04-28-free-text-required-design.md`
    - `docs/superpowers/plans/2026-04-28-free-text-required-milestone-h.md`
 
+18. Milestone H is now complete for bounded free-text-required handling:
+   - bridge accepts `notice` and `free_text_required`
+   - quick-reply `free_text_required` reuses scalar `choice` answers
+   - optionless stop-and-wait prompts do not block on device response
+   - `tools/post_notification_prompt.py` accepts the new kinds
+   - StickS3 action UI renders:
+     - `A: focus` for `notice` and optionless `free_text_required`
+     - `A: send`, `B: next` for quick-reply `free_text_required`
+
+19. Recommended next milestone after bounded free-text:
+   - concrete end-to-end upstream workflow/config examples that use
+     `tools/post_notification_prompt.py`,
+     or a later audio/microphone slice if you want to explore voice-note
+     response paths instead of typed host input.
+
 ## Cautions
 
 - Do not rely on `BtnPWR` until tested on hardware.

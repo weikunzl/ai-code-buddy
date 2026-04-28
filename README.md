@@ -217,6 +217,11 @@ printf '%s\n' '{
 strict by default; use `--fail-open` if you want bridge failures to degrade
 to `{}`.
 
+For stop-and-wait host input without a device answer, use `kind` as
+`notice` or `free_text_required` without `options`. For bounded canned
+replies, use `free_text_required` with up to 4 `options`; the device reuses
+the single-choice answer path for those quick replies.
+
 ## The seven states
 
 | State       | Trigger                     | Feel                        |

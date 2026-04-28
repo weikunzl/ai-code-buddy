@@ -555,6 +555,71 @@ class HookHandlingTests(unittest.TestCase):
         self.assertEqual(hb["pending"][0]["id"], "q_transport")
         self.assertEqual(hb["pending"][0]["kind"], "single_choice")
 
+    def test_notification_notice_publishes_without_waiting_for_answer(self):
+        state = session_bridge.BridgeState()
+        response = session_bridge.apply_hook(state, {
+            "hook_event_name": "Notification",
+            "session_id": "s_1",
+            "cwd": "/tmp/project",
+            "message": "Need host input",
+            "prompt": {
+                "id": "n_followup",
+                "kind": "notice",
+                "title": "Need host input",
+                "body": "Type on your computer",
+            },
+        }, now=20)
+        hb = state.build_heartbeat(now=21)
+
+        self.assertEqual(response, {})
+        self.assertEqual(hb["pending"][0]["kind"], "notice")
+        self.assertEqual(hb["pending"][0]["options"], [])
+
+    def test_notification_free_text_required_without_options_publishes_without_waiting(self):
+        state = session_bridge.BridgeState()
+        response = session_bridge.apply_hook(state, {
+            "hook_event_name": "Notification",
+            "session_id": "s_1",
+            "cwd": "/tmp/project",
+            "message": "Need details",
+            "prompt": {
+                "id": "q_followup",
+                "kind": "free_text_required",
+                "title": "Need details",
+                "body": "Type the path on your computer",
+            },
+        }, now=20)
+        hb = state.build_heartbeat(now=21)
+
+        self.assertEqual(response, {})
+        self.assertEqual(hb["pending"][0]["kind"], "free_text_required")
+        self.assertEqual(hb["pending"][0]["options"], [])
+
+    def test_notification_free_text_required_with_options_waits_for_choice(self):
+        state = session_bridge.BridgeState()
+
+        def on_state_change() -> None:
+            hb = state.build_heartbeat(now=25)
+            pending = hb.get("pending") or []
+            if pending:
+                state.decisions[pending[0]["id"]] = "here"
+
+        response = session_bridge.apply_hook(state, {
+            "hook_event_name": "Notification",
+            "session_id": "s_1",
+            "cwd": "/tmp/project",
+            "message": "Confirm target",
+            "prompt": {
+                "id": "q_followup",
+                "kind": "free_text_required",
+                "title": "Confirm target",
+                "body": "Pick a preset or type on host",
+                "options": [{"id": "here", "label": "Here"}, {"id": "tmp", "label": "Tmp"}],
+            },
+        }, now=20, decision_timeout=0.1, on_state_change=on_state_change)
+
+        self.assertEqual(response, {"decision": "here"})
+
     def test_add_pending_clears_stale_decision_for_reused_prompt_id(self):
         state = session_bridge.BridgeState()
         state.decisions["q_transport"] = "usb"
@@ -569,6 +634,22 @@ class HookHandlingTests(unittest.TestCase):
         )
 
         self.assertNotIn("q_transport", state.decisions)
+
+    def test_answer_command_accepts_free_text_quick_reply_choice(self):
+        state = session_bridge.BridgeState()
+        state.upsert_session("s_1", "/tmp/a", "a", "main", 0, "running", "codex", "working", now=1)
+        state.add_pending(
+            "q_followup",
+            "s_1",
+            "free_text_required",
+            "Need details",
+            "Type on host or pick",
+            [{"id": "here", "label": "Here"}, {"id": "tmp", "label": "Tmp"}],
+            now=2,
+        )
+
+        self.assertTrue(state.handle_device_command({"cmd": "answer", "id": "q_followup", "choice": "here"}))
+        self.assertEqual(state.decisions["q_followup"], "here")
 
 
 class TransportTests(unittest.TestCase):

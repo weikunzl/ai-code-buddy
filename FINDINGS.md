@@ -190,6 +190,9 @@ Last updated: 2026-04-28
 - Prompt-producing helpers need a longer timeout than the generic relay. The bridge can legitimately wait for a device answer, so the helper now defaults to `35s` instead of the relay's shorter transport-oriented timeout.
 - The next prompt gap is bounded free-text-required handling. Existing design notes already reject full text entry on the StickS3, so the next practical slice should be `notice` plus `free_text_required` with optional quick replies, not a keyboard.
 - The right reuse rule is: optioned `free_text_required` can borrow `single_choice` answer semantics, while optionless `free_text_required` and `notice` stay non-answering stop-and-wait states that can only focus the host session.
+- Bounded free-text-required handling now works on both host and firmware paths. The bridge accepts `notice` and `free_text_required`, quick-reply `free_text_required` reuses scalar `choice` answers, and non-answering stop-and-wait prompts publish without blocking on a device response.
+- The StickS3 action screen needed a separate stop-and-wait branch. Unknown prompt kinds could not safely fall through to the old approve/deny path; `notice` and optionless `free_text_required` now render as `A: focus` and do not pretend a deny/send action exists.
+- Quick-reply prompts and pure stop-and-wait prompts need different response handling on-device. Quick replies still mark the answer as sent, but `notice` and optionless `free_text_required` only focus the host session and must not switch into a fake `sent...` state.
 - First practical code slice should be a minimal bridge/state schema and firmware parser changes, preserving compatibility with the current simple heartbeat.
 - Second slice should be StickS3 UI state/pages for action, focused session, session list, latest message, and idle/status.
 - Third slice should add tone alerts and countdown overlays before richer WAV effects, CJK font loading, or microphone recording.

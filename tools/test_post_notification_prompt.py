@@ -59,6 +59,32 @@ class NotificationPromptHelperTests(unittest.TestCase):
         self.assertEqual(payload["prompt"]["body"], "Transport")
         self.assertEqual(payload["prompt"]["kind"], "multi_choice")
 
+    def test_build_notice_payload_allows_missing_options(self):
+        payload = post_notification_prompt.build_notification_prompt({
+            "session_id": "s_1",
+            "prompt": {
+                "id": "n_followup",
+                "kind": "notice",
+                "title": "Need host input",
+            },
+        }, cwd_default="/tmp/default")
+
+        self.assertEqual(payload["prompt"]["kind"], "notice")
+        self.assertEqual(payload["prompt"]["options"], [])
+
+    def test_build_free_text_required_payload_allows_missing_options(self):
+        payload = post_notification_prompt.build_notification_prompt({
+            "session_id": "s_1",
+            "prompt": {
+                "id": "q_followup",
+                "kind": "free_text_required",
+                "title": "Need details",
+            },
+        }, cwd_default="/tmp/default")
+
+        self.assertEqual(payload["prompt"]["kind"], "free_text_required")
+        self.assertEqual(payload["prompt"]["options"], [])
+
     def test_invalid_producer_payload_returns_error(self):
         stdout = io.StringIO()
         stderr = io.StringIO()

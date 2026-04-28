@@ -357,6 +357,22 @@ No firmware source files have been edited. Milestone A Task 4 only extends the h
   - added `docs/superpowers/specs/2026-04-28-free-text-required-design.md`
   - added `docs/superpowers/plans/2026-04-28-free-text-required-milestone-h.md`
   - updated `docs/adr/README.md`, `FINDINGS.md`, and `HANDOFF.md` so future resumes start from the bounded free-text contract
+- Implemented Milestone H bounded free-text-required handling:
+  - `tools/session_bridge.py` now accepts `notice` and `free_text_required`
+  - `single_choice` scalar answer semantics are reused for quick-reply `free_text_required`
+  - `notice` and optionless `free_text_required` publish without blocking for a device answer
+  - `tools/post_notification_prompt.py` now accepts `notice` and `free_text_required`
+  - `src/main.cpp` now renders stop-and-wait prompts explicitly instead of falling through to approve/deny
+  - `src/main.cpp` sends `focus` for `notice` and optionless `free_text_required`
+  - quick-reply `free_text_required` uses the existing `A: send` / `B: next` pattern
+  - updated `README.md` and `REFERENCE.md` with the new prompt kinds and response rules
+  - added bridge/helper tests for `notice`, optionless `free_text_required`, and quick-reply `free_text_required`
+- Milestone H software verification:
+  - `python3 tools/test_session_bridge.py`: PASS (`Ran 35 tests` / `OK`)
+  - `python3 tools/test_post_notification_prompt.py`: PASS (`Ran 9 tests` / `OK`)
+  - `python3 -m py_compile tools/session_bridge.py tools/post_notification_prompt.py tools/test_session_bridge.py tools/test_post_notification_prompt.py`: PASS
+  - `pio run -e m5sticks3`: PASS, RAM `98700 / 327680`, Flash `1257293 / 4194304`
+  - no hardware rerun was needed for this slice; firmware verification was limited to build validation
 
 ## Important Context
 

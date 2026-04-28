@@ -876,13 +876,15 @@ static void drawAction() {
     spr.printf("%.21s", d.body + 21);
   }
 
-  if (strcmp(d.kind, "single_choice") == 0 && d.nOptions > 0) {
+  if ((strcmp(d.kind, "single_choice") == 0
+       || (strcmp(d.kind, "free_text_required") == 0 && d.nOptions > 0))
+      && d.nOptions > 0) {
     DecisionOption& opt = d.options[d.selected];
     spr.setTextColor(p.body, p.bg);
     spr.setCursor(4, H - 30);
     spr.printf("%u/%u %.16s", d.selected + 1, d.nOptions, opt.label);
     spr.setTextColor(GREEN, p.bg);
-    spr.setCursor(4, H - 12); spr.print("A: choose");
+    spr.setCursor(4, H - 12); spr.print("A: send");
     spr.setTextColor(p.textDim, p.bg);
     spr.setCursor(W - 42, H - 12); spr.print("B: next");
   } else if (strcmp(d.kind, "multi_choice") == 0 && d.nOptions > 0) {
@@ -898,6 +900,14 @@ static void drawAction() {
     spr.setCursor(4, H - 12); spr.print("A: toggle");
     spr.setTextColor(p.textDim, p.bg);
     spr.setCursor(W - 42, H - 12); spr.print("B: next");
+  } else if (strcmp(d.kind, "notice") == 0 || strcmp(d.kind, "free_text_required") == 0) {
+    spr.setTextColor(p.body, p.bg);
+    spr.setCursor(4, H - 30);
+    spr.print("type on host");
+    spr.setTextColor(GREEN, p.bg);
+    spr.setCursor(4, H - 12); spr.print("A: focus");
+    spr.setTextColor(p.textDim, p.bg);
+    spr.setCursor(W - 42, H - 12); spr.print("B: wait");
   } else if (responseSent) {
     spr.setTextColor(p.textDim, p.bg);
     spr.setCursor(4, H - 12); spr.print("sent...");
@@ -1384,17 +1394,29 @@ void loop() {
         if (tama.nPending > 0 && strcmp(tama.pending[0].kind, "single_choice") == 0 && tama.pending[0].nOptions > 0) {
           PendingDecision& d = tama.pending[0];
           sendAnswerChoice(d.id, d.options[d.selected].id);
+        } else if (tama.nPending > 0 && strcmp(tama.pending[0].kind, "free_text_required") == 0 && tama.pending[0].nOptions > 0) {
+          PendingDecision& d = tama.pending[0];
+          sendAnswerChoice(d.id, d.options[d.selected].id);
         } else if (tama.nPending > 0 && strcmp(tama.pending[0].kind, "multi_choice") == 0 && tama.pending[0].nOptions > 0) {
           PendingDecision& d = tama.pending[0];
           d.options[d.selected].selected = !d.options[d.selected].selected;
           beep(d.options[d.selected].selected ? 2200 : 1200, 30);
+        } else if (tama.nPending > 0
+            && (strcmp(tama.pending[0].kind, "notice") == 0
+                || strcmp(tama.pending[0].kind, "free_text_required") == 0)) {
+          PendingDecision& d = tama.pending[0];
+          sendFocusSession(d.sid);
+          beep(1800, 30);
         } else {
           sendPermissionDecision(tama.promptId, "once");
           uint32_t tookS = (millis() - promptArrivedMs) / 1000;
           statsOnApproval(tookS);
           if (tookS < 5) triggerOneShot(P_HEART, 2000);
         }
-        if (!(tama.nPending > 0 && strcmp(tama.pending[0].kind, "multi_choice") == 0 && tama.pending[0].nOptions > 0)) {
+        if (!(tama.nPending > 0
+            && ((strcmp(tama.pending[0].kind, "multi_choice") == 0 && tama.pending[0].nOptions > 0)
+                || strcmp(tama.pending[0].kind, "notice") == 0
+                || (strcmp(tama.pending[0].kind, "free_text_required") == 0 && tama.pending[0].nOptions == 0)))) {
           responseSent = true;
           beep(2400, 60);
         }
@@ -1430,11 +1452,16 @@ void loop() {
     if (inPrompt) {
       if (tama.nPending > 0
           && (strcmp(tama.pending[0].kind, "single_choice") == 0
-              || strcmp(tama.pending[0].kind, "multi_choice") == 0)
+              || strcmp(tama.pending[0].kind, "multi_choice") == 0
+              || (strcmp(tama.pending[0].kind, "free_text_required") == 0 && tama.pending[0].nOptions > 0))
           && tama.pending[0].nOptions > 0) {
         PendingDecision& d = tama.pending[0];
         d.selected = (d.selected + 1) % d.nOptions;
         beep(1800, 30);
+      } else if (tama.nPending > 0
+             && (strcmp(tama.pending[0].kind, "notice") == 0
+                 || strcmp(tama.pending[0].kind, "free_text_required") == 0)) {
+        beep(1200, 30);
       } else {
         sendPermissionDecision(tama.promptId, "deny");
         responseSent = true;

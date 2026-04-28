@@ -118,6 +118,37 @@ For `single_choice`, each pending item may include up to 4 options:
 For `multi_choice`, the pending shape is the same except `kind` is
 `"multi_choice"` and the device may select more than one `options[].id`.
 
+For `notice`, the pending item is informational and does not expect a device
+answer:
+
+```json
+{
+  "id": "n_followup",
+  "sid": "s_123",
+  "kind": "notice",
+  "title": "Need host input",
+  "body": "Type the answer on your computer"
+}
+```
+
+For `free_text_required`, the device does not attempt arbitrary text entry.
+Without options, it is a stop-and-wait state like `notice`. With bounded
+options, the device may send a scalar quick-reply choice:
+
+```json
+{
+  "id": "q_followup",
+  "sid": "s_123",
+  "kind": "free_text_required",
+  "title": "Confirm target",
+  "body": "Pick a preset or type on host",
+  "options": [
+    { "id": "here", "label": "Here", "desc": "Use current repo" },
+    { "id": "tmp", "label": "Tmp", "desc": "Use /tmp" }
+  ]
+}
+```
+
 ## Turn events
 
 Each completed turn also fires a one-shot event containing the raw SDK
@@ -167,6 +198,16 @@ The `id` must match the pending item exactly. Every value in `choices[]`
 must match one of that pending item's `options[].id` values, and duplicates
 are invalid.
 
+For `free_text_required` with quick replies, the device reuses the
+single-choice answer shape:
+
+```json
+{"cmd":"answer","id":"q_followup","choice":"here"}
+```
+
+If `free_text_required` has no `options`, or if the pending kind is
+`notice`, the device does not send an answer payload.
+
 ## Bridge-local hook prompt contract
 
 For real hook-runner transport, this repo also ships `tools/hook_relay.py`,
@@ -199,8 +240,10 @@ For a smaller producer-local input, this repo also ships
 }
 ```
 
-The helper wraps that payload into the full bridge-local `Notification`
-shape and forwards it through `tools/hook_relay.py`.
+`prompt.kind` may be `single_choice`, `multi_choice`, `notice`, or
+`free_text_required`. The helper wraps that payload into the full
+bridge-local `Notification` shape and forwards it through
+`tools/hook_relay.py`.
 
 Example request:
 

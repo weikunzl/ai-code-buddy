@@ -216,7 +216,7 @@ class BridgeState:
                 pid = str(obj.get("id") or "")
                 pending = self.pending.get(pid)
                 choice = str(obj.get("choice") or "")
-                if pending and pending.kind == "single_choice" and choice:
+                if pending and pending.kind in ("single_choice", "free_text_required") and choice:
                     if any(opt.get("id") == choice for opt in pending.options):
                         self.decisions[pid] = choice
                         return True
@@ -564,8 +564,12 @@ def notification_prompt(payload: dict[str, Any]) -> dict[str, Any] | None:
     pid = _clip(raw.get("id"), 40)
     kind = _clip(raw.get("kind"), 20)
     options = raw.get("options")
-    if not pid or kind not in ("single_choice", "multi_choice") or not isinstance(options, list) or not options:
+    if not pid or kind not in ("single_choice", "multi_choice", "notice", "free_text_required"):
         return None
+    if kind in ("single_choice", "multi_choice") and (not isinstance(options, list) or not options):
+        return None
+    if kind in ("notice", "free_text_required") and not isinstance(options, list):
+        options = []
     title = _clip(raw.get("title") or payload.get("message") or kind, 40)
     body = _clip(raw.get("body") or payload.get("message") or "", 240)
     return {
@@ -640,10 +644,14 @@ def apply_hook(
             notify_state_change()
             if not wait_for_decision:
                 return {}
+            if prompt["kind"] == "notice":
+                return {}
+            if prompt["kind"] == "free_text_required" and not prompt["options"]:
+                return {}
             decision = await_pending_decision(state, prompt["id"], time.time() + decision_timeout)
             state.resolve_pending(prompt["id"])
             notify_state_change()
-            if prompt["kind"] == "single_choice" and isinstance(decision, str) and decision:
+            if prompt["kind"] in ("single_choice", "free_text_required") and isinstance(decision, str) and decision:
                 return {"decision": decision}
             if prompt["kind"] == "multi_choice" and isinstance(decision, list) and decision:
                 return {"choices": decision}
