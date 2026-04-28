@@ -185,10 +185,16 @@ Milestone D is now complete:
    - `docs/superpowers/plans/2026-04-28-hook-relay-cli-milestone-f.md`
 
 14. Recommended next milestone after the relay:
-   - add a focused upstream producer helper or config example for emitting
-     bridge-local `Notification.prompt` payloads from a concrete workflow,
-     or, if staying protocol-local, treat free-text prompts as their own
-     separate milestone.
+   - add a focused upstream producer helper for emitting bridge-local
+     `Notification.prompt` payloads from a concrete workflow
+   - reuse `tools/hook_relay.py` transport logic
+   - keep the producer-local input smaller than a full hook payload
+   - make producer failures visible by default
+
+15. The producer-helper milestone is now recorded in:
+   - `docs/adr/0011-add-a-notification-prompt-helper.md`
+   - `docs/superpowers/specs/2026-04-28-notification-prompt-helper-design.md`
+   - `docs/superpowers/plans/2026-04-28-notification-prompt-helper-milestone-g.md`
 
 ## Cautions
 

@@ -181,6 +181,9 @@ Last updated: 2026-04-28
 - The hook transport gap is now closed with `tools/hook_relay.py`. It reads one JSON object from stdin, POSTs it to the local bridge, prints the bridge response to stdout unchanged, and stays stdlib-only.
 - Fail-open behavior is useful in practice for this repo. When the bridge is absent or returns malformed data, the relay can safely degrade to `{}` by default, while `--strict` still exposes real integration errors for debugging and CI-style checks.
 - The README had a stale manual bridge example on port `8765` while `tools/session_bridge.py` actually defaults to `9876`. That mismatch is now corrected so docs match the runtime.
+- The next upstream ergonomics gap is producer shape, not transport. `tools/hook_relay.py` is the right generic transport, but custom workflows still have to construct a full `hook_event_name = "Notification"` payload manually.
+- The right next helper should wrap a smaller producer-local payload into the existing `Notification.prompt` envelope and then reuse the relay path. That keeps one transport implementation and avoids another HTTP adapter with drift.
+- Unlike the generic relay, the producer helper should be strict by default. A caller that explicitly asks the device a question generally expects either a real answer or a visible failure.
 - First practical code slice should be a minimal bridge/state schema and firmware parser changes, preserving compatibility with the current simple heartbeat.
 - Second slice should be StickS3 UI state/pages for action, focused session, session list, latest message, and idle/status.
 - Third slice should add tone alerts and countdown overlays before richer WAV effects, CJK font loading, or microphone recording.
