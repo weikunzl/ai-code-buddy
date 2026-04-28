@@ -222,6 +222,9 @@ For stop-and-wait host input without a device answer, use `kind` as
 replies, use `free_text_required` with up to 4 `options`; the device reuses
 the single-choice answer path for those quick replies.
 
+For concrete end-to-end example payloads and exact shell invocations, see
+[`docs/upstream-workflow-examples.md`](docs/upstream-workflow-examples.md).
+
 ## The seven states
 
 | State       | Trigger                     | Feel                        |

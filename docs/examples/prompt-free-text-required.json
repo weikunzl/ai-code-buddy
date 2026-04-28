@@ -1,0 +1,16 @@
+{
+  "session_id": "s_demo_text",
+  "cwd": "/tmp/claude-desktop-buddy",
+  "message": "Need host input",
+  "model": "codex",
+  "prompt": {
+    "id": "q_followup",
+    "kind": "free_text_required",
+    "title": "Confirm target",
+    "body": "Pick a preset or type on host",
+    "options": [
+      { "id": "here", "label": "Here", "desc": "Use current repo" },
+      { "id": "tmp", "label": "Tmp", "desc": "Use /tmp" }
+    ]
+  }
+}

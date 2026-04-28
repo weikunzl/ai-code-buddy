@@ -1,0 +1,7 @@
+{
+  "hook_event_name": "UserPromptSubmit",
+  "session_id": "s_demo_hook",
+  "cwd": "/tmp/claude-desktop-buddy",
+  "model": "codex",
+  "prompt": "run tests"
+}

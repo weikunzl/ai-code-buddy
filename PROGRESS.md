@@ -378,6 +378,20 @@ No firmware source files have been edited. Milestone A Task 4 only extends the h
   - added `docs/superpowers/specs/2026-04-28-upstream-workflow-examples-design.md`
   - added `docs/superpowers/plans/2026-04-28-upstream-workflow-examples-milestone-i.md`
   - updated `docs/adr/README.md`, `FINDINGS.md`, and `HANDOFF.md` so future resumes start from runnable examples instead of more protocol work
+- Implemented Milestone I runnable upstream workflow examples:
+  - added checked-in payloads:
+    - `docs/examples/hook-user-prompt-submit.json`
+    - `docs/examples/prompt-single-choice.json`
+    - `docs/examples/prompt-free-text-required.json`
+  - added `docs/upstream-workflow-examples.md` with exact shell invocations
+  - added `tools/test_workflow_examples.py` to validate the example payloads against the real relay/helper functions
+  - updated `README.md` to point at the focused workflow guide
+- Milestone I software verification:
+  - `python3 tools/test_workflow_examples.py`: PASS (`Ran 3 tests` / `OK`)
+  - `python3 tools/test_hook_relay.py`: PASS (`Ran 7 tests` / `OK`)
+  - `python3 tools/test_post_notification_prompt.py`: PASS (`Ran 9 tests` / `OK`)
+  - `python3 -m py_compile tools/test_workflow_examples.py`: PASS
+  - no firmware build or hardware rerun was needed for this slice because it only added example artifacts, docs, and smoke validation on top of already-verified tooling
 
 ## Important Context
 

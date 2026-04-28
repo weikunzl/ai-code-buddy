@@ -229,6 +229,20 @@ Milestone D is now complete:
    - `docs/superpowers/specs/2026-04-28-upstream-workflow-examples-design.md`
    - `docs/superpowers/plans/2026-04-28-upstream-workflow-examples-milestone-i.md`
 
+21. Milestone I is now complete for runnable upstream workflow examples:
+   - checked-in payloads live in `docs/examples/`
+   - the focused guide is `docs/upstream-workflow-examples.md`
+   - smoke validation lives in `tools/test_workflow_examples.py`
+   - examples cover:
+     - `UserPromptSubmit` hook relay
+     - `single_choice` prompt helper
+     - `free_text_required` prompt helper
+
+22. Recommended next phase after runnable examples:
+   - audio/microphone exploration,
+   - or concrete hardware verification of the new `notice` /
+     `free_text_required` flows on the StickS3.
+
 ## Cautions
 
 - Do not rely on `BtnPWR` until tested on hardware.

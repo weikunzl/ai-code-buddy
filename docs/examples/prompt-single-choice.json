@@ -1,0 +1,16 @@
+{
+  "session_id": "s_demo_choice",
+  "cwd": "/tmp/claude-desktop-buddy",
+  "message": "Choose transport",
+  "model": "codex",
+  "prompt": {
+    "id": "q_transport",
+    "kind": "single_choice",
+    "title": "Transport",
+    "body": "pick transport",
+    "options": [
+      { "id": "ble", "label": "BLE", "desc": "Wireless" },
+      { "id": "usb", "label": "USB", "desc": "Serial" }
+    ]
+  }
+}
