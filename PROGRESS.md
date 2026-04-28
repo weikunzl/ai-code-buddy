@@ -410,6 +410,11 @@ No firmware source files have been edited. Milestone A Task 4 only extends the h
   - clean optionless `free_text_required` profile over USB serial: user confirmed title `Need details`, expected body text, and `A: focus`
   - real serial bridge plus checked-in `prompt-free-text-required.json`: PASS, user pressed `B` then `A`, and `tools/post_notification_prompt.py` returned `{"decision": "tmp"}`
   - raw `notice` / `focus` action produced no visible on-screen transition, which is acceptable for a host-side intent
+- Recorded the next post-stop-and-wait milestone for tone-pattern cleanup:
+  - added `docs/adr/0015-centralize-tone-patterns-before-wav-assets.md`
+  - added `docs/superpowers/specs/2026-04-29-tone-patterns-design.md`
+  - added `docs/superpowers/plans/2026-04-29-tone-patterns-milestone-k.md`
+  - updated `docs/adr/README.md`, `FINDINGS.md`, and `HANDOFF.md` so future resumes start from the named-tone refactor
 
 ## Important Context
 

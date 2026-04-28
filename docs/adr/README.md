@@ -20,6 +20,7 @@ console.
 - [ADR-0012: Bound Free-Text To Notice And Quick Replies](0012-bound-free-text-to-notice-and-quick-replies.md)
 - [ADR-0013: Add Runnable Upstream Workflow Examples](0013-add-runnable-upstream-workflow-examples.md)
 - [ADR-0014: Verify Stop-And-Wait Prompts On Hardware](0014-verify-stop-and-wait-prompts-on-hardware.md)
+- [ADR-0015: Centralize Tone Patterns Before WAV Assets](0015-centralize-tone-patterns-before-wav-assets.md)
 
 ## Implementation Plan
 
@@ -62,6 +63,10 @@ The next implementation plan after bounded free-text-required prompts is:
 The next implementation plan after runnable upstream workflow examples is:
 
 - `docs/superpowers/plans/2026-04-28-stop-and-wait-hardware-verification-milestone-j.md`
+
+The next implementation plan after stop-and-wait hardware verification is:
+
+- `docs/superpowers/plans/2026-04-29-tone-patterns-milestone-k.md`
 
 It starts with:
 

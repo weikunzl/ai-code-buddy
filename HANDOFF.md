@@ -261,9 +261,15 @@ Milestone D is now complete:
        `tools/post_notification_prompt.py`: `{"decision":"tmp"}`
 
 25. Recommended next phase after stop-and-wait verification:
-   - audio/microphone exploration,
+   - centralize named tone patterns for prompt/event alerts,
+   - keep WAV assets and microphone work for later,
    - or deeper host-side focus handling if you want visible host reaction to
      the `focus` intent during stop-and-wait prompts.
+
+26. The tone-pattern milestone is now recorded in:
+   - `docs/adr/0015-centralize-tone-patterns-before-wav-assets.md`
+   - `docs/superpowers/specs/2026-04-29-tone-patterns-design.md`
+   - `docs/superpowers/plans/2026-04-29-tone-patterns-milestone-k.md`
 
 ## Cautions
 
