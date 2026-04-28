@@ -199,9 +199,15 @@ Milestone D is now complete:
    - `docs/superpowers/plans/2026-04-28-notification-prompt-helper-milestone-g.md`
 
 16. Recommended next milestone after the producer helper:
-   - free-text prompt handling as its own separate slice,
-     or a concrete upstream workflow/config example that uses the new helper
-     end to end.
+   - bounded free-text prompt handling as its own separate slice
+   - no on-device keyboard
+   - use `notice` and `free_text_required`
+   - allow optional quick replies and host-session focus
+
+17. The bounded free-text milestone is now recorded in:
+   - `docs/adr/0012-bound-free-text-to-notice-and-quick-replies.md`
+   - `docs/superpowers/specs/2026-04-28-free-text-required-design.md`
+   - `docs/superpowers/plans/2026-04-28-free-text-required-milestone-h.md`
 
 ## Cautions
 

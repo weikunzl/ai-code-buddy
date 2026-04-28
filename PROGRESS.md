@@ -352,6 +352,11 @@ No firmware source files have been edited. Milestone A Task 4 only extends the h
   - `python3 tools/test_session_bridge.py`: PASS (`Ran 31 tests` / `OK`)
   - `python3 -m py_compile tools/post_notification_prompt.py tools/test_post_notification_prompt.py tools/hook_relay.py`: PASS
   - no firmware build or hardware rerun was needed for this slice because it only changed Python tooling and docs around the already-verified bridge
+- Recorded the next post-helper milestone for bounded free-text-required handling:
+  - added `docs/adr/0012-bound-free-text-to-notice-and-quick-replies.md`
+  - added `docs/superpowers/specs/2026-04-28-free-text-required-design.md`
+  - added `docs/superpowers/plans/2026-04-28-free-text-required-milestone-h.md`
+  - updated `docs/adr/README.md`, `FINDINGS.md`, and `HANDOFF.md` so future resumes start from the bounded free-text contract
 
 ## Important Context
 

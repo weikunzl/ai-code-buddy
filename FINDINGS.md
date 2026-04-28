@@ -188,6 +188,8 @@ Last updated: 2026-04-28
 - The helper defaults are intentionally different from the generic relay: invalid input is always an error, and bridge failures are strict by default because the caller is explicitly asking a question. `--fail-open` is still available for workflows that prefer `{}` on bridge failure.
 - Reusing the relay transport kept this slice narrow. The helper does not open a second HTTP implementation and does not duplicate any bridge waiting/answer behavior.
 - Prompt-producing helpers need a longer timeout than the generic relay. The bridge can legitimately wait for a device answer, so the helper now defaults to `35s` instead of the relay's shorter transport-oriented timeout.
+- The next prompt gap is bounded free-text-required handling. Existing design notes already reject full text entry on the StickS3, so the next practical slice should be `notice` plus `free_text_required` with optional quick replies, not a keyboard.
+- The right reuse rule is: optioned `free_text_required` can borrow `single_choice` answer semantics, while optionless `free_text_required` and `notice` stay non-answering stop-and-wait states that can only focus the host session.
 - First practical code slice should be a minimal bridge/state schema and firmware parser changes, preserving compatibility with the current simple heartbeat.
 - Second slice should be StickS3 UI state/pages for action, focused session, session list, latest message, and idle/status.
 - Third slice should add tone alerts and countdown overlays before richer WAV effects, CJK font loading, or microphone recording.

@@ -17,6 +17,7 @@ console.
 - [ADR-0009: Add Hook-Produced Choice Prompts In The Bridge](0009-hook-produced-choice-prompts.md)
 - [ADR-0010: Add A Hook Relay CLI](0010-add-a-hook-relay-cli.md)
 - [ADR-0011: Add A Notification Prompt Helper](0011-add-a-notification-prompt-helper.md)
+- [ADR-0012: Bound Free-Text To Notice And Quick Replies](0012-bound-free-text-to-notice-and-quick-replies.md)
 
 ## Implementation Plan
 
@@ -47,6 +48,10 @@ The next implementation plan after hook-produced choice prompts is:
 The next implementation plan after the hook relay is:
 
 - `docs/superpowers/plans/2026-04-28-notification-prompt-helper-milestone-g.md`
+
+The next implementation plan after the notification prompt helper is:
+
+- `docs/superpowers/plans/2026-04-28-free-text-required-milestone-h.md`
 
 It starts with:
 
