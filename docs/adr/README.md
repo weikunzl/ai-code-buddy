@@ -18,6 +18,7 @@ console.
 - [ADR-0010: Add A Hook Relay CLI](0010-add-a-hook-relay-cli.md)
 - [ADR-0011: Add A Notification Prompt Helper](0011-add-a-notification-prompt-helper.md)
 - [ADR-0012: Bound Free-Text To Notice And Quick Replies](0012-bound-free-text-to-notice-and-quick-replies.md)
+- [ADR-0013: Add Runnable Upstream Workflow Examples](0013-add-runnable-upstream-workflow-examples.md)
 
 ## Implementation Plan
 
@@ -52,6 +53,10 @@ The next implementation plan after the hook relay is:
 The next implementation plan after the notification prompt helper is:
 
 - `docs/superpowers/plans/2026-04-28-free-text-required-milestone-h.md`
+
+The next implementation plan after bounded free-text-required prompts is:
+
+- `docs/superpowers/plans/2026-04-28-upstream-workflow-examples-milestone-i.md`
 
 It starts with:
 

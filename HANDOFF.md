@@ -220,9 +220,14 @@ Milestone D is now complete:
 
 19. Recommended next milestone after bounded free-text:
    - concrete end-to-end upstream workflow/config examples that use
-     `tools/post_notification_prompt.py`,
-     or a later audio/microphone slice if you want to explore voice-note
-     response paths instead of typed host input.
+     `tools/hook_relay.py` and `tools/post_notification_prompt.py`
+   - prefer checked-in JSON payloads plus a smoke test
+   - avoid claiming an exact upstream vendor config format
+
+20. The runnable upstream examples milestone is now recorded in:
+   - `docs/adr/0013-add-runnable-upstream-workflow-examples.md`
+   - `docs/superpowers/specs/2026-04-28-upstream-workflow-examples-design.md`
+   - `docs/superpowers/plans/2026-04-28-upstream-workflow-examples-milestone-i.md`
 
 ## Cautions
 

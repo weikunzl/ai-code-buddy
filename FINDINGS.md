@@ -193,6 +193,8 @@ Last updated: 2026-04-28
 - Bounded free-text-required handling now works on both host and firmware paths. The bridge accepts `notice` and `free_text_required`, quick-reply `free_text_required` reuses scalar `choice` answers, and non-answering stop-and-wait prompts publish without blocking on a device response.
 - The StickS3 action screen needed a separate stop-and-wait branch. Unknown prompt kinds could not safely fall through to the old approve/deny path; `notice` and optionless `free_text_required` now render as `A: focus` and do not pretend a deny/send action exists.
 - Quick-reply prompts and pure stop-and-wait prompts need different response handling on-device. Quick replies still mark the answer as sent, but `notice` and optionless `free_text_required` only focus the host session and must not switch into a fake `sent...` state.
+- The next practical gap is not more protocol work; it is runnable upstream examples. The repo has enough helper surface now that concrete checked-in payloads plus a smoke test are more useful than another abstraction layer.
+- The safest example shape is checked-in JSON plus shell invocation. That stays honest about what we can verify locally and avoids claiming a specific vendor hook config format we do not own in this repo.
 - First practical code slice should be a minimal bridge/state schema and firmware parser changes, preserving compatibility with the current simple heartbeat.
 - Second slice should be StickS3 UI state/pages for action, focused session, session list, latest message, and idle/status.
 - Third slice should add tone alerts and countdown overlays before richer WAV effects, CJK font loading, or microphone recording.

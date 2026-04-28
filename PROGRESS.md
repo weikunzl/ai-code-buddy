@@ -373,6 +373,11 @@ No firmware source files have been edited. Milestone A Task 4 only extends the h
   - `python3 -m py_compile tools/session_bridge.py tools/post_notification_prompt.py tools/test_session_bridge.py tools/test_post_notification_prompt.py`: PASS
   - `pio run -e m5sticks3`: PASS, RAM `98700 / 327680`, Flash `1257293 / 4194304`
   - no hardware rerun was needed for this slice; firmware verification was limited to build validation
+- Recorded the next post-free-text milestone for runnable upstream workflow examples:
+  - added `docs/adr/0013-add-runnable-upstream-workflow-examples.md`
+  - added `docs/superpowers/specs/2026-04-28-upstream-workflow-examples-design.md`
+  - added `docs/superpowers/plans/2026-04-28-upstream-workflow-examples-milestone-i.md`
+  - updated `docs/adr/README.md`, `FINDINGS.md`, and `HANDOFF.md` so future resumes start from runnable examples instead of more protocol work
 
 ## Important Context
 
