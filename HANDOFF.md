@@ -248,6 +248,23 @@ Milestone D is now complete:
    - `docs/superpowers/specs/2026-04-28-stop-and-wait-hardware-verification-design.md`
    - `docs/superpowers/plans/2026-04-28-stop-and-wait-hardware-verification-milestone-j.md`
 
+24. Milestone J is now complete for stop-and-wait prompt hardware verification:
+   - current firmware uploaded successfully to `/dev/cu.usbmodem144301`
+   - `tools/test_serial.py` now has dedicated profiles:
+     - `notice`
+     - `free_text`
+     - `free_text_choice`
+   - user-observed hardware results:
+     - `notice` rendered expected title/body and stop-and-wait footer
+     - optionless `free_text_required` rendered `Need details` with `A: focus`
+     - quick-reply `free_text_required` returned a real host decision through
+       `tools/post_notification_prompt.py`: `{"decision":"tmp"}`
+
+25. Recommended next phase after stop-and-wait verification:
+   - audio/microphone exploration,
+   - or deeper host-side focus handling if you want visible host reaction to
+     the `focus` intent during stop-and-wait prompts.
+
 ## Cautions
 
 - Do not rely on `BtnPWR` until tested on hardware.

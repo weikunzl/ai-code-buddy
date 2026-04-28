@@ -397,6 +397,19 @@ No firmware source files have been edited. Milestone A Task 4 only extends the h
   - added `docs/superpowers/specs/2026-04-28-stop-and-wait-hardware-verification-design.md`
   - added `docs/superpowers/plans/2026-04-28-stop-and-wait-hardware-verification-milestone-j.md`
   - updated `docs/adr/README.md`, `FINDINGS.md`, and `HANDOFF.md` so future resumes start from connected-device verification of `notice` and `free_text_required`
+- Implemented Milestone J stop-and-wait hardware verification support:
+  - `tools/test_serial.py` now has dedicated profiles:
+    - `notice`
+    - `free_text`
+    - `free_text_choice`
+  - `tools/test_serial.py` also gained optional `--readback` support for printing device-to-host USB lines during verification
+- Milestone J hardware verification on connected StickS3:
+  - `pio device list`: PASS, detected `/dev/cu.usbmodem144301`
+  - `pio run -e m5sticks3 -t upload`: PASS
+  - clean `notice` profile over USB serial: user confirmed expected stop-and-wait rendering
+  - clean optionless `free_text_required` profile over USB serial: user confirmed title `Need details`, expected body text, and `A: focus`
+  - real serial bridge plus checked-in `prompt-free-text-required.json`: PASS, user pressed `B` then `A`, and `tools/post_notification_prompt.py` returned `{"decision": "tmp"}`
+  - raw `notice` / `focus` action produced no visible on-screen transition, which is acceptable for a host-side intent
 
 ## Important Context
 
