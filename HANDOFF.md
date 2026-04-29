@@ -310,41 +310,30 @@ Milestone D is now complete:
    - verify with both `pio run -e m5sticks3` and connected-device audio
      checks
 
-34. Milestone L Task 2-3 is now complete and review-clean:
+34. Milestone L implementation was explored and then intentionally backed out
+    as a product path on this runtime:
    - `ecb43c8` `test: add wav asset smoke test`
    - `7f358fc` `feat: add embedded wav alert cues`
    - `69e1f8c` `fix: avoid duplicate wav prompt cues`
+   - `f8325bf` `fix: regenerate embedded wav assets`
+   - `aab820e` `fix: use raw pcm alert playback`
 
-35. Current Milestone L implementation state:
-   - `src/wav_assets.h` / `src/wav_assets.cpp` hold two converted embedded WAVs
-   - only `toneInputRequired()` and `toneComplete()` use `playWav()`
-   - other alert helpers remain tone-backed
-   - `tools/test_wav_assets.py` now validates both assets and the duplicate-cue
-     guard more meaningfully
-   - reviewed duplicate same-tick prompt playback is fixed
+35. Real hardware outcome for Milestone L:
+   - `playWav()` stayed silent on the connected StickS3
+   - `playRaw()` with signed 16-bit PCM also stayed silent
+   - a tiny diagnostic `playRaw()` with unsigned 8-bit raw samples still
+     stayed silent
+   - tone-backed paths remained audible the whole time
 
-36. Software verification for the implementation boundary:
-   - `python3 tools/test_wav_assets.py`: PASS
-   - `pio run -e m5sticks3`: PASS
-   - latest StickS3 size: RAM `98700 / 327680`, Flash `1310013 / 4194304`
+36. Current firmware state is intentionally restored to tone-backed alerts:
+   - `toneInputRequired()` and `toneComplete()` are back on `tone()`
+   - no embedded audio asset files remain in the tree
+   - this keeps the device on the last known-good audible path
 
-37. The next task is Milestone L hardware verification only:
-   - flash the connected StickS3
-   - trigger the input-required WAV cue
-   - trigger the completion WAV cue
-   - record whether playback is audible and the device stays responsive
-
-38. One additional Milestone L fix landed before the final hardware check:
-   - the first embedded assets were regenerated after hardware showed silent
-     arrival playback
-   - the old `afconvert` output had a large filler chunk and quiet samples
-   - the current assets are canonical WAVs with louder samples and a much
-     earlier `data` chunk
-
-39. Current software verification after the asset regeneration:
-   - `python3 tools/test_wav_assets.py`: PASS
-   - `pio run -e m5sticks3`: PASS
-   - latest StickS3 size: RAM `98700 / 327680`, Flash `1301953 / 4194304`
+37. The next audio work should not retry embedded playback blindly. It needs a
+    separate low-level investigation of M5Unified/M5StickS3 streamed audio,
+    likely starting from a minimal standalone upstream speaker example on this
+    exact board/runtime rather than the session-console firmware.
 
 ## Cautions
 

@@ -212,15 +212,16 @@ Last updated: 2026-04-29
   - `confirm-sound.wav` -> `complete`
 - Keeping deny/error/focus/answer-sent on tones isolates playback risk to two well-understood call paths and avoids a broad audio regression if `playWav()` needs tuning on StickS3.
 - The Milestone L implementation plan is now recorded in `docs/superpowers/plans/2026-04-29-first-embedded-wav-assets-milestone-l.md`. The plan keeps conversion local to the developer machine with `afconvert`, embeds only two converted assets, and adds a small smoke test instead of widening protocol or UI scope.
-- Milestone L Task 2-3 is now implemented with explicit test-first history:
-  - `ecb43c8` adds the failing WAV smoke test
-  - `7f358fc` adds the embedded asset unit and switches only `toneInputRequired()` / `toneComplete()`
-  - `69e1f8c` fixes duplicate same-tick prompt playback and strengthens the smoke test
-- The first embedded assets are small enough to keep for now but not cheap enough to ignore. The two converted mono 22.05 kHz WAVs add about `52,224` bytes total to firmware flash, bringing the StickS3 build to about `1,310,013 / 4,194,304` bytes.
-- The first real WAV-specific behavior bug was not in `playWav()` itself; it was existing double-arrival prompt logic becoming audible. A single incoming prompt could trigger the input-required cue twice in the same loop tick, which is acceptable for a short beep but too obvious for a 0.5s WAV. The fix is a shared `samePromptAndPendingArrival` guard in `src/main.cpp`.
-- `tools/test_wav_assets.py` is now a more useful smoke test. It parses both embedded arrays, checks RIFF/WAVE/data structure and declared lengths, and asserts the duplicate-cue guard exists, while still stopping short of on-device audio verification.
-- The first silent-playback bug was in the asset encoding, not in the prompt/event wiring. The original `afconvert` output contained a large `FLLR` chunk and pushed the real `data` chunk out to byte `4088`; it also kept the clip amplitudes relatively quiet for the StickS3 speaker.
-- The current embedded assets are regenerated as canonical mono 22.05 kHz PCM WAVs with `data` at byte `36` and about `4x` higher sample amplitude. This also reduced firmware flash slightly because the filler chunk is gone.
+- Milestone L produced a negative but useful result on real hardware: streamed audio is not working on this StickS3 runtime even though `tone()` works.
+- We tested three separate streamed-audio paths on the connected device:
+  - embedded `playWav()` with valid WAV headers
+  - embedded `playRaw()` with signed 16-bit mono PCM
+  - a tiny diagnostic `playRaw()` with unsigned 8-bit raw samples modeled on the upstream M5Unified example
+- All three stayed silent on arrival, while the tone-backed paths remained audible. That isolates the problem to streamed audio playback on this board/runtime, not to prompt routing or to a single asset file.
+- We also confirmed two intermediate root causes during the investigation:
+  - same-tick prompt/pending arrival had to be deduplicated for long cues
+  - the first `afconvert` WAVs were poor embedded assets because they carried a large `FLLR` chunk and low amplitude
+- Even after fixing both of those, streamed audio still stayed silent. The correct product decision is to keep StickS3 alerts on tones and defer streamed audio until there is a deeper M5Unified/board-level investigation or a known-good upstream playback recipe for this specific runtime.
 - First practical code slice should be a minimal bridge/state schema and firmware parser changes, preserving compatibility with the current simple heartbeat.
 - Second slice should be StickS3 UI state/pages for action, focused session, session list, latest message, and idle/status.
 - Third slice should add tone alerts and countdown overlays before richer WAV effects, CJK font loading, or microphone recording.

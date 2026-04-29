@@ -461,6 +461,15 @@ No firmware source files have been edited. Milestone A Task 4 only extends the h
   - `pio run -e m5sticks3`: PASS
   - RAM `98700 / 327680`
   - Flash `1301953 / 4194304`
+- Final Milestone L hardware debugging result:
+  - arrival stayed silent with embedded `playWav()`
+  - arrival stayed silent with embedded signed 16-bit `playRaw()`
+  - arrival stayed silent even with a tiny diagnostic unsigned 8-bit `playRaw()` waveform
+  - tone-backed paths were still audible, so the problem is streamed audio on this StickS3 runtime, not prompt routing
+- Restored stable firmware behavior after the negative hardware result:
+  - removed `src/wav_assets.h`, `src/wav_assets.cpp`, and `tools/test_wav_assets.py`
+  - restored `toneInputRequired()` and `toneComplete()` to tone-backed helpers in `src/main.cpp`
+  - deferred streamed audio to a future low-level board/runtime investigation
 
 ## Important Context
 
