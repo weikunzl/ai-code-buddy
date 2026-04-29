@@ -73,6 +73,10 @@ The next design spec after named tone patterns is:
 
 - `docs/superpowers/specs/2026-04-29-first-embedded-wav-assets-design.md`
 
+The next implementation plan after named tone patterns is:
+
+- `docs/superpowers/plans/2026-04-29-first-embedded-wav-assets-milestone-l.md`
+
 It starts with:
 
 1. Add a minimal host bridge under `tools/`.

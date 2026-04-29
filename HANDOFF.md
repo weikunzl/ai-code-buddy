@@ -299,6 +299,17 @@ Milestone D is now complete:
     bounded firmware playback integration, followed by connected-device audio
     verification.
 
+32. The Milestone L implementation plan is now recorded in:
+   - `docs/superpowers/plans/2026-04-29-first-embedded-wav-assets-milestone-l.md`
+
+33. The plan keeps the first `playWav()` slice narrow:
+   - create `src/wav_assets.h` and `src/wav_assets.cpp`
+   - switch only `toneInputRequired()` and `toneComplete()` to embedded WAV
+     playback
+   - add `tools/test_wav_assets.py`
+   - verify with both `pio run -e m5sticks3` and connected-device audio
+     checks
+
 ## Cautions
 
 - Do not rely on `BtnPWR` until tested on hardware.

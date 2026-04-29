@@ -211,6 +211,7 @@ Last updated: 2026-04-29
   - `hover-sound.wav` -> `input required`
   - `confirm-sound.wav` -> `complete`
 - Keeping deny/error/focus/answer-sent on tones isolates playback risk to two well-understood call paths and avoids a broad audio regression if `playWav()` needs tuning on StickS3.
+- The Milestone L implementation plan is now recorded in `docs/superpowers/plans/2026-04-29-first-embedded-wav-assets-milestone-l.md`. The plan keeps conversion local to the developer machine with `afconvert`, embeds only two converted assets, and adds a small smoke test instead of widening protocol or UI scope.
 - First practical code slice should be a minimal bridge/state schema and firmware parser changes, preserving compatibility with the current simple heartbeat.
 - Second slice should be StickS3 UI state/pages for action, focused session, session list, latest message, and idle/status.
 - Third slice should add tone alerts and countdown overlays before richer WAV effects, CJK font loading, or microphone recording.

@@ -432,6 +432,9 @@ No firmware source files have been edited. Milestone A Task 4 only extends the h
   - added `docs/adr/0016-validate-first-embedded-wav-assets.md`
   - added `docs/superpowers/specs/2026-04-29-first-embedded-wav-assets-design.md`
   - updated `docs/adr/README.md`, `FINDINGS.md`, and `HANDOFF.md` so future resumes start from the two-cue embedded-WAV validation slice
+- Added the Milestone L implementation plan:
+  - added `docs/superpowers/plans/2026-04-29-first-embedded-wav-assets-milestone-l.md`
+  - updated `docs/adr/README.md`, `FINDINGS.md`, and `HANDOFF.md` so future resumes can move directly from the accepted spec into bounded implementation
 
 ## Important Context
 
