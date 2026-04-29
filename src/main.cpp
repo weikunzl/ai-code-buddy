@@ -1325,6 +1325,11 @@ void loop() {
 
   bool promptChanged = strcmp(tama.promptId, lastPromptId) != 0;
   bool pendingChanged = tama.pendingGen != lastPendingGen;
+  bool samePromptAndPendingArrival = promptChanged
+                                  && pendingChanged
+                                  && tama.promptId[0]
+                                  && tama.nPending > 0
+                                  && strcmp(tama.promptId, tama.pending[0].id) == 0;
 
   // BtnA: step through fake scenarios
   // Prompt arrival: wake, reset response flag, and surface the approval screen.
@@ -1333,12 +1338,9 @@ void loop() {
     lastPromptId[sizeof(lastPromptId)-1] = 0;
     responseSent = false;
     if (tama.promptId[0]) {
-      bool mirroredRichPending = pendingChanged
-                              && tama.nPending > 0
-                              && strcmp(tama.promptId, tama.pending[0].id) == 0;
       promptArrivedMs = millis();
       wake();
-      if (!mirroredRichPending) toneInputRequired();
+      if (!samePromptAndPendingArrival) toneInputRequired();
       // Jump to the approval screen no matter what was open — drawApproval
       // only runs from drawHUD which only runs in DISP_NORMAL.
       displayMode = DISP_NORMAL;
@@ -1350,7 +1352,7 @@ void loop() {
   }
   if (pendingChanged) {
     lastPendingGen = tama.pendingGen;
-    if (tama.nPending > 0) {
+    if (tama.nPending > 0 && !samePromptAndPendingArrival) {
       wake();
       toneInputRequired();
     }
