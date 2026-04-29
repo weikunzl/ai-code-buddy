@@ -4,6 +4,7 @@
 #include "ble_bridge.h"
 #include "data.h"
 #include "buddy.h"
+#include "wav_assets.h"
 
 M5Canvas spr = M5Canvas(&M5.Lcd);
 
@@ -127,7 +128,7 @@ static void beep(uint16_t freq, uint16_t dur) {
 }
 
 static void toneInputRequired() {
-  beep(1200, 80);
+  if (settings().sound) M5.Speaker.playWav(kInputRequiredWav, kInputRequiredWavLen);
 }
 
 static void toneAnswerSent() {
@@ -139,9 +140,7 @@ static void toneDenied() {
 }
 
 static void toneComplete() {
-  beep(1600, 60);
-  delay(80);
-  beep(2200, 60);
+  if (settings().sound) M5.Speaker.playWav(kCompleteWav, kCompleteWavLen);
 }
 
 static void toneFocusAck() {
