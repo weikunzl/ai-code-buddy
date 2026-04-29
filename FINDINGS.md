@@ -212,6 +212,13 @@ Last updated: 2026-04-29
   - `confirm-sound.wav` -> `complete`
 - Keeping deny/error/focus/answer-sent on tones isolates playback risk to two well-understood call paths and avoids a broad audio regression if `playWav()` needs tuning on StickS3.
 - The Milestone L implementation plan is now recorded in `docs/superpowers/plans/2026-04-29-first-embedded-wav-assets-milestone-l.md`. The plan keeps conversion local to the developer machine with `afconvert`, embeds only two converted assets, and adds a small smoke test instead of widening protocol or UI scope.
+- Milestone L Task 2-3 is now implemented with explicit test-first history:
+  - `ecb43c8` adds the failing WAV smoke test
+  - `7f358fc` adds the embedded asset unit and switches only `toneInputRequired()` / `toneComplete()`
+  - `69e1f8c` fixes duplicate same-tick prompt playback and strengthens the smoke test
+- The first embedded assets are small enough to keep for now but not cheap enough to ignore. The two converted mono 22.05 kHz WAVs add about `52,224` bytes total to firmware flash, bringing the StickS3 build to about `1,310,013 / 4,194,304` bytes.
+- The first real WAV-specific behavior bug was not in `playWav()` itself; it was existing double-arrival prompt logic becoming audible. A single incoming prompt could trigger the input-required cue twice in the same loop tick, which is acceptable for a short beep but too obvious for a 0.5s WAV. The fix is a shared `samePromptAndPendingArrival` guard in `src/main.cpp`.
+- `tools/test_wav_assets.py` is now a more useful smoke test. It parses both embedded arrays, checks RIFF/WAVE/data structure and declared lengths, and asserts the duplicate-cue guard exists, while still stopping short of on-device audio verification.
 - First practical code slice should be a minimal bridge/state schema and firmware parser changes, preserving compatibility with the current simple heartbeat.
 - Second slice should be StickS3 UI state/pages for action, focused session, session list, latest message, and idle/status.
 - Third slice should add tone alerts and countdown overlays before richer WAV effects, CJK font loading, or microphone recording.

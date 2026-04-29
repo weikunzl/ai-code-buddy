@@ -310,6 +310,30 @@ Milestone D is now complete:
    - verify with both `pio run -e m5sticks3` and connected-device audio
      checks
 
+34. Milestone L Task 2-3 is now complete and review-clean:
+   - `ecb43c8` `test: add wav asset smoke test`
+   - `7f358fc` `feat: add embedded wav alert cues`
+   - `69e1f8c` `fix: avoid duplicate wav prompt cues`
+
+35. Current Milestone L implementation state:
+   - `src/wav_assets.h` / `src/wav_assets.cpp` hold two converted embedded WAVs
+   - only `toneInputRequired()` and `toneComplete()` use `playWav()`
+   - other alert helpers remain tone-backed
+   - `tools/test_wav_assets.py` now validates both assets and the duplicate-cue
+     guard more meaningfully
+   - reviewed duplicate same-tick prompt playback is fixed
+
+36. Software verification for the implementation boundary:
+   - `python3 tools/test_wav_assets.py`: PASS
+   - `pio run -e m5sticks3`: PASS
+   - latest StickS3 size: RAM `98700 / 327680`, Flash `1310013 / 4194304`
+
+37. The next task is Milestone L hardware verification only:
+   - flash the connected StickS3
+   - trigger the input-required WAV cue
+   - trigger the completion WAV cue
+   - record whether playback is audible and the device stays responsive
+
 ## Cautions
 
 - Do not rely on `BtnPWR` until tested on hardware.

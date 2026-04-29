@@ -435,6 +435,21 @@ No firmware source files have been edited. Milestone A Task 4 only extends the h
 - Added the Milestone L implementation plan:
   - added `docs/superpowers/plans/2026-04-29-first-embedded-wav-assets-milestone-l.md`
   - updated `docs/adr/README.md`, `FINDINGS.md`, and `HANDOFF.md` so future resumes can move directly from the accepted spec into bounded implementation
+- Implemented Milestone L Task 2-3 with explicit TDD history:
+  - `ecb43c8` `test: add wav asset smoke test`
+  - `7f358fc` `feat: add embedded wav alert cues`
+  - `69e1f8c` `fix: avoid duplicate wav prompt cues`
+  - added `src/wav_assets.h` and `src/wav_assets.cpp` for two embedded converted WAV assets
+  - switched only `toneInputRequired()` and `toneComplete()` to `M5.Speaker.playWav(...)`
+  - kept `toneAnswerSent()`, `toneDenied()`, `toneFocusAck()`, and event error/neutral paths on `tone()`
+  - fixed duplicate same-tick prompt arrival playback with a shared `samePromptAndPendingArrival` guard
+  - strengthened `tools/test_wav_assets.py` to parse both embedded assets, verify RIFF/WAVE/data structure, compare declared lengths to actual byte counts, and assert the duplicate-cue guard
+- Milestone L Task 2-3 software verification:
+  - intermediate red step: `python3 tools/test_wav_assets.py`: FAIL (`EEF`) with only the test committed and production files stashed away
+  - final `python3 tools/test_wav_assets.py`: PASS (`Ran 3 tests` / `OK`)
+  - final `pio run -e m5sticks3`: PASS
+  - RAM `98700 / 327680`
+  - Flash `1310013 / 4194304`
 
 ## Important Context
 
