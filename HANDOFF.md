@@ -284,6 +284,21 @@ Milestone D is now complete:
    - or begin microphone feasibility work if you want to explore voice-note
      response paths instead of host typing.
 
+29. The first embedded-WAV milestone is now recorded in:
+   - `docs/adr/0016-validate-first-embedded-wav-assets.md`
+   - `docs/superpowers/specs/2026-04-29-first-embedded-wav-assets-design.md`
+
+30. Milestone L is intentionally narrower than full sound replacement:
+   - convert two short OpenPeon-derived source clips into embedded firmware
+     assets
+   - replace only `toneInputRequired()` and `toneComplete()`
+   - keep deny/error/focus/answer-sent on tones until `playWav()` is proven
+     on hardware
+
+31. The next task after this docs boundary is implementation planning and then
+    bounded firmware playback integration, followed by connected-device audio
+    verification.
+
 ## Cautions
 
 - Do not rely on `BtnPWR` until tested on hardware.

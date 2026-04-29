@@ -21,6 +21,7 @@ console.
 - [ADR-0013: Add Runnable Upstream Workflow Examples](0013-add-runnable-upstream-workflow-examples.md)
 - [ADR-0014: Verify Stop-And-Wait Prompts On Hardware](0014-verify-stop-and-wait-prompts-on-hardware.md)
 - [ADR-0015: Centralize Tone Patterns Before WAV Assets](0015-centralize-tone-patterns-before-wav-assets.md)
+- [ADR-0016: Validate First Embedded WAV Assets With Two Alert Cues](0016-validate-first-embedded-wav-assets.md)
 
 ## Implementation Plan
 
@@ -68,6 +69,10 @@ The next implementation plan after stop-and-wait hardware verification is:
 
 - `docs/superpowers/plans/2026-04-29-tone-patterns-milestone-k.md`
 
+The next design spec after named tone patterns is:
+
+- `docs/superpowers/specs/2026-04-29-first-embedded-wav-assets-design.md`
+
 It starts with:
 
 1. Add a minimal host bridge under `tools/`.
@@ -80,6 +85,7 @@ It starts with:
 
 ## Deferred Work
 
-The ADRs intentionally defer USB RX on StickS3, WAV sound effects, CJK font
-loading, microphone recording, WiFi remote control, and persistent host
-history until the end-to-end loop is proven.
+The ADRs intentionally defer full WAV replacement, CJK font loading,
+microphone recording, WiFi remote control, and persistent host history until
+the end-to-end loop is proven. A first bounded embedded-WAV validation slice
+is now specified separately.

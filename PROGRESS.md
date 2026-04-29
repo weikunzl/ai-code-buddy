@@ -428,6 +428,10 @@ No firmware source files have been edited. Milestone A Task 4 only extends the h
   - `pio run -e m5sticks3`: PASS
   - RAM `98700 / 327680`
   - Flash `1257285 / 4194304`
+- Recorded the next post-tone milestone for first embedded WAV assets:
+  - added `docs/adr/0016-validate-first-embedded-wav-assets.md`
+  - added `docs/superpowers/specs/2026-04-29-first-embedded-wav-assets-design.md`
+  - updated `docs/adr/README.md`, `FINDINGS.md`, and `HANDOFF.md` so future resumes start from the two-cue embedded-WAV validation slice
 
 ## Important Context
 

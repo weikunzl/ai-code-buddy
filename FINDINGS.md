@@ -1,6 +1,6 @@
 # Findings
 
-Last updated: 2026-04-28
+Last updated: 2026-04-29
 
 ## Repository
 
@@ -206,6 +206,11 @@ Last updated: 2026-04-28
 - The next practical audio slice is not WAV playback yet. The firmware already has the right tone-first direction, but prompt/event sounds are still scattered as raw `beep()` calls and should be centralized behind named alert patterns before asset work begins.
 - The tone-first audio cleanup now exists as named helpers in firmware. Prompt arrival, event overlay, answer-sent, deny/error, and stop-and-wait focus acknowledgements no longer hardcode raw frequencies at each call site.
 - This keeps the next WAV phase bounded. Later `playWav()` adoption can replace named alert helpers one by one without changing prompt/event logic again.
+- The first real WAV slice should stay smaller than "replace all sounds." The local OpenPeon reference files are stereo 44.1 kHz PCM WAVs, so they should be treated as source material only and converted down before bundling.
+- The safest first playback validation is two cues only:
+  - `hover-sound.wav` -> `input required`
+  - `confirm-sound.wav` -> `complete`
+- Keeping deny/error/focus/answer-sent on tones isolates playback risk to two well-understood call paths and avoids a broad audio regression if `playWav()` needs tuning on StickS3.
 - First practical code slice should be a minimal bridge/state schema and firmware parser changes, preserving compatibility with the current simple heartbeat.
 - Second slice should be StickS3 UI state/pages for action, focused session, session list, latest message, and idle/status.
 - Third slice should add tone alerts and countdown overlays before richer WAV effects, CJK font loading, or microphone recording.
