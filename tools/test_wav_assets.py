@@ -33,73 +33,63 @@ def extract_function_body(text, func_name):
     raise ValueError(f"unterminated function body for {func_name}")
 
 
-def parse_wav_assets(text):
+def parse_pcm_assets(text):
     pattern = re.compile(
-        r"const uint8_t (?P<name>k(?:InputRequired|Complete)Wav)\[] = \{(?P<body>.*?)\};\s*"
-        r"const size_t (?P<len_name>k(?:InputRequired|Complete)WavLen) = (?P<len_value>\d+);",
+        r"const int16_t (?P<name>k(?:InputRequired|Complete)Pcm)\[] = \{(?P<body>.*?)\};\s*"
+        r"const size_t (?P<len_name>k(?:InputRequired|Complete)PcmSamples) = sizeof\((?P<count_name>k(?:InputRequired|Complete)Pcm)\) / sizeof\((?P=count_name)\[0\]\);\s*"
+        r"const uint32_t (?P<rate_name>k(?:InputRequired|Complete)PcmSampleRate) = (?P<rate_value>\d+);",
         re.S,
     )
     assets = {}
     for match in pattern.finditer(text):
-        byte_values = [int(token, 16) for token in re.findall(r"0x[0-9a-fA-F]{2}", match.group("body"))]
+        sample_values = [int(token) for token in re.findall(r"-?\d+", match.group("body"))]
         assets[match.group("name")] = {
-            "bytes": byte_values,
+            "samples": sample_values,
             "len_name": match.group("len_name"),
-            "len_value": int(match.group("len_value")),
+            "len_value": len(sample_values),
+            "rate_name": match.group("rate_name"),
+            "rate_value": int(match.group("rate_value")),
         }
     return assets
 
 
 class WavAssetTests(unittest.TestCase):
-    def test_asset_unit_declares_both_wavs(self):
+    def test_asset_unit_declares_both_pcm_arrays(self):
         text = HEADER.read_text()
-        self.assertIn("kInputRequiredWav", text)
-        self.assertIn("kInputRequiredWavLen", text)
-        self.assertIn("kCompleteWav", text)
-        self.assertIn("kCompleteWavLen", text)
+        self.assertIn("kInputRequiredPcm", text)
+        self.assertIn("kInputRequiredPcmSamples", text)
+        self.assertIn("kInputRequiredPcmSampleRate", text)
+        self.assertIn("kCompletePcm", text)
+        self.assertIn("kCompletePcmSamples", text)
+        self.assertIn("kCompletePcmSampleRate", text)
 
-    def test_asset_source_contains_two_valid_wav_assets_with_matching_lengths(self):
-        assets = parse_wav_assets(SOURCE.read_text())
-        self.assertEqual(set(assets), {"kInputRequiredWav", "kCompleteWav"})
+    def test_asset_source_contains_two_loud_pcm_arrays_with_matching_lengths(self):
+        assets = parse_pcm_assets(SOURCE.read_text())
+        self.assertEqual(set(assets), {"kInputRequiredPcm", "kCompletePcm"})
 
         expected_lengths = {
-            "kInputRequiredWav": "kInputRequiredWavLen",
-            "kCompleteWav": "kCompleteWavLen",
+            "kInputRequiredPcm": "kInputRequiredPcmSamples",
+            "kCompletePcm": "kCompletePcmSamples",
         }
         for name, len_name in expected_lengths.items():
             with self.subTest(asset=name):
                 asset = assets[name]
-                data = asset["bytes"]
+                data = asset["samples"]
                 self.assertEqual(asset["len_name"], len_name)
                 self.assertEqual(asset["len_value"], len(data))
-                self.assertGreater(len(data), 44)
-                self.assertEqual(bytes(data[:4]), b"RIFF")
-                self.assertEqual(bytes(data[8:12]), b"WAVE")
-
-                data_offset = bytes(data).find(b"data")
-                self.assertNotEqual(data_offset, -1)
-                self.assertLess(data_offset, 128)
-                self.assertGreaterEqual(len(data), data_offset + 8)
-                payload_len = int.from_bytes(bytes(data[data_offset + 4:data_offset + 8]), "little")
-                self.assertEqual(payload_len, len(data) - (data_offset + 8))
-                self.assertGreater(payload_len, 0)
-
-                samples = []
-                for idx in range(data_offset + 8, len(data), 2):
-                    if idx + 1 >= len(data):
-                        break
-                    sample = int.from_bytes(bytes(data[idx:idx + 2]), "little", signed=True)
-                    samples.append(sample)
-                self.assertTrue(samples)
-                self.assertGreater(max(abs(v) for v in samples), 16000)
+                self.assertGreater(len(data), 1000)
+                self.assertEqual(asset["rate_name"], name.replace("Pcm", "PcmSampleRate"))
+                self.assertEqual(asset["rate_value"], 22050)
+                self.assertGreater(max(abs(v) for v in data), 16000)
+                self.assertGreater(sum(abs(v) for v in data) / len(data), 1000)
 
     def test_main_uses_wav_helpers_without_duplicate_same_tick_prompt_cues(self):
         text = MAIN.read_text()
 
         input_required_body = extract_function_body(text, "toneInputRequired")
         complete_body = extract_function_body(text, "toneComplete")
-        self.assertIn("playWav(kInputRequiredWav, kInputRequiredWavLen, 1, 0, true)", input_required_body)
-        self.assertIn("playWav(kCompleteWav, kCompleteWavLen, 1, 0, true)", complete_body)
+        self.assertIn("playRaw(kInputRequiredPcm, kInputRequiredPcmSamples, kInputRequiredPcmSampleRate, false, 1, 0, true)", input_required_body)
+        self.assertIn("playRaw(kCompletePcm, kCompletePcmSamples, kCompletePcmSampleRate, false, 1, 0, true)", complete_body)
         self.assertIn("beep(1200, 80);", input_required_body)
         self.assertIn("beep(1600, 60);", complete_body)
         self.assertIn("beep(2200, 60);", complete_body)

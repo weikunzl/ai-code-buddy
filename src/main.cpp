@@ -129,7 +129,7 @@ static void beep(uint16_t freq, uint16_t dur) {
 
 static void toneInputRequired() {
   if (!settings().sound) return;
-  bool played = M5.Speaker.playWav(kInputRequiredWav, kInputRequiredWavLen, 1, 0, true);
+  bool played = M5.Speaker.playRaw(kInputRequiredPcm, kInputRequiredPcmSamples, kInputRequiredPcmSampleRate, false, 1, 0, true);
   if (!played) beep(1200, 80);
 }
 
@@ -143,7 +143,7 @@ static void toneDenied() {
 
 static void toneComplete() {
   if (!settings().sound) return;
-  bool played = M5.Speaker.playWav(kCompleteWav, kCompleteWavLen, 1, 0, true);
+  bool played = M5.Speaker.playRaw(kCompletePcm, kCompletePcmSamples, kCompletePcmSampleRate, false, 1, 0, true);
   if (!played) {
     beep(1600, 60);
     delay(80);
