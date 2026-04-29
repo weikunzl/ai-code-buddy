@@ -128,7 +128,9 @@ static void beep(uint16_t freq, uint16_t dur) {
 }
 
 static void toneInputRequired() {
-  if (settings().sound) M5.Speaker.playWav(kInputRequiredWav, kInputRequiredWavLen);
+  if (!settings().sound) return;
+  bool played = M5.Speaker.playWav(kInputRequiredWav, kInputRequiredWavLen, 1, 0, true);
+  if (!played) beep(1200, 80);
 }
 
 static void toneAnswerSent() {
@@ -140,7 +142,13 @@ static void toneDenied() {
 }
 
 static void toneComplete() {
-  if (settings().sound) M5.Speaker.playWav(kCompleteWav, kCompleteWavLen);
+  if (!settings().sound) return;
+  bool played = M5.Speaker.playWav(kCompleteWav, kCompleteWavLen, 1, 0, true);
+  if (!played) {
+    beep(1600, 60);
+    delay(80);
+    beep(2200, 60);
+  }
 }
 
 static void toneFocusAck() {

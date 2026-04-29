@@ -450,6 +450,17 @@ No firmware source files have been edited. Milestone A Task 4 only extends the h
   - final `pio run -e m5sticks3`: PASS
   - RAM `98700 / 327680`
   - Flash `1310013 / 4194304`
+- Follow-up Milestone L asset-debugging fix after first hardware listen:
+  - strengthened `tools/test_wav_assets.py` again to require a near-header `data` chunk and stronger sample amplitude
+  - confirmed the old embedded assets had `data` at byte `4088` because of a large `FLLR` chunk
+  - regenerated `src/wav_assets.cpp` from canonical mono PCM WAVs with louder samples and `data` at byte `36`
+  - verified the regenerated assets removed the filler chunk and slightly reduced flash usage
+- Post-regeneration software verification:
+  - red step: `python3 tools/test_wav_assets.py`: FAIL on `data_offset < 128`
+  - green step: `python3 tools/test_wav_assets.py`: PASS (`Ran 3 tests` / `OK`)
+  - `pio run -e m5sticks3`: PASS
+  - RAM `98700 / 327680`
+  - Flash `1301953 / 4194304`
 
 ## Important Context
 

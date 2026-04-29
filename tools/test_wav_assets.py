@@ -78,18 +78,33 @@ class WavAssetTests(unittest.TestCase):
 
                 data_offset = bytes(data).find(b"data")
                 self.assertNotEqual(data_offset, -1)
+                self.assertLess(data_offset, 128)
                 self.assertGreaterEqual(len(data), data_offset + 8)
                 payload_len = int.from_bytes(bytes(data[data_offset + 4:data_offset + 8]), "little")
                 self.assertEqual(payload_len, len(data) - (data_offset + 8))
                 self.assertGreater(payload_len, 0)
+
+                samples = []
+                for idx in range(data_offset + 8, len(data), 2):
+                    if idx + 1 >= len(data):
+                        break
+                    sample = int.from_bytes(bytes(data[idx:idx + 2]), "little", signed=True)
+                    samples.append(sample)
+                self.assertTrue(samples)
+                self.assertGreater(max(abs(v) for v in samples), 16000)
 
     def test_main_uses_wav_helpers_without_duplicate_same_tick_prompt_cues(self):
         text = MAIN.read_text()
 
         input_required_body = extract_function_body(text, "toneInputRequired")
         complete_body = extract_function_body(text, "toneComplete")
-        self.assertIn("playWav(kInputRequiredWav, kInputRequiredWavLen)", input_required_body)
-        self.assertIn("playWav(kCompleteWav, kCompleteWavLen)", complete_body)
+        self.assertIn("playWav(kInputRequiredWav, kInputRequiredWavLen, 1, 0, true)", input_required_body)
+        self.assertIn("playWav(kCompleteWav, kCompleteWavLen, 1, 0, true)", complete_body)
+        self.assertIn("beep(1200, 80);", input_required_body)
+        self.assertIn("beep(1600, 60);", complete_body)
+        self.assertIn("beep(2200, 60);", complete_body)
+        self.assertIn("if (!played)", input_required_body)
+        self.assertIn("if (!played)", complete_body)
 
         self.assertIn("samePromptAndPendingArrival", text)
         self.assertIn("bool samePromptAndPendingArrival = promptChanged", text)

@@ -334,6 +334,18 @@ Milestone D is now complete:
    - trigger the completion WAV cue
    - record whether playback is audible and the device stays responsive
 
+38. One additional Milestone L fix landed before the final hardware check:
+   - the first embedded assets were regenerated after hardware showed silent
+     arrival playback
+   - the old `afconvert` output had a large filler chunk and quiet samples
+   - the current assets are canonical WAVs with louder samples and a much
+     earlier `data` chunk
+
+39. Current software verification after the asset regeneration:
+   - `python3 tools/test_wav_assets.py`: PASS
+   - `pio run -e m5sticks3`: PASS
+   - latest StickS3 size: RAM `98700 / 327680`, Flash `1301953 / 4194304`
+
 ## Cautions
 
 - Do not rely on `BtnPWR` until tested on hardware.
