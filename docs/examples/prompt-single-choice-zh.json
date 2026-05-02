@@ -1,0 +1,16 @@
+{
+  "session_id": "s_demo_choice_zh",
+  "cwd": "/tmp/claude-desktop-buddy",
+  "message": "请选择传输方式",
+  "model": "codex",
+  "prompt": {
+    "id": "q_transport_zh",
+    "kind": "single_choice",
+    "title": "传输方式",
+    "body": "请选择连接方式，确认标题、正文和选项都能正确显示。",
+    "options": [
+      { "id": "ble", "label": "蓝牙低功耗", "desc": "无线连接" },
+      { "id": "usb", "label": "USB 串口直连", "desc": "有线连接" }
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "session_id": "s_demo_multi_ja",
+  "cwd": "/tmp/claude-desktop-buddy",
+  "message": "通知方法を選んでください",
+  "model": "codex",
+  "prompt": {
+    "id": "q_notify_ja",
+    "kind": "multi_choice",
+    "title": "通知方法",
+    "body": "複数の通知方法を選択してください。",
+    "options": [
+      { "id": "ble", "label": "BLE 通知", "desc": "ワイヤレス通知" },
+      { "id": "usb", "label": "USB 通知", "desc": "有線通知" },
+      { "id": "tone", "label": "効果音", "desc": "端末で音を鳴らす" }
+    ]
+  }
+}

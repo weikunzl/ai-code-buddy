@@ -56,11 +56,45 @@ Expected response after the device answers:
 {"decision":"here"}
 ```
 
+## Internationalized Examples
+
+The same host-side surfaces are now covered with checked-in UTF-8 payloads:
+
+- Chinese hook payload:
+
+```bash
+cat docs/examples/hook-user-prompt-submit-zh.json | python3 tools/hook_relay.py
+```
+
+- Chinese `single_choice` prompt:
+
+```bash
+cat docs/examples/prompt-single-choice-zh.json | python3 tools/post_notification_prompt.py
+```
+
+- Japanese `multi_choice` prompt:
+
+```bash
+cat docs/examples/prompt-multi-choice-ja.json | python3 tools/post_notification_prompt.py
+```
+
+- Korean `free_text_required` prompt with quick replies:
+
+```bash
+cat docs/examples/prompt-free-text-required-ko.json | python3 tools/post_notification_prompt.py
+```
+
+These examples are host-side smoke coverage for the real relay/helper entry
+points. They do not claim a vendor-native hook schema beyond the existing
+bridge-local `Notification.prompt` contract.
+
 ## Notes
 
 - These examples are intentionally shell-invocation based. They show the
   verified local surfaces without claiming an exact vendor hook config
   format.
+- The multilingual examples above are validated by
+  `python3 tools/test_workflow_examples.py`.
 - For stop-and-wait host input without quick replies, change `kind` to
   `notice` or `free_text_required` without `options`.
 - `tools/post_notification_prompt.py` is strict by default. Use

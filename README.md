@@ -81,6 +81,45 @@ If discovery isn't finding the stick:
 The screen auto-powers-off after 30s of no interaction (kept on while an
 approval prompt is up). Any button press wakes it.
 
+## Sound roles
+
+StickS3 audio now uses named roles instead of scattered raw beeps.
+
+| Role | Current source |
+| --- | --- |
+| `ui_click` | converted `hover-sound-low.wav` |
+| `input_required` | converted `hover-sound.wav` |
+| `answer_sent` | converted `confirm-sound.wav` |
+| `complete` | converted `cancel-sound.wav` |
+| `deny` | tone fallback / explicit tone |
+| `error` | tone |
+| `warning` | tone |
+| `reset_confirm` | tone |
+| `pairing` | tone |
+
+The OpenPeon-derived clips are embedded as trimmed mono PCM arrays through
+`tools/convert_openpeon_assets.py`. Generic navigation uses `ui_click`,
+while prompt-specific flows use the more explicit roles above.
+
+## UTF-8 text
+
+The session-console views now truncate and wrap host text on UTF-8 codepoint
+boundaries instead of raw bytes. The firmware also treats common CJK ranges
+as double-width when laying out compact rows, so prompt bodies, session
+summaries, transcript rows, and event overlays no longer split multibyte
+characters mid-sequence.
+
+For actual glyph rendering on StickS3, the compact session-console views now
+switch onto bundled M5GFX `efont` faces when CJK text is detected:
+
+| Script | Body font | Title font |
+| --- | --- | --- |
+| Chinese / Han | `fonts::efontCN_10` | `fonts::efontCN_12` |
+| Japanese | `fonts::efontJA_10` | `fonts::efontJA_12` |
+| Korean | `fonts::efontKR_10` | `fonts::efontKR_12` |
+
+ASCII-only text stays on the original built-in font path.
+
 ## ASCII pets
 
 Eighteen pets, each with seven animations (sleep, idle, busy, attention,
@@ -222,7 +261,8 @@ For stop-and-wait host input without a device answer, use `kind` as
 replies, use `free_text_required` with up to 4 `options`; the device reuses
 the single-choice answer path for those quick replies.
 
-For concrete end-to-end example payloads and exact shell invocations, see
+For concrete end-to-end example payloads and exact shell invocations,
+including checked-in Chinese/Japanese/Korean examples, see
 [`docs/upstream-workflow-examples.md`](docs/upstream-workflow-examples.md).
 
 ## The seven states

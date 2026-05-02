@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include "ble_bridge.h"
+#include "utf8_text.h"
 #include "xfer.h"
 
 const uint8_t MAX_SESSIONS = 5;
@@ -10,11 +11,11 @@ const uint8_t MAX_OPTIONS = 4;
 
 struct SessionSummary {
   char sid[24];
-  char project[40];
-  char branch[32];
+  char project[80];
+  char branch[64];
   char phase[16];
   char model[24];
-  char last[80];
+  char last[120];
   int16_t dirty;
   uint32_t elapsedS;
   uint32_t pendingS;
@@ -23,8 +24,8 @@ struct SessionSummary {
 
 struct DecisionOption {
   char id[20];
-  char label[28];
-  char desc[44];
+  char label[40];
+  char desc[64];
   bool selected;
 };
 
@@ -32,8 +33,8 @@ struct PendingDecision {
   char id[40];
   char sid[24];
   char kind[20];
-  char title[40];
-  char body[120];
+  char title[80];
+  char body[160];
   uint32_t pendingS;
   DecisionOption options[MAX_OPTIONS];
   uint8_t nOptions;
@@ -44,8 +45,8 @@ struct ConsoleEvent {
   bool active;
   char kind[20];
   char sid[24];
-  char title[40];
-  char text[80];
+  char title[64];
+  char text[120];
   uint32_t ttlMs;
   uint32_t receivedMs;
 };
@@ -57,20 +58,20 @@ struct TamaState {
   bool     recentlyCompleted;
   uint32_t tokensToday;
   uint32_t lastUpdated;
-  char     msg[24];
+  char     msg[80];
   bool     connected;
-  char     lines[8][92];
+  char     lines[8][128];
   uint8_t  nLines;
   uint16_t lineGen;          // bumps when lines change — lets UI reset scroll
   char     promptId[40];     // pending permission request ID; empty = no prompt
-  char     promptTool[20];
-  char     promptHint[44];
+  char     promptTool[40];
+  char     promptHint[128];
   char     focused[24];
-  char     project[40];
-  char     branch[32];
+  char     project[80];
+  char     branch[64];
   int16_t  dirty;
   char     model[24];
-  char     assistantMsg[120];
+  char     assistantMsg[160];
   uint32_t budget;
   SessionSummary sessions[MAX_SESSIONS];
   uint8_t  nSessions;
@@ -129,10 +130,7 @@ static bool _rtcValid = false;
 inline bool dataRtcValid() { return _rtcValid; }
 
 static void _copyField(char* dst, size_t n, const char* src) {
-  if (!dst || n == 0) return;
-  if (!src) src = "";
-  strncpy(dst, src, n - 1);
-  dst[n - 1] = 0;
+  utf8SafeCopy(dst, n, src);
 }
 
 static uint32_t _u32(JsonVariantConst v, uint32_t fallback = 0) {
@@ -180,7 +178,7 @@ static void _applyJson(const char* line, TamaState* out) {
   if (doc["tokens"].is<uint32_t>()) statsOnBridgeTokens(bridgeTokens);
   out->tokensToday = doc["tokens_today"] | out->tokensToday;
   const char* m = doc["msg"];
-  if (m) { strncpy(out->msg, m, sizeof(out->msg)-1); out->msg[sizeof(out->msg)-1]=0; }
+  if (m) _copyField(out->msg, sizeof(out->msg), m);
   _copyField(out->focused, sizeof(out->focused), doc["focused"] | out->focused);
   _copyField(out->project, sizeof(out->project), doc["project"] | out->project);
   _copyField(out->branch, sizeof(out->branch), doc["branch"] | out->branch);
@@ -194,7 +192,7 @@ static void _applyJson(const char* line, TamaState* out) {
     for (JsonVariant v : la) {
       if (n >= 8) break;
       const char* s = v.as<const char*>();
-      strncpy(out->lines[n], s ? s : "", 91); out->lines[n][91]=0;
+      _copyField(out->lines[n], sizeof(out->lines[n]), s);
       n++;
     }
     if (n != out->nLines || (n > 0 && strcmp(out->lines[n-1], out->msg) != 0)) {
@@ -286,9 +284,9 @@ static void _applyJson(const char* line, TamaState* out) {
   JsonObject pr = doc["prompt"];
   if (!pr.isNull()) {
     const char* pid = pr["id"]; const char* pt = pr["tool"]; const char* ph = pr["hint"];
-    strncpy(out->promptId,   pid ? pid : "", sizeof(out->promptId)-1);   out->promptId[sizeof(out->promptId)-1]=0;
-    strncpy(out->promptTool, pt  ? pt  : "", sizeof(out->promptTool)-1); out->promptTool[sizeof(out->promptTool)-1]=0;
-    strncpy(out->promptHint, ph  ? ph  : "", sizeof(out->promptHint)-1); out->promptHint[sizeof(out->promptHint)-1]=0;
+    _copyField(out->promptId, sizeof(out->promptId), pid);
+    _copyField(out->promptTool, sizeof(out->promptTool), pt);
+    _copyField(out->promptHint, sizeof(out->promptHint), ph);
   } else if (out->nPending == 0) {
     out->promptId[0] = 0; out->promptTool[0] = 0; out->promptHint[0] = 0;
   }
@@ -299,7 +297,7 @@ static void _applyJson(const char* line, TamaState* out) {
   }
   JsonObject ev = doc["event"];
   if (!ev.isNull()) {
-    char kind[20], sid[24], title[40], text[80];
+    char kind[20], sid[24], title[64], text[120];
     _copyField(kind, sizeof(kind), ev["kind"] | "");
     _copyField(sid, sizeof(sid), ev["sid"] | "");
     _copyField(title, sizeof(title), ev["title"] | "");
@@ -398,7 +396,6 @@ inline void dataPoll(TamaState* out) {
   if (!out->connected) {
     out->sessionsTotal=0; out->sessionsRunning=0; out->sessionsWaiting=0;
     out->recentlyCompleted=false; out->lastUpdated=now;
-    strncpy(out->msg, "No Claude connected", sizeof(out->msg)-1);
-    out->msg[sizeof(out->msg)-1]=0;
+    _copyField(out->msg, sizeof(out->msg), "No Claude connected");
   }
 }

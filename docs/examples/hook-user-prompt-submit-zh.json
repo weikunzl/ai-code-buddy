@@ -1,0 +1,7 @@
+{
+  "hook_event_name": "UserPromptSubmit",
+  "session_id": "s_demo_hook_zh",
+  "cwd": "/tmp/claude-desktop-buddy",
+  "model": "codex",
+  "prompt": "请检查中文渲染和布局"
+}

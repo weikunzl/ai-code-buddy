@@ -198,6 +198,40 @@ Milestone D is now complete:
    - `docs/superpowers/specs/2026-04-28-notification-prompt-helper-design.md`
    - `docs/superpowers/plans/2026-04-28-notification-prompt-helper-milestone-g.md`
 
+16. Audio investigation status:
+   - keep the `m5sticks3-speakerdiag` environment and `src/diagnostics/speaker_diag.cpp`; it is now the known-good low-level speaker probe
+   - `src/main.cpp` now initializes speaker master/channel volume explicitly and uses raw cue playback with `waitForSpeakerStart(30)` fallback
+   - real hardware boot self-test inside the full app proved both raw cues are audible
+   - silent prompt arrival is now most likely explained by the persisted `sound` preference being off, because the normal prompt/event cue path respects `settings().sound`
+   - the next user-facing verification step is simply: turn `sound` on in Settings and replay a `Bash` request
+   - firmware now surfaces mute state directly:
+     - normal HUD shows `mute` when `settings().sound` is off
+     - `DEVICE` info page shows `sound on/off`
+   - the next audio slice is already implemented in the repo but not yet heard on-device:
+     - `tools/convert_openpeon_assets.py` generates `src/wav_assets.cpp`
+     - current source selection is:
+       - input required -> `/Users/souler/Documents/openpeon-cute-minimal/sounds/hover-sound.wav`
+       - answer sent -> `/Users/souler/Documents/openpeon-cute-minimal/sounds/confirm-sound.wav`
+       - complete -> `/Users/souler/Documents/openpeon-cute-minimal/sounds/cancel-sound.wav`
+     - build/test passed and the larger image eventually flashed after reconnecting `/dev/cu.usbmodem144301`
+     - hardware verification confirmed the `hover-sound.wav` arrival cue in the normal `Bash` prompt flow
+     - source now also includes:
+       - `toneAnswerSent()` mapped to `confirm-sound.wav`
+       - `awaitingPromptClear` to suppress duplicate UI beeps after the first send
+     - next resume step is to reconnect the StickS3 and retry `pio run -e m5sticks3 -t upload`, then verify:
+       - `A` uses the converted acknowledge clip
+       - repeated presses after first send stay silent until prompt clear
+     - latest retry still failed mid-flash around one-third into the image, so if the next reconnect does not help, the practical fallback is to shrink embedded clips before another hardware attempt
+     - that shrink fallback is now done:
+       - clips are converted at `11025Hz`
+       - each clip is capped at `4096` samples
+       - flash size dropped to `1282533`
+     - direct `esptool.py` at `115200` reached much farther than PlatformIO upload, but still died around `62%`
+     - next resume step should be a hardware-side change, not another identical software retry:
+       - different USB cable/port
+       - direct motherboard port instead of hub/dock
+       - then retry the direct `esptool.py` path first
+
 16. Recommended next milestone after the producer helper:
    - bounded free-text prompt handling as its own separate slice
    - no on-device keyboard
@@ -223,6 +257,42 @@ Milestone D is now complete:
      `tools/hook_relay.py` and `tools/post_notification_prompt.py`
    - prefer checked-in JSON payloads plus a smoke test
    - avoid claiming an exact upstream vendor config format
+
+20. CJK layout tuning is now complete and hardware-verified:
+   - prompt-active normal mode forces the buddy/character into `peek` scale
+   - approval/action surfaces now render from `y=70` downward instead of as a smaller bottom card
+   - prompt bodies no longer use transcript-style continuation indent
+   - prompt CJK title/body/choice widths are wider than the generic transcript/session widths
+   - direct USB Chinese prompt verification passed on hardware:
+     - `操作没有互相挤压` rendered fully
+     - body width utilization is fixed
+     - buddy size is acceptable
+     - option rows remain clean above the footer
+
+21. Resume from the next milestone after verified CJK layout tuning, not from another prompt-fit workaround.
+   Recommended next milestone:
+   - host-side internationalized workflow/config examples and tests, or
+   - microphone feasibility, depending on product priority
+
+22. Host-side internationalized workflow/config coverage is now complete:
+   - added checked-in multilingual examples under `docs/examples/`:
+     - `hook-user-prompt-submit-zh.json`
+     - `prompt-single-choice-zh.json`
+     - `prompt-multi-choice-ja.json`
+     - `prompt-free-text-required-ko.json`
+   - `docs/upstream-workflow-examples.md` now documents those shell entry points
+   - `tools/test_workflow_examples.py` now validates UTF-8 preservation through the real relay/helper boundaries
+
+23. Verification for the multilingual workflow slice:
+   - `python3 tools/test_workflow_examples.py`: PASS (`7` tests)
+   - `python3 tools/test_hook_relay.py`: PASS (`7` tests)
+   - `python3 tools/test_post_notification_prompt.py`: PASS (`9` tests)
+   - `python3 -m py_compile tools/test_workflow_examples.py tools/test_hook_relay.py tools/test_post_notification_prompt.py tools/post_notification_prompt.py tools/hook_relay.py`: PASS
+
+24. Resume from the next milestone after the verified multilingual host-workflow baseline.
+   Recommended next milestone:
+   - microphone feasibility, or
+   - end-to-end hardware verification of multilingual upstream prompt flows if you want one more user-observed pass before branching into mic work
 
 20. The runnable upstream examples milestone is now recorded in:
    - `docs/adr/0013-add-runnable-upstream-workflow-examples.md`
@@ -415,3 +485,20 @@ Task 4 quality review fixes are recorded in:
 ```text
 fix: publish bridge pending state promptly
 ```
+
+## Current Resume Point
+
+- The current connected StickS3 is flashed with the four-clip embedded-PCM OpenPeon build.
+- The current connected StickS3 is flashed with the role-normalized four-clip embedded-PCM OpenPeon build plus UTF-8-safe, script-aware CJK console rendering.
+- Resume from hardware verification of the latest behavior, not from another upload workaround:
+  - input-required should play the converted `hover-sound.wav`
+  - generic menu/navigation clicks should play the converted `hover-sound-low.wav`
+  - answer-sent should play the converted `confirm-sound.wav`
+  - complete should play the converted `cancel-sound.wav`
+  - warning/reset/pairing cues are now named tone roles in code and docs
+  - prompt bodies, transcript rows, session summaries, and event overlays now slice on UTF-8 codepoint boundaries and treat common CJK ranges as double-width
+  - actual CJK glyph rendering now switches by script onto bundled `efont` faces:
+    - Han -> `efontCN_10` / `efontCN_12`
+    - Japanese -> `efontJA_10` / `efontJA_12`
+    - Korean -> `efontKR_10` / `efontKR_12`
+  - repeated button presses after the first send should be ignored until the prompt clears

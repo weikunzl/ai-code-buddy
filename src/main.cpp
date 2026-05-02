@@ -4,6 +4,7 @@
 #include "ble_bridge.h"
 #include "data.h"
 #include "buddy.h"
+#include "wav_assets.h"
 
 M5Canvas spr = M5Canvas(&M5.Lcd);
 
@@ -126,26 +127,53 @@ static void beep(uint16_t freq, uint16_t dur) {
   if (settings().sound) M5.Speaker.tone(freq, dur);
 }
 
+static bool waitForSpeakerStart(uint32_t timeoutMs) {
+  uint32_t start = millis();
+  while ((uint32_t)(millis() - start) < timeoutMs) {
+    if (M5.Speaker.isPlaying()) return true;
+    delay(1);
+  }
+  return M5.Speaker.isPlaying();
+}
+
 static void toneInputRequired() {
-  beep(1200, 80);
+  if (!settings().sound) return;
+  bool played = M5.Speaker.playRaw(kInputRequiredPcm, kInputRequiredPcmSamples, kInputRequiredPcmSampleRate, false, 1, 0, true);
+  if (!played || !waitForSpeakerStart(30)) beep(1200, 80);
+}
+
+static void toneUiClick() {
+  if (!settings().sound) return;
+  bool played = M5.Speaker.playRaw(kUiClickPcm, kUiClickPcmSamples, kUiClickPcmSampleRate, false, 1, 0, true);
+  if (!played || !waitForSpeakerStart(30)) beep(1800, 30);
 }
 
 static void toneAnswerSent() {
-  beep(2400, 60);
+  if (!settings().sound) return;
+  bool played = M5.Speaker.playRaw(kAnswerSentPcm, kAnswerSentPcmSamples, kAnswerSentPcmSampleRate, false, 1, 0, true);
+  if (!played || !waitForSpeakerStart(30)) beep(2400, 60);
 }
 
 static void toneDenied() {
   beep(600, 60);
 }
 
+static void toneWarning() {
+  beep(1400, 60);
+}
+
 static void toneComplete() {
-  beep(1600, 60);
-  delay(80);
-  beep(2200, 60);
+  if (!settings().sound) return;
+  bool played = M5.Speaker.playRaw(kCompletePcm, kCompletePcmSamples, kCompletePcmSampleRate, false, 1, 0, true);
+  if (!played || !waitForSpeakerStart(30)) {
+    beep(1600, 60);
+    delay(80);
+    beep(2200, 60);
+  }
 }
 
 static void toneFocusAck() {
-  beep(1800, 30);
+  toneUiClick();
 }
 
 static void toneEventError() {
@@ -154,6 +182,14 @@ static void toneEventError() {
 
 static void toneEventNeutral() {
   beep(1000, 60);
+}
+
+static void toneResetConfirm() {
+  beep(800, 200);
+}
+
+static void tonePairing() {
+  beep(1800, 60);
 }
 
 static void sendCmd(const char* json) {
@@ -205,10 +241,18 @@ const uint8_t INFO_PAGES = 6;
 const uint8_t INFO_PG_BUTTONS = 1;
 const uint8_t INFO_PG_CREDITS = 5;
 
-void applyDisplayMode() {
-  bool peek = displayMode != DISP_NORMAL;
+static bool shouldPeekCompanion() {
+  return displayMode != DISP_NORMAL || tama.promptId[0] || tama.nPending > 0;
+}
+
+static void syncCompanionPeek() {
+  bool peek = shouldPeekCompanion();
   characterSetPeek(peek);
   buddySetPeek(peek);
+}
+
+void applyDisplayMode() {
+  syncCompanionPeek();
   // Clear the whole sprite on mode switch. drawInfo/drawPet clear their
   // own regions when they run, but when you switch FROM info/pet TO normal,
   // those functions stop running and their stale pixels stay behind. Full
@@ -269,11 +313,11 @@ static void applyReset(uint8_t idx) {
   if (!armed) {
     resetConfirmIdx = idx;
     resetConfirmUntil = now + 3000;
-    beep(1400, 60);
+    toneWarning();
     return;
   }
 
-  beep(800, 200);
+  toneResetConfirm();
   if (idx == 0) {
     // delete char: wipe /characters/, reboot into ASCII mode
     File d = LittleFS.open("/characters");
@@ -717,6 +761,7 @@ void drawInfo() {
     ln("  uptime   %luh %02lum", up / 3600, (up / 60) % 60);
     ln("  heap     %uKB", ESP.getFreeHeap() / 1024);
     ln("  bright   %u/4", brightLevel);
+    ln("  sound    %s", settings().sound ? "on" : "off");
     ln("  bt       %s", settings().bt ? (dataBtActive() ? "linked" : "on") : "off");
     // StickS3 has no on-PMIC temperature sensor (AXP192-only feature).
 
@@ -784,38 +829,136 @@ void drawInfo() {
 }
 
 
-// Greedy word-wrap into fixed-width rows. Continuation rows get a leading
-// space. Returns number of rows written.
-static uint8_t wrapInto(const char* in, char out[][24], uint8_t maxRows, uint8_t width) {
-  uint8_t row = 0, col = 0;
-  const char* p = in;
-  while (*p && row < maxRows) {
-    while (*p == ' ') p++;                     // skip leading spaces
-    // measure next word
-    const char* w = p;
-    while (*p && *p != ' ') p++;
-    uint8_t wlen = p - w;
-    if (wlen == 0) break;
-    uint8_t need = (col > 0 ? 1 : 0) + wlen;
-    if (col + need > width) {
-      out[row][col] = 0;
-      if (++row >= maxRows) return row;
-      out[row][0] = ' '; col = 1;              // continuation indent
+static bool utf8HasVisibleText(const char* s) {
+  if (!s) return false;
+  while (*s) {
+    if (*s == '\n') {
+      s++;
+      continue;
     }
-    if (col > 1 || (col == 1 && out[row][0] != ' ')) out[row][col++] = ' ';
-    else if (col == 1 && row > 0) {}           // already have the indent space
-    // hard-break words that still don't fit
-    while (wlen > width - col) {
-      uint8_t take = width - col;
-      memcpy(&out[row][col], w, take); col += take; w += take; wlen -= take;
-      out[row][col] = 0;
-      if (++row >= maxRows) return row;
-      out[row][0] = ' '; col = 1;
-    }
-    memcpy(&out[row][col], w, wlen); col += wlen;
+    if (!utf8IsAsciiSpace(*s)) return true;
+    s++;
   }
-  if (col > 0 && row < maxRows) { out[row][col] = 0; row++; }
-  return row;
+  return false;
+}
+
+enum UiScript : uint8_t { UI_ASCII, UI_CN, UI_JA, UI_KR };
+
+static UiScript detectUiScript(const char* s) {
+  bool sawHan = false;
+  if (!s) return UI_ASCII;
+  while (*s) {
+    size_t n = 0;
+    uint32_t cp = utf8Decode(s, &n);
+    if ((cp >= 0x1100 && cp <= 0x11FF)
+        || (cp >= 0x3130 && cp <= 0x318F)
+        || (cp >= 0xAC00 && cp <= 0xD7AF)) {
+      return UI_KR;
+    }
+    if ((cp >= 0x3040 && cp <= 0x30FF)
+        || (cp >= 0x31F0 && cp <= 0x31FF)) {
+      return UI_JA;
+    }
+    if ((cp >= 0x2E80 && cp <= 0x2FFF)
+        || (cp >= 0x3000 && cp <= 0x303F)
+        || (cp >= 0x3100 && cp <= 0x312F)
+        || (cp >= 0x31A0 && cp <= 0x31BF)
+        || (cp >= 0x3400 && cp <= 0x4DBF)
+        || (cp >= 0x4E00 && cp <= 0x9FFF)
+        || (cp >= 0xF900 && cp <= 0xFAFF)
+        || (cp >= 0xFF01 && cp <= 0xFFEE)
+        || (cp >= 0x20000 && cp <= 0x3FFFD)) {
+      sawHan = true;
+    }
+    s += n ? n : 1;
+  }
+  return sawHan ? UI_CN : UI_ASCII;
+}
+
+static UiScript mergeUiScript(UiScript a, UiScript b) {
+  return a != UI_ASCII ? a : b;
+}
+
+struct UiCompactLayout {
+  uint8_t titleCols;
+  uint8_t bodyCols;
+  uint8_t narrowCols;
+  uint8_t choiceCols;
+  uint8_t multiCols;
+  uint8_t bodyLH;
+  uint8_t titleLH;
+  uint8_t sectionGap;
+  uint8_t footerPad;
+};
+
+static UiCompactLayout uiCompactLayoutFor(UiScript script) {
+  if (script == UI_ASCII) return { 21, 21, 17, 16, 12, 8, 12, 4, 12 };
+  return { 18, 18, 14, 12, 9, 11, 13, 5, 14 };
+}
+
+static const lgfx::IFont* uiBodyFontFor(UiScript script) {
+  switch (script) {
+    case UI_CN: return &fonts::efontCN_10;
+    case UI_JA: return &fonts::efontJA_10;
+    case UI_KR: return &fonts::efontKR_10;
+    default: return &fonts::Font0;
+  }
+}
+
+static const lgfx::IFont* uiTitleFontFor(UiScript script) {
+  switch (script) {
+    case UI_CN: return &fonts::efontCN_12;
+    case UI_JA: return &fonts::efontJA_12;
+    case UI_KR: return &fonts::efontKR_12;
+    default: return &fonts::Font0;
+  }
+}
+
+static uint8_t uiLineHeightFor(UiScript script) {
+  return uiCompactLayoutFor(script).bodyLH;
+}
+
+static uint8_t uiPromptTitleColsFor(UiScript script) {
+  return script == UI_ASCII ? 21 : 20;
+}
+
+static uint8_t uiPromptBodyColsFor(UiScript script) {
+  return script == UI_ASCII ? 21 : 24;
+}
+
+static uint8_t uiPromptChoiceColsFor(UiScript script) {
+  return script == UI_ASCII ? 16 : 18;
+}
+
+static uint8_t uiPromptMultiColsFor(UiScript script) {
+  return script == UI_ASCII ? 12 : 14;
+}
+
+static void setUiBodyFont(const char* s) {
+  spr.setFont(uiBodyFontFor(detectUiScript(s)));
+  spr.setTextSize(1);
+}
+
+static void setUiTitleFont(const char* s) {
+  spr.setFont(uiTitleFontFor(detectUiScript(s)));
+  spr.setTextSize(1);
+}
+
+static bool utf8LineSlice(const char* src, uint8_t cols, char* out, size_t outSize, const char** next = nullptr) {
+  const char* tail = src ? src : "";
+  utf8SliceColumns(src, out, outSize, cols, &tail, true, true);
+  if (next) *next = tail;
+  return utf8HasVisibleText(tail);
+}
+
+// Greedy UTF-8-safe wrap into fixed-width rows. Continuation rows get a
+// leading ASCII indent so the transcript still scans like the old layout.
+static uint8_t wrapInto(const char* in, char* out, size_t rowSize, uint8_t maxRows, uint8_t width) {
+  return utf8WrapInto(in, out, rowSize, maxRows, width, true);
+}
+
+static uint8_t wrapBlockInto(const char* in, char* out, size_t rowSize, uint8_t maxRows, uint8_t width) {
+  return utf8WrapInto(in, out, rowSize, maxRows, width, false);
 }
 
 static bool eventVisible() {
@@ -828,45 +971,65 @@ static bool eventVisible() {
 
 static void drawApproval() {
   const Palette& p = characterPalette();
-  const int AREA = 78;
-  spr.fillRect(0, H - AREA, W, AREA, p.bg);
-  spr.drawFastHLine(0, H - AREA, W, p.textDim);
+  const int TOP = 70;
+  UiScript toolScript = detectUiScript(tama.promptTool);
+  UiScript hintScript = detectUiScript(tama.promptHint);
+  UiScript layoutScript = mergeUiScript(toolScript, hintScript);
+  UiCompactLayout layout = uiCompactLayoutFor(layoutScript);
+  uint8_t titleCols = uiPromptTitleColsFor(toolScript);
+  uint8_t bodyCols = uiPromptBodyColsFor(hintScript);
+  uint8_t toolLen = utf8DisplayWidth(tama.promptTool);
+  char toolLine[80];
+  utf8LineSlice(tama.promptTool, titleCols, toolLine, sizeof(toolLine));
+  char hintRows[4][96] = {};
+  uint8_t hintCount = wrapBlockInto(tama.promptHint, &hintRows[0][0], sizeof(hintRows[0]), 4, bodyCols);
+  if (hintCount == 0) hintCount = 1;
+  int titleH = (toolScript == UI_ASCII && toolLen <= 10) ? 16 : uiCompactLayoutFor(toolScript).titleLH;
+  spr.fillRect(0, TOP, W, H - TOP, p.bg);
+  spr.drawFastHLine(0, TOP, W, p.textDim);
 
   spr.setTextSize(1);
   spr.setTextColor(p.textDim, p.bg);
-  spr.setCursor(4, H - AREA + 4);
+  spr.setCursor(4, TOP + 4);
   uint32_t waited = (millis() - promptArrivedMs) / 1000;
   if (waited >= 10) spr.setTextColor(HOT, p.bg);
   spr.printf("approve? %lus", (unsigned long)waited);
 
   // Size 2 only if it fits one line (~10 chars at 12px on 135px screen)
-  int toolLen = strlen(tama.promptTool);
   spr.setTextColor(p.text, p.bg);
-  spr.setTextSize(toolLen <= 10 ? 2 : 1);
-  spr.setCursor(4, H - AREA + (toolLen <= 10 ? 14 : 18));
-  spr.print(tama.promptTool);
+  if (toolScript == UI_ASCII) {
+    spr.setFont(&fonts::Font0);
+    spr.setTextSize(toolLen <= 10 ? 2 : 1);
+  } else {
+    spr.setFont(uiTitleFontFor(toolScript));
+    spr.setTextSize(1);
+  }
+  int titleY = TOP + 18;
+  spr.setCursor(4, titleY);
+  spr.print(toolLine);
+  spr.setFont(&fonts::Font0);
   spr.setTextSize(1);
 
-  // Hint wraps at ~21 chars to two lines under the tool name
   spr.setTextColor(p.textDim, p.bg);
-  int hlen = strlen(tama.promptHint);
-  spr.setCursor(4, H - AREA + 34);
-  spr.printf("%.21s", tama.promptHint);
-  if (hlen > 21) {
-    spr.setCursor(4, H - AREA + 42);
-    spr.printf("%.21s", tama.promptHint + 21);
+  int hintY = titleY + titleH + layout.sectionGap;
+  for (uint8_t i = 0; i < hintCount && i < 4; i++) {
+    setUiBodyFont(hintRows[i]);
+    spr.setCursor(4, hintY + i * uiLineHeightFor(hintScript));
+    spr.print(hintRows[i]);
   }
+  spr.setFont(&fonts::Font0);
 
+  int footerY = H - layout.footerPad;
   if (responseSent) {
     spr.setTextColor(p.textDim, p.bg);
-    spr.setCursor(4, H - 12);
+    spr.setCursor(4, footerY);
     spr.print("sent...");
   } else {
     spr.setTextColor(GREEN, p.bg);
-    spr.setCursor(4, H - 12);
+    spr.setCursor(4, footerY);
     spr.print("A: approve");
     spr.setTextColor(HOT, p.bg);
-    spr.setCursor(W - 48, H - 12);
+    spr.setCursor(W - 48, footerY);
     spr.print("B: deny");
   }
 }
@@ -880,72 +1043,129 @@ static void fmtDur(uint32_t s, char* out, size_t n) {
 static void drawAction() {
   if (tama.nPending == 0) { drawApproval(); return; }
   const Palette& p = characterPalette();
+  const int TOP = 70;
   PendingDecision& d = tama.pending[0];
-  const int AREA = strcmp(d.kind, "multi_choice") == 0 ? 128 : 104;
-  spr.fillRect(0, H - AREA, W, AREA, p.bg);
-  spr.drawFastHLine(0, H - AREA, W, p.textDim);
+  UiScript titleScript = detectUiScript(d.title[0] ? d.title : "Decision");
+  UiScript bodyScript = detectUiScript(d.body);
+  UiScript optionScript = UI_ASCII;
+  for (uint8_t i = 0; i < d.nOptions; i++) {
+    optionScript = mergeUiScript(optionScript, detectUiScript(d.options[i].label));
+  }
+  UiScript layoutScript = mergeUiScript(mergeUiScript(titleScript, bodyScript), optionScript);
+  UiCompactLayout layout = uiCompactLayoutFor(layoutScript);
+  uint8_t titleCols = uiPromptTitleColsFor(titleScript);
+  uint8_t bodyCols = uiPromptBodyColsFor(bodyScript);
+  uint8_t choiceCols = uiPromptChoiceColsFor(optionScript);
+  uint8_t multiCols = uiPromptMultiColsFor(optionScript);
+  const char* titleText = d.title[0] ? d.title : "Decision";
+  uint8_t titleWidth = utf8DisplayWidth(titleText);
+  char titleLine[96];
+  utf8LineSlice(titleText, titleCols, titleLine, sizeof(titleLine));
+  uint8_t bodyMaxRows = 2;
+  if ((strcmp(d.kind, "single_choice") == 0
+       || (strcmp(d.kind, "free_text_required") == 0 && d.nOptions > 0))) {
+    bodyMaxRows = 3;
+  } else if (strcmp(d.kind, "notice") == 0 || strcmp(d.kind, "free_text_required") == 0) {
+    bodyMaxRows = 4;
+  }
+  char bodyRows[4][96] = {};
+  uint8_t bodyCount = wrapBlockInto(d.body, &bodyRows[0][0], sizeof(bodyRows[0]), bodyMaxRows, bodyCols);
+  if (bodyCount == 0) bodyCount = 1;
+  int titleH = (titleScript == UI_ASCII && titleWidth <= 10) ? 16 : uiCompactLayoutFor(titleScript).titleLH;
+  int footerY = H - layout.footerPad;
+  int optionTop = footerY - layout.bodyLH - layout.sectionGap;
+  if ((strcmp(d.kind, "single_choice") == 0
+       || (strcmp(d.kind, "free_text_required") == 0 && d.nOptions > 0))
+      && d.nOptions > 0) {
+    optionTop = footerY - layout.bodyLH - layout.sectionGap;
+  } else if (strcmp(d.kind, "multi_choice") == 0 && d.nOptions > 0) {
+    optionTop = footerY - layout.sectionGap - d.nOptions * layout.bodyLH;
+  } else if (strcmp(d.kind, "notice") == 0 || strcmp(d.kind, "free_text_required") == 0) {
+    optionTop = footerY - layout.bodyLH - layout.sectionGap;
+  }
+  spr.fillRect(0, TOP, W, H - TOP, p.bg);
+  spr.drawFastHLine(0, TOP, W, p.textDim);
   spr.setTextSize(1);
 
   char age[12];
   fmtDur(d.pendingS ? d.pendingS : ((millis() - promptArrivedMs) / 1000), age, sizeof(age));
   spr.setTextColor(HOT, p.bg);
-  spr.setCursor(4, H - AREA + 4);
+  spr.setCursor(4, TOP + 4);
   spr.printf("%s  wait %s", d.kind[0] ? d.kind : "action", age);
 
   spr.setTextColor(p.text, p.bg);
-  spr.setTextSize(strlen(d.title) <= 10 ? 2 : 1);
-  spr.setCursor(4, H - AREA + 18);
-  spr.print(d.title[0] ? d.title : "Decision");
+  if (titleScript == UI_ASCII) {
+    spr.setFont(&fonts::Font0);
+    spr.setTextSize(titleWidth <= 10 ? 2 : 1);
+  } else {
+    spr.setFont(uiTitleFontFor(titleScript));
+    spr.setTextSize(1);
+  }
+  int titleY = TOP + 18;
+  spr.setCursor(4, titleY);
+  spr.print(titleLine);
+  spr.setFont(&fonts::Font0);
   spr.setTextSize(1);
 
   spr.setTextColor(p.textDim, p.bg);
-  spr.setCursor(4, H - AREA + 40);
-  spr.printf("%.21s", d.body);
-  if (strlen(d.body) > 21) {
-    spr.setCursor(4, H - AREA + 50);
-    spr.printf("%.21s", d.body + 21);
+  int bodyY = titleY + titleH + layout.sectionGap;
+  for (uint8_t i = 0; i < bodyCount && i < bodyMaxRows; i++) {
+    setUiBodyFont(bodyRows[i]);
+    spr.setCursor(4, bodyY + i * uiLineHeightFor(bodyScript));
+    spr.print(bodyRows[i]);
   }
+  spr.setFont(&fonts::Font0);
 
   if ((strcmp(d.kind, "single_choice") == 0
        || (strcmp(d.kind, "free_text_required") == 0 && d.nOptions > 0))
       && d.nOptions > 0) {
     DecisionOption& opt = d.options[d.selected];
+    char optLine[64];
+    utf8LineSlice(opt.label, choiceCols, optLine, sizeof(optLine));
     spr.setTextColor(p.body, p.bg);
-    spr.setCursor(4, H - 30);
-    spr.printf("%u/%u %.16s", d.selected + 1, d.nOptions, opt.label);
+    spr.setCursor(4, optionTop);
+    spr.printf("%u/%u ", d.selected + 1, d.nOptions);
+    setUiBodyFont(optLine);
+    spr.print(optLine);
+    spr.setFont(&fonts::Font0);
     spr.setTextColor(GREEN, p.bg);
-    spr.setCursor(4, H - 12); spr.print("A: send");
+    spr.setCursor(4, footerY); spr.print("A: send");
     spr.setTextColor(p.textDim, p.bg);
-    spr.setCursor(W - 42, H - 12); spr.print("B: next");
+    spr.setCursor(W - 42, footerY); spr.print("B: next");
   } else if (strcmp(d.kind, "multi_choice") == 0 && d.nOptions > 0) {
-    int y = H - 54;
+    int y = optionTop;
     for (uint8_t i = 0; i < d.nOptions && i < MAX_OPTIONS; i++) {
       DecisionOption& opt = d.options[i];
+      char optLine[64];
+      utf8LineSlice(opt.label, multiCols, optLine, sizeof(optLine));
       spr.setTextColor(i == d.selected ? p.body : p.textDim, p.bg);
       spr.setCursor(4, y);
-      spr.printf("%c [%c] %.12s", i == d.selected ? '>' : ' ', opt.selected ? 'x' : ' ', opt.label);
-      y += 10;
+      spr.printf("%c [%c] ", i == d.selected ? '>' : ' ', opt.selected ? 'x' : ' ');
+      setUiBodyFont(optLine);
+      spr.print(optLine);
+      spr.setFont(&fonts::Font0);
+      y += layout.bodyLH;
     }
     spr.setTextColor(GREEN, p.bg);
-    spr.setCursor(4, H - 12); spr.print("A: toggle");
+    spr.setCursor(4, footerY); spr.print("A: toggle");
     spr.setTextColor(p.textDim, p.bg);
-    spr.setCursor(W - 42, H - 12); spr.print("B: next");
+    spr.setCursor(W - 42, footerY); spr.print("B: next");
   } else if (strcmp(d.kind, "notice") == 0 || strcmp(d.kind, "free_text_required") == 0) {
     spr.setTextColor(p.body, p.bg);
-    spr.setCursor(4, H - 30);
+    spr.setCursor(4, optionTop);
     spr.print("type on host");
     spr.setTextColor(GREEN, p.bg);
-    spr.setCursor(4, H - 12); spr.print("A: focus");
+    spr.setCursor(4, footerY); spr.print("A: focus");
     spr.setTextColor(p.textDim, p.bg);
-    spr.setCursor(W - 42, H - 12); spr.print("B: wait");
+    spr.setCursor(W - 42, footerY); spr.print("B: wait");
   } else if (responseSent) {
     spr.setTextColor(p.textDim, p.bg);
-    spr.setCursor(4, H - 12); spr.print("sent...");
+    spr.setCursor(4, footerY); spr.print("sent...");
   } else {
     spr.setTextColor(GREEN, p.bg);
-    spr.setCursor(4, H - 12); spr.print("A: approve");
+    spr.setCursor(4, footerY); spr.print("A: approve");
     spr.setTextColor(HOT, p.bg);
-    spr.setCursor(W - 48, H - 12); spr.print("B: deny");
+    spr.setCursor(W - 48, footerY); spr.print("B: deny");
   }
 }
 
@@ -1072,30 +1292,56 @@ void drawPet() {
 void drawHUD() {
   if (tama.promptId[0] || tama.nPending > 0) { drawAction(); return; }
   const Palette& p = characterPalette();
-  const int SHOW = 3, LH = 8, WIDTH = 21;
-  const int AREA = SHOW * LH + 4;
-  spr.fillRect(0, H - AREA, W, AREA, p.bg);
+  int LH = 8;
   spr.setTextSize(1);
 
   if (tama.lineGen != lastLineGen) { msgScroll = 0; lastLineGen = tama.lineGen; wake(); }
 
   if (tama.nLines == 0) {
+    UiScript msgScript = detectUiScript(tama.msg);
+    UiCompactLayout layout = uiCompactLayoutFor(msgScript);
+    char msgLine[80];
+    utf8LineSlice(tama.msg, layout.bodyCols, msgLine, sizeof(msgLine));
+    LH = uiLineHeightFor(msgScript);
+    const int SHOW = 3;
+    const int hudArea = SHOW * LH + 4;
+    spr.fillRect(0, H - hudArea, W, hudArea, p.bg);
     spr.setTextColor(p.text, p.bg);
+    setUiBodyFont(msgLine);
     spr.setCursor(4, H - LH - 2);
-    spr.print(tama.msg);
+    spr.print(msgLine);
+    spr.setFont(&fonts::Font0);
+    if (!settings().sound) {
+      spr.setTextColor(HOT, p.bg);
+      spr.setCursor(W - 28, H - hudArea + 2);
+      spr.print("mute");
+    }
     return;
   }
 
   // Wrap all transcript lines into a flat display buffer. Track which
   // transcript index each display row came from, so we can dim older ones.
-  static char disp[32][24];
+  static char disp[32][80];
   static uint8_t srcOf[32];
   uint8_t nDisp = 0;
+  UiScript hudScript = UI_ASCII;
   for (uint8_t i = 0; i < tama.nLines && nDisp < 32; i++) {
-    uint8_t got = wrapInto(tama.lines[i], &disp[nDisp], 32 - nDisp, WIDTH);
+    UiScript rowScript = detectUiScript(tama.lines[i]);
+    uint8_t got = wrapInto(
+        tama.lines[i],
+        &disp[nDisp][0],
+        sizeof(disp[0]),
+        32 - nDisp,
+        uiCompactLayoutFor(rowScript).bodyCols);
     for (uint8_t j = 0; j < got; j++) srcOf[nDisp + j] = i;
+    hudScript = mergeUiScript(hudScript, rowScript);
     nDisp += got;
   }
+  UiCompactLayout layout = uiCompactLayoutFor(hudScript);
+  const int SHOW = 3;
+  LH = uiLineHeightFor(hudScript);
+  const int hudArea = SHOW * LH + 4;
+  spr.fillRect(0, H - hudArea, W, hudArea, p.bg);
 
   uint8_t maxBack = (nDisp > SHOW) ? (nDisp - SHOW) : 0;
   if (msgScroll > maxBack) msgScroll = maxBack;
@@ -1107,13 +1353,20 @@ void drawHUD() {
     uint8_t row = start + i;
     bool fresh = (srcOf[row] == newest) && (msgScroll == 0);
     spr.setTextColor(fresh ? p.text : p.textDim, p.bg);
-    spr.setCursor(4, H - AREA + 2 + i * LH);
+    setUiBodyFont(disp[row]);
+    spr.setCursor(4, H - hudArea + 2 + i * LH);
     spr.print(disp[row]);
+    spr.setFont(&fonts::Font0);
   }
   if (msgScroll > 0) {
     spr.setTextColor(p.body, p.bg);
     spr.setCursor(W - 18, H - LH - 2);
     spr.printf("-%u", msgScroll);
+  }
+  if (!settings().sound) {
+    spr.setTextColor(HOT, p.bg);
+    spr.setCursor(W - 28, H - hudArea + 2);
+    spr.print("mute");
   }
 }
 
@@ -1143,20 +1396,42 @@ static void drawFocusedSession() {
   const char* branch = s->branch[0] ? s->branch : tama.branch;
   const char* model = s->model[0] ? s->model : tama.model;
   const char* last = s->last[0] ? s->last : tama.assistantMsg;
+  UiScript layoutScript = UI_ASCII;
+  layoutScript = mergeUiScript(layoutScript, detectUiScript(project));
+  layoutScript = mergeUiScript(layoutScript, detectUiScript(branch));
+  layoutScript = mergeUiScript(layoutScript, detectUiScript(model));
+  layoutScript = mergeUiScript(layoutScript, detectUiScript(last));
+  UiCompactLayout layout = uiCompactLayoutFor(layoutScript);
+  UiCompactLayout modelLayout = uiCompactLayoutFor(detectUiScript(model));
 
   char dur[12];
+  char projectLine[96], branchLine[96], modelLine[64], last0[96], last1[96];
+  const char* lastNext = nullptr;
+  utf8LineSlice(project, layout.bodyCols, projectLine, sizeof(projectLine));
+  utf8LineSlice(branch, layout.bodyCols, branchLine, sizeof(branchLine));
+  utf8LineSlice(model, modelLayout.choiceCols, modelLine, sizeof(modelLine));
+  bool lastMore = utf8LineSlice(last, layout.bodyCols, last0, sizeof(last0), &lastNext);
   fmtDur(s->pendingS ? s->pendingS : s->elapsedS, dur, sizeof(dur));
   spr.setTextColor(p.body, p.bg);
-  spr.setCursor(4, y); spr.printf("%.21s", project); y += 12;
+  setUiBodyFont(projectLine);
+  spr.setCursor(4, y); spr.print(projectLine); y += layout.bodyLH;
   spr.setTextColor(p.textDim, p.bg);
-  spr.setCursor(4, y); spr.printf("%.21s", branch); y += 12;
-  spr.setCursor(4, y); spr.printf("%s %s  dirty %d", s->phase, dur, s->dirty); y += 12;
-  spr.setCursor(4, y); spr.printf("model %.16s", model); y += 16;
+  setUiBodyFont(branchLine);
+  spr.setCursor(4, y); spr.print(branchLine); y += layout.bodyLH;
+  spr.setFont(&fonts::Font0);
+  spr.setCursor(4, y); spr.printf("%s %s  dirty %d", s->phase, dur, s->dirty); y += layout.bodyLH;
+  spr.setCursor(4, y); spr.print("model ");
+  setUiBodyFont(modelLine);
+  spr.print(modelLine); y += layout.bodyLH + layout.sectionGap;
   spr.setTextColor(p.text, p.bg);
-  spr.setCursor(4, y); spr.printf("%.21s", last); y += 10;
-  if (strlen(last) > 21) {
-    spr.setCursor(4, y); spr.printf("%.21s", last + 21);
+  setUiBodyFont(last0);
+  spr.setCursor(4, y); spr.print(last0); y += layout.bodyLH;
+  if (lastMore) {
+    utf8LineSlice(lastNext, layout.bodyCols, last1, sizeof(last1));
+    setUiBodyFont(last1);
+    spr.setCursor(4, y); spr.print(last1);
   }
+  spr.setFont(&fonts::Font0);
 }
 
 static void drawSessionList() {
@@ -1179,40 +1454,70 @@ static void drawSessionList() {
     return;
   }
   SessionSummary& s = tama.sessions[sessionPage];
+  UiScript layoutScript = UI_ASCII;
+  layoutScript = mergeUiScript(layoutScript, detectUiScript(s.project));
+  layoutScript = mergeUiScript(layoutScript, detectUiScript(s.branch));
+  layoutScript = mergeUiScript(layoutScript, detectUiScript(s.last));
+  UiCompactLayout layout = uiCompactLayoutFor(layoutScript);
   char dur[12];
+  char projectLine[96], branchLine[96], lastLine[96];
+  utf8LineSlice(s.project, layout.bodyCols, projectLine, sizeof(projectLine));
+  utf8LineSlice(s.branch, layout.bodyCols, branchLine, sizeof(branchLine));
+  utf8LineSlice(s.last, layout.bodyCols, lastLine, sizeof(lastLine));
   fmtDur(s.pendingS ? s.pendingS : s.elapsedS, dur, sizeof(dur));
   spr.setTextColor(s.focused ? GREEN : p.body, p.bg);
-  spr.setCursor(4, y); spr.printf("%.21s", s.project); y += 12;
+  setUiBodyFont(projectLine);
+  spr.setCursor(4, y); spr.print(projectLine); y += layout.bodyLH;
   spr.setTextColor(p.textDim, p.bg);
-  spr.setCursor(4, y); spr.printf("%.21s", s.branch); y += 12;
-  spr.setCursor(4, y); spr.printf("%s %s", s.phase, dur); y += 16;
+  setUiBodyFont(branchLine);
+  spr.setCursor(4, y); spr.print(branchLine); y += layout.bodyLH;
+  spr.setFont(&fonts::Font0);
+  spr.setCursor(4, y); spr.printf("%s %s", s.phase, dur); y += layout.bodyLH + layout.sectionGap;
   spr.setTextColor(p.text, p.bg);
-  spr.setCursor(4, y); spr.printf("%.21s", s.last);
+  setUiBodyFont(lastLine);
+  spr.setCursor(4, y); spr.print(lastLine);
+  spr.setFont(&fonts::Font0);
   spr.setTextColor(GREEN, p.bg);
-  spr.setCursor(4, H - 12); spr.print("A: focus");
+  spr.setCursor(4, H - layout.footerPad); spr.print("A: focus");
   spr.setTextColor(p.textDim, p.bg);
-  spr.setCursor(W - 42, H - 12); spr.print("B: next");
+  spr.setCursor(W - 42, H - layout.footerPad); spr.print("B: next");
 }
 
 static void drawEventOverlay() {
   const Palette& p = characterPalette();
   uint32_t age = millis() - tama.event.receivedMs;
   uint32_t left = (age < tama.event.ttlMs) ? (tama.event.ttlMs - age) : 0;
-  int mw = 118, mh = 72;
+  UiScript titleScript = detectUiScript(tama.event.title[0] ? tama.event.title : tama.event.kind);
+  UiScript bodyScript = detectUiScript(tama.event.text);
+  UiScript layoutScript = mergeUiScript(titleScript, bodyScript);
+  UiCompactLayout layout = uiCompactLayoutFor(layoutScript);
+  int mw = layoutScript == UI_ASCII ? 118 : 124;
+  spr.setTextSize(1);
+  char titleLine[80], text0[80], text1[80];
+  const char* textNext = nullptr;
+  utf8LineSlice(tama.event.title[0] ? tama.event.title : tama.event.kind, uiCompactLayoutFor(titleScript).narrowCols, titleLine, sizeof(titleLine));
+  bool moreText = utf8LineSlice(tama.event.text, uiCompactLayoutFor(bodyScript).narrowCols, text0, sizeof(text0), &textNext);
+  int mh = 26 + uiCompactLayoutFor(titleScript).titleLH + (moreText ? 2 : 1) * uiLineHeightFor(bodyScript);
+  if (mh < 72) mh = 72;
   int mx = (W - mw) / 2, my = H - mh - 10;
   spr.fillRoundRect(mx, my, mw, mh, 4, PANEL);
   spr.drawRoundRect(mx, my, mw, mh, 4, strcmp(tama.event.kind, "error") == 0 ? HOT : GREEN);
-  spr.setTextSize(1);
   spr.setTextColor(p.text, PANEL);
+  setUiTitleFont(titleLine);
   spr.setCursor(mx + 6, my + 8);
-  spr.printf("%.17s", tama.event.title[0] ? tama.event.title : tama.event.kind);
+  spr.print(titleLine);
   spr.setTextColor(p.textDim, PANEL);
-  spr.setCursor(mx + 6, my + 24);
-  spr.printf("%.17s", tama.event.text);
-  if (strlen(tama.event.text) > 17) {
-    spr.setCursor(mx + 6, my + 34);
-    spr.printf("%.17s", tama.event.text + 17);
+  setUiBodyFont(text0);
+  int textY = my + 8 + uiCompactLayoutFor(titleScript).titleLH + layout.sectionGap;
+  spr.setCursor(mx + 6, textY);
+  spr.print(text0);
+  if (moreText) {
+    utf8LineSlice(textNext, uiCompactLayoutFor(bodyScript).narrowCols, text1, sizeof(text1));
+    setUiBodyFont(text1);
+    spr.setCursor(mx + 6, textY + uiLineHeightFor(bodyScript));
+    spr.print(text1);
   }
+  spr.setFont(&fonts::Font0);
   int barW = mw - 12;
   spr.drawRect(mx + 6, my + mh - 14, barW, 5, p.textDim);
   int fill = tama.event.ttlMs ? (int)((uint64_t)barW * left / tama.event.ttlMs) : 0;
@@ -1235,6 +1540,8 @@ void setup() {
   Serial.setTxTimeoutMs(0);
 #endif
   M5.Speaker.begin();
+  M5.Speaker.setVolume(255);
+  M5.Speaker.setAllChannelVolume(255);
   M5.Lcd.setRotation(0);
   startBt();
 #ifndef BUDDY_BOARD_S3
@@ -1331,17 +1638,17 @@ void loop() {
                                   && tama.promptId[0]
                                   && tama.nPending > 0
                                   && strcmp(tama.promptId, tama.pending[0].id) == 0;
+  bool inputRequiredCue = false;
 
   // BtnA: step through fake scenarios
   // Prompt arrival: wake, reset response flag, and surface the approval screen.
   if (promptChanged) {
-    strncpy(lastPromptId, tama.promptId, sizeof(lastPromptId)-1);
-    lastPromptId[sizeof(lastPromptId)-1] = 0;
+    utf8SafeCopy(lastPromptId, sizeof(lastPromptId), tama.promptId);
     responseSent = false;
     if (tama.promptId[0]) {
       promptArrivedMs = millis();
       wake();
-      if (!samePromptAndPendingArrival) toneInputRequired();
+      if (!samePromptAndPendingArrival) inputRequiredCue = true;
       // Jump to the approval screen no matter what was open — drawApproval
       // only runs from drawHUD which only runs in DISP_NORMAL.
       displayMode = DISP_NORMAL;
@@ -1353,11 +1660,12 @@ void loop() {
   }
   if (pendingChanged) {
     lastPendingGen = tama.pendingGen;
-    if (tama.nPending > 0 && !samePromptAndPendingArrival) {
+    if (tama.nPending > 0) {
       wake();
-      toneInputRequired();
+      inputRequiredCue = true;
     }
   }
+  if (inputRequiredCue) toneInputRequired();
   if (tama.eventGen != lastEventGen) {
     lastEventGen = tama.eventGen;
     if (tama.event.active) {
@@ -1371,6 +1679,8 @@ void loop() {
   }
 
   bool inPrompt = tama.promptId[0] && !responseSent;
+  bool awaitingPromptClear = responseSent && (tama.promptId[0] || tama.nPending > 0);
+  syncCompanionPeek();
 
   // Button-press wake. Track which button woke the screen so its full
   // press cycle (including long-press) is swallowed — you don't want
@@ -1397,7 +1707,9 @@ void loop() {
 
   if (M5.BtnA.pressedFor(600) && !btnALong && !swallowBtnA) {
     btnALong = true;
-    if (inPrompt && tama.nPending > 0 && strcmp(tama.pending[0].kind, "multi_choice") == 0 && tama.pending[0].nOptions > 0) {
+    if (awaitingPromptClear) {
+      // Ignore duplicate presses while the host clears the sent prompt.
+    } else if (inPrompt && tama.nPending > 0 && strcmp(tama.pending[0].kind, "multi_choice") == 0 && tama.pending[0].nOptions > 0) {
       PendingDecision& d = tama.pending[0];
       if (multiChoiceCount(d) > 0) {
         sendAnswerChoices(d);
@@ -1407,7 +1719,7 @@ void loop() {
         toneDenied();
       }
     } else {
-      beep(800, 60);
+      toneUiClick();
       if (resetOpen) { resetOpen = false; }
       else if (settingsOpen) { settingsOpen = false; characterInvalidate(); }
       else {
@@ -1420,7 +1732,9 @@ void loop() {
   }
   if (M5.BtnA.wasReleased()) {
     if (!btnALong && !swallowBtnA) {
-      if (inPrompt) {
+      if (awaitingPromptClear) {
+        // Ignore duplicate presses while the host clears the sent prompt.
+      } else if (inPrompt) {
         if (tama.nPending > 0 && strcmp(tama.pending[0].kind, "single_choice") == 0 && tama.pending[0].nOptions > 0) {
           PendingDecision& d = tama.pending[0];
           sendAnswerChoice(d.id, d.options[d.selected].id);
@@ -1430,7 +1744,7 @@ void loop() {
         } else if (tama.nPending > 0 && strcmp(tama.pending[0].kind, "multi_choice") == 0 && tama.pending[0].nOptions > 0) {
           PendingDecision& d = tama.pending[0];
           d.options[d.selected].selected = !d.options[d.selected].selected;
-          beep(d.options[d.selected].selected ? 2200 : 1200, 30);
+          toneUiClick();
         } else if (tama.nPending > 0
             && (strcmp(tama.pending[0].kind, "notice") == 0
                 || strcmp(tama.pending[0].kind, "free_text_required") == 0)) {
@@ -1456,17 +1770,17 @@ void loop() {
         displayMode = DISP_SESSION;
         applyDisplayMode();
       } else if (resetOpen) {
-        beep(1800, 30);
+        toneUiClick();
         resetSel = (resetSel + 1) % RESET_N;
         resetConfirmIdx = 0xFF;
       } else if (settingsOpen) {
-        beep(1800, 30);
+        toneUiClick();
         settingsSel = (settingsSel + 1) % SETTINGS_N;
       } else if (menuOpen) {
-        beep(1800, 30);
+        toneUiClick();
         menuSel = (menuSel + 1) % MENU_N;
       } else {
-        beep(1800, 30);
+        toneUiClick();
         displayMode = (displayMode + 1) % DISP_COUNT;
         applyDisplayMode();
       }
@@ -1478,8 +1792,9 @@ void loop() {
   // BtnB: pet → heart
   if (M5.BtnB.wasPressed()) {
     if (swallowBtnB) { swallowBtnB = false; }
-    else
-    if (inPrompt) {
+    else if (awaitingPromptClear) {
+      // Ignore duplicate presses while the host clears the sent prompt.
+    } else if (inPrompt) {
       if (tama.nPending > 0
           && (strcmp(tama.pending[0].kind, "single_choice") == 0
               || strcmp(tama.pending[0].kind, "multi_choice") == 0
@@ -1487,11 +1802,11 @@ void loop() {
           && tama.pending[0].nOptions > 0) {
         PendingDecision& d = tama.pending[0];
         d.selected = (d.selected + 1) % d.nOptions;
-        beep(1800, 30);
+        toneUiClick();
       } else if (tama.nPending > 0
              && (strcmp(tama.pending[0].kind, "notice") == 0
                  || strcmp(tama.pending[0].kind, "free_text_required") == 0)) {
-        beep(1200, 30);
+        toneUiClick();
       } else {
         sendPermissionDecision(tama.promptId, "deny");
         responseSent = true;
@@ -1499,31 +1814,31 @@ void loop() {
         toneDenied();
       }
     } else if (displayMode == DISP_SESSIONS && tama.nSessions > 0) {
-      beep(2400, 30);
+      toneUiClick();
       sessionPage = (sessionPage + 1) % tama.nSessions;
       applyDisplayMode();
     } else if (resetOpen) {
-      beep(2400, 30);
+      toneUiClick();
       applyReset(resetSel);
     } else if (settingsOpen) {
-      beep(2400, 30);
+      toneUiClick();
       applySetting(settingsSel);
     } else if (menuOpen) {
-      beep(2400, 30);
+      toneUiClick();
       menuConfirm();
     } else if (eventVisible()) {
       tama.event.active = false;
       sendCmd("{\"cmd\":\"event_dismiss\",\"sid\":\"\"}");
-      beep(1200, 30);
+      toneUiClick();
     } else if (displayMode == DISP_INFO) {
-      beep(2400, 30);
+      toneUiClick();
       infoPage = (infoPage + 1) % INFO_PAGES;
     } else if (displayMode == DISP_PET) {
-      beep(2400, 30);
+      toneUiClick();
       petPage = (petPage + 1) % PET_PAGES;
       applyDisplayMode();
     } else {
-      beep(2400, 30);
+      toneUiClick();
       msgScroll = (msgScroll >= 30) ? 0 : msgScroll + 1;
     }
   }
@@ -1572,7 +1887,7 @@ void loop() {
 
   static uint32_t lastPasskey = 0;
   uint32_t pk = blePasskey();
-  if (pk && !lastPasskey) { wake(); beep(1800, 60); }
+  if (pk && !lastPasskey) { wake(); tonePairing(); }
   lastPasskey = pk;
 
   if (napping || screenOff || landscapeClock) {

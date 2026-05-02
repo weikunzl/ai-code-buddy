@@ -37,6 +37,17 @@ Everything on the wire is UTF-8 JSON—one object per line, terminated with
 fragment at the MTU boundary, just send the bytes). Your device needs to do
 the same: accumulate bytes until you see `\n`, then parse.
 
+The reference firmware now preserves whole UTF-8 sequences when truncating
+bounded fields and wraps compact views on display columns instead of raw
+bytes. Common CJK ranges are treated as double-width for the small session
+console surfaces.
+
+On the StickS3 reference firmware, actual compact-view CJK rendering uses the
+bundled M5GFX `efont` families selected by script:
+- Chinese / Han -> `efontCN_10` / `efontCN_12`
+- Japanese -> `efontJA_10` / `efontJA_12`
+- Korean -> `efontKR_10` / `efontKR_12`
+
 ## Heartbeat snapshot
 
 The desktop apps send a heartbeat snapshot whenever something changes, plus
@@ -98,6 +109,25 @@ devices ignore them.
 
 Devices should prefer `pending[0]` for an action screen and fall back to
 legacy `prompt` when `pending[]` is absent.
+
+### Firmware sound roles
+
+The wire protocol does not carry sound metadata, but the reference
+firmware maps local events onto a stable set of roles:
+
+| Role | Typical trigger |
+| --- | --- |
+| `ui_click` | menu, page, and option navigation |
+| `input_required` | new prompt or pending action arrival |
+| `answer_sent` | approve / submit / quick reply sent |
+| `complete` | completion event overlay |
+| `deny` | explicit deny action |
+| `error` | error event overlay |
+| `warning` | reset arm / cautionary action |
+| `reset_confirm` | destructive reset confirmation |
+| `pairing` | new BLE passkey shown |
+
+Keep these roles stable even if the underlying sound assets change.
 
 For `single_choice`, each pending item may include up to 4 options:
 
@@ -244,6 +274,10 @@ For a smaller producer-local input, this repo also ships
 `free_text_required`. The helper wraps that payload into the full
 bridge-local `Notification` shape and forwards it through
 `tools/hook_relay.py`.
+
+Checked-in producer examples for ASCII plus Chinese/Japanese/Korean payloads
+live under `docs/examples/`, and `tools/test_workflow_examples.py` validates
+them through the real relay/helper entry points.
 
 Example request:
 

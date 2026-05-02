@@ -61,6 +61,33 @@ Last updated: 2026-04-28
     - device returns to the normal session screen after submit
   - host simulator logged `[sim] choices=['ble', 'usb']`, confirming end-to-end array return over native USB serial
 
+- Completed the CJK layout-tuning milestone:
+  - added prompt-specific compact-layout helpers in `src/main.cpp`
+  - prompt-active normal mode now forces companion `peek` layout for a larger text pane
+  - approval/action views now use the full lower pane from `y=70`
+  - prompt body wrapping now uses block rows with no continuation indent
+  - prompt title/body/choice widths are wider than the generic transcript/session widths
+- CJK layout-tuning verification:
+  - `python3 tools/test_utf8_text.py`: PASS
+  - `pio run -e m5sticks3`: PASS, RAM `102300 / 327680`, Flash `2593785 / 4194304`
+  - `pio run -e m5sticks3 -t upload`: PASS
+  - direct USB Chinese prompt hardware check: PASS
+    - final `压` in `操作没有互相挤压` is visible
+    - body width utilization is fixed
+    - buddy is compact enough
+    - option rows are still clean
+
+- Completed the host-side internationalized workflow example milestone:
+  - added checked-in multilingual examples under `docs/examples/`
+  - documented the multilingual shell entry points in `docs/upstream-workflow-examples.md`
+  - updated `README.md` and `REFERENCE.md` to point at the multilingual example baseline
+  - extended `tools/test_workflow_examples.py` to validate UTF-8 preservation through the real relay/helper boundaries
+- Multilingual workflow verification:
+  - `python3 tools/test_workflow_examples.py`: PASS (`Ran 7 tests` / `OK`)
+  - `python3 tools/test_hook_relay.py`: PASS (`Ran 7 tests` / `OK`)
+  - `python3 tools/test_post_notification_prompt.py`: PASS (`Ran 9 tests` / `OK`)
+  - `python3 -m py_compile tools/test_workflow_examples.py tools/test_hook_relay.py tools/test_post_notification_prompt.py tools/post_notification_prompt.py tools/hook_relay.py`: PASS
+
 - Created `AGENTS.md` as a contributor guide for this repository.
 - Inspected repository layout, PlatformIO environments, README, CONTRIBUTING notes, and helper scripts.
 - Inspected local M5Unified and M5GFX libraries under `/Users/souler/Documents`.
@@ -198,6 +225,47 @@ Last updated: 2026-04-28
   - added ADR-0006 for post-A USB CDC RX validation,
   - added `docs/superpowers/specs/2026-04-27-stick-s3-usb-cdc-rx-design.md`,
   - added `docs/superpowers/plans/2026-04-27-stick-s3-usb-cdc-rx-milestone-b.md`,
+- Continued the speaker investigation after the earlier revert:
+  - kept the dedicated `m5sticks3-speakerdiag` environment and confirmed on hardware that `tone()`, `playRaw()` 8-bit, and `playRaw()` 16-bit are all audible with master/channel volume forced high
+  - restored raw arrival/completion cue playback in `src/main.cpp`
+  - added explicit `M5.Speaker.setVolume(255)` and `M5.Speaker.setAllChannelVolume(255)` in the main firmware
+  - replaced the earlier large PCM assets with the exact short raw patterns that were audible in the standalone diagnostic
+  - added `waitForSpeakerStart(30)` so the app falls back to tone if `playRaw()` queues but never actually starts
+  - added a temporary in-app boot self-test and verified on hardware that both raw cues are audible in the full session-console runtime too
+  - removed that temporary boot self-test after verification so the shipping app behavior stays clean
+  - narrowed the remaining prompt-arrival silence to the normal cue guard on `settings().sound`, making persisted mute the likely cause rather than speaker/runtime failure
+- Added visible mute-state UX after the audio diagnosis:
+  - normal HUD now shows `mute` when sound is off
+  - `DEVICE` info page now shows `sound on/off`
+  - `pio run -e m5sticks3`: PASS
+  - `pio run -e m5sticks3 -t upload`: PASS
+- Started the first real OpenPeon asset integration:
+  - added `tools/convert_openpeon_assets.py`
+  - converted and generated `src/wav_assets.cpp` from:
+    - `hover-sound.wav` for `input.required`
+    - `confirm-sound.wav` for `answer sent`
+    - `cancel-sound.wav` for completion
+  - switched `src/main.cpp` back to stable `playRaw(int16_t*)` calls using generated mono 22.05kHz PCM arrays
+  - updated `tools/test_wav_assets.py` to validate the generated PCM asset shape and the single-dispatch cue logic
+  - `python3 tools/test_wav_assets.py`: PASS
+  - `python3 -m py_compile tools/convert_openpeon_assets.py tools/test_wav_assets.py`: PASS
+  - `pio run -e m5sticks3`: PASS, Flash `1296317 / 4194304`
+  - after reconnecting the StickS3, `pio run -e m5sticks3 -t upload`: PASS
+  - hardware verification confirmed the converted OpenPeon arrival cue in the normal `Bash` prompt flow
+- Added the post-arrival follow-up fixes in source:
+  - `toneAnswerSent()` now uses converted `confirm-sound.wav`
+  - `awaitingPromptClear` suppresses duplicate A/B presses while `sent...` is still visible
+  - `python3 tools/test_wav_assets.py`: PASS
+  - `pio run -e m5sticks3`: PASS, Flash `1317637 / 4194304`
+  - hardware flash for this latest build is still pending because USB upload failed twice mid-transfer
+  - another retry still failed mid-transfer at roughly one-third progress, reinforcing that the remaining blocker is USB flash stability rather than code generation or build correctness
+- Implemented the image-size fallback:
+  - `tools/convert_openpeon_assets.py` now downsamples to `11025Hz`
+  - each converted clip is capped at `4096` samples
+  - `python3 tools/test_wav_assets.py`: PASS
+  - `pio run -e m5sticks3`: PASS, Flash `1282533 / 4194304`
+  - direct `esptool.py` at `115200` flashed farther than before but still failed around `62%`
+  - current blocker remains hardware USB stability, not the firmware source or build
   - updated `docs/adr/README.md` to index the new milestone.
 - Initial Milestone B Task 2 implementation was not correct on real StickS3 hardware:
   - gating on `Serial` truthiness prevented useful RX in practice,
@@ -470,6 +538,63 @@ No firmware source files have been edited. Milestone A Task 4 only extends the h
   - removed `src/wav_assets.h`, `src/wav_assets.cpp`, and `tools/test_wav_assets.py`
   - restored `toneInputRequired()` and `toneComplete()` to tone-backed helpers in `src/main.cpp`
   - deferred streamed audio to a future low-level board/runtime investigation
+- Follow-up audio work re-opened after the board-level speaker diagnostic:
+  - added `src/wav_assets.h`, `src/wav_assets.cpp`, and `tools/test_wav_assets.py` back using embedded raw PCM via `playRaw(...)` instead of `playWav(...)`
+  - integrated converted OpenPeon assets with smaller `11025Hz` / `4096`-sample clips to reduce flash pressure
+  - mapped `hover-sound.wav` to input-required, `confirm-sound.wav` to answer-sent, and `cancel-sound.wav` to complete
+  - added `awaitingPromptClear` so repeated button presses after the first send do not trigger fallback beeps while the prompt is still visible
+- Latest flash status:
+  - multiple earlier uploads failed intermittently over native USB, but a subsequent `pio run -e m5sticks3 -t upload` succeeded
+  - the connected StickS3 is now running the latest smaller OpenPeon asset build and is ready for direct on-device verification rather than more flashing work
+- Default UI click follow-up:
+  - extended `tools/convert_openpeon_assets.py` to generate a fourth PCM asset for generic UI clicks
+  - added `kUiClickPcm` to `src/wav_assets.*`
+  - added `toneUiClick()` in `src/main.cpp` and routed the remaining short menu/navigation/prompt-toggle beeps through it
+  - selected `hover-sound-low.wav` as the default UI click clip to keep interaction sounds small and unobtrusive
+- Verification for the UI click build:
+  - `python3 tools/test_wav_assets.py`: PASS
+  - `python3 -m py_compile tools/convert_openpeon_assets.py tools/test_wav_assets.py`: PASS
+  - `pio run -e m5sticks3`: PASS
+  - `pio run -e m5sticks3 -t upload`: PASS after stopping the persistent serial simulator that was holding `/dev/cu.usbmodem144301`
+  - resulting flash size: `1290789 / 4194304`
+- Milestone M sound-role normalization:
+  - replaced the remaining call-site beeps with named role helpers where behavior matters (`toneWarning`, `toneResetConfirm`, `tonePairing`)
+  - kept `deny`, `error`, and neutral event tones explicit as named tone-backed roles
+  - documented the role table in `README.md` and `REFERENCE.md`
+  - extended `tools/test_wav_assets.py` to assert the named tone-backed helper roles as well as the PCM-backed ones
+- Milestone M verification:
+  - `python3 tools/test_wav_assets.py`: PASS
+  - `python3 -m py_compile tools/convert_openpeon_assets.py tools/test_wav_assets.py`: PASS
+  - `pio run -e m5sticks3`: PASS
+  - `pio run -e m5sticks3 -t upload`: PASS
+- UTF-8/CJK-safe rendering milestone:
+  - added `src/utf8_text.h` with UTF-8-safe bounded copy, display-width, line-slice, and wrap helpers
+  - switched `src/data.h` bounded field copies to preserve whole UTF-8 sequences
+  - widened the key session-console text buffers so 2-byte / 3-byte glyphs are not truncated too early
+  - replaced byte-counted prompt/session/event/trancript slicing in `src/main.cpp` with `utf8LineSlice(...)` and `utf8WrapInto(...)`
+  - kept the current font stack unchanged; this slice is about safe truncation and wrapping, not new glyph assets
+- UTF-8 milestone verification:
+  - `python3 tools/test_utf8_text.py`: PASS
+  - `python3 tools/test_wav_assets.py`: PASS
+  - `python3 -m py_compile tools/test_utf8_text.py tools/test_wav_assets.py tools/convert_openpeon_assets.py`: PASS
+  - `pio run -e m5sticks3`: PASS
+  - `pio run -e m5sticks3 -t upload`: PASS
+  - resulting size: RAM `102300 / 327680`, Flash `1292313 / 4194304`
+- CJK font enablement milestone:
+  - kept the UTF-8-safe renderer and added script-aware font selection in `src/main.cpp`
+  - compact console views now switch to bundled M5GFX `efont` faces when CJK text is detected:
+    - `efontCN_10` / `efontCN_12`
+    - `efontJA_10` / `efontJA_12`
+    - `efontKR_10` / `efontKR_12`
+  - ASCII-only text stays on `Font0`, preserving the old non-CJK layout path
+  - documented the concrete font baseline in `README.md` and `REFERENCE.md`
+- CJK font milestone verification:
+  - `python3 tools/test_utf8_text.py`: PASS
+  - `python3 tools/test_wav_assets.py`: PASS
+  - `python3 -m py_compile tools/test_utf8_text.py tools/test_wav_assets.py`: PASS
+  - `pio run -e m5sticks3`: PASS
+  - `pio run -e m5sticks3 -t upload`: PASS
+  - resulting size: RAM `102300 / 327680`, Flash `2592041 / 4194304`
 
 ## Important Context
 

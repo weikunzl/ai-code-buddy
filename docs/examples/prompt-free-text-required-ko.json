@@ -1,0 +1,16 @@
+{
+  "session_id": "s_demo_text_ko",
+  "cwd": "/tmp/claude-desktop-buddy",
+  "message": "호스트 입력이 필요합니다",
+  "model": "codex",
+  "prompt": {
+    "id": "q_followup_ko",
+    "kind": "free_text_required",
+    "title": "대상 확인",
+    "body": "빠른 응답을 고르거나 컴퓨터에서 직접 입력하세요.",
+    "options": [
+      { "id": "here", "label": "현재 저장소", "desc": "지금 작업 중인 저장소 사용" },
+      { "id": "tmp", "label": "임시 디렉터리", "desc": "/tmp 사용" }
+    ]
+  }
+}

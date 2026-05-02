@@ -198,6 +198,82 @@ Last updated: 2026-04-29
 - Runnable upstream examples now exist as checked-in JSON payloads under `docs/examples/` plus a focused guide in `docs/upstream-workflow-examples.md`. That is a better fit for this repo than another helper script because it exercises the real relay/helper surfaces directly.
 - Example drift is now testable. `tools/test_workflow_examples.py` runs the checked-in payloads through `hook_relay.forward_hook()` and `post_notification_prompt.forward_notification_prompt()` with fake HTTP so the examples stay aligned with the runtime contracts.
 - The next concrete risk is hardware behavior for the new stop-and-wait prompt kinds. `notice` and `free_text_required` now build and test green, but their actual on-device readability and button behavior still need user-observed verification on the connected StickS3.
+- The speaker investigation narrowed the streamed-audio problem much further than the earlier “raw playback is broken” conclusion. A dedicated `m5sticks3-speakerdiag` firmware proved `tone()`, 8-bit `playRaw()`, and 16-bit `playRaw()` are all audible on this StickS3 when master and channel volume are forced high.
+- The main session-console firmware now also initializes `M5.Speaker` with `setVolume(255)` and `setAllChannelVolume(255)`, and its arrival/completion cue path uses the same raw patterns that were audible in the standalone speaker diagnostic.
+- A temporary boot self-test inside the full session-console firmware played both raw cues successfully on real hardware. That means the full app runtime, speaker task, volume/channel init, and raw assets are all working.
+- The remaining difference between “boot self-test audible” and “prompt arrival silent” is the normal cue guard: `toneInputRequired()` and `toneComplete()` both obey `settings().sound`, while the temporary boot self-test intentionally bypassed that setting. The prompt-side silence is therefore most likely a persisted mute setting, not a broken playback pipeline.
+- `waitForSpeakerStart(30)` is now used after `playRaw()` in the normal cue path so the firmware falls back to a tone if raw playback never actually starts. This protects against a false-positive `playRaw()` return from M5Unified.
+- The device needed one more UX fix after that diagnosis: mute state was invisible from the normal runtime. The HUD now shows a small `mute` marker when `settings().sound` is off, and the `DEVICE` info page now reports `sound on/off`. That makes “silent because muted” obvious without another speaker investigation.
+- The first real sound-asset integration now works at the source/build level. `tools/convert_openpeon_assets.py` converts selected OpenPeon WAV files from stereo 44.1kHz 16-bit into trimmed mono 22.05kHz 16-bit PCM arrays for `playRaw(...)`, and `src/wav_assets.cpp` is now generated from `hover-sound.wav` for `input.required` and `confirm-sound.wav` for completion.
+- The firmware build with those converted clips passes (`python3 tools/test_wav_assets.py`, `python3 -m py_compile tools/convert_openpeon_assets.py tools/test_wav_assets.py`, `pio run -e m5sticks3`), and after a clean reconnect the larger image also flashed successfully to hardware.
+- Hardware verification on the connected StickS3 confirmed the converted OpenPeon `hover-sound.wav` arrival cue works in the normal `Bash` prompt flow and sounds like a small, nicer notification. The board is now running the OpenPeon-backed build.
+- The prompt acknowledge path originally still used the old loud beep because `toneAnswerSent()` was not yet mapped to a converted asset. That is now fixed in source: `confirm-sound.wav` is wired to `toneAnswerSent()`, while completion uses `cancel-sound.wav`.
+- There was also a UX bug after the first send: repeated button presses while `sent...` was still on screen fell through to the normal UI beep path. Source now adds `awaitingPromptClear` so duplicate A/B presses are ignored until the host clears the prompt.
+- Both fixes pass local build/test, but the hardware flash for that latest three-clip build is still blocked by intermittent USB upload failures on `/dev/cu.usbmodem144301`. The device is therefore still running the earlier build where arrival uses OpenPeon but duplicate post-send presses can still hit the old UI beep.
+- A further flash retry on 2026-04-30 failed the same way, dropping around 30-35% into the large image write. This still points to USB transport instability on this board/link rather than a firmware build problem.
+- The clip-shrink fallback is now implemented in source: OpenPeon assets are converted at `11025Hz` and capped at `4096` samples each. That reduced flash from `1317637` to `1282533`, but the board still failed to flash reliably.
+- A direct `esptool.py` attempt at `115200` baud with the smaller image got significantly farther, reaching about `62%` before the link dropped. That strongly suggests the remaining blocker is physical USB reliability rather than image size alone, though the smaller image is still the better baseline going forward.
+- A subsequent reconnect and plain `pio run -e m5sticks3 -t upload` succeeded with the smaller `11025Hz` / `4096`-sample OpenPeon asset build. The board is no longer stuck on the earlier partial-audio firmware; it is now running the latest source state with:
+  - `hover-sound.wav` mapped to input-required
+  - `confirm-sound.wav` mapped to answer-sent
+  - `cancel-sound.wav` mapped to complete
+  - `awaitingPromptClear` suppressing repeated post-send button beeps until the prompt clears
+- That success reinforces the earlier diagnosis: the failures were intermittent native USB flashing drops, not a bad image. The current blocker has moved from transport reliability back to normal on-device behavior verification.
+- Generic UI clicks no longer use the old tiny `tone()` beeps on the main menu/navigation paths. A fourth embedded OpenPeon clip now backs those interactions:
+  - `hover-sound-low.wav` mapped to a shared `toneUiClick()` helper
+  - `toneUiClick()` now covers focus acknowledgement, menu/settings/display paging, event dismiss, prompt option cycling, and multi-choice toggles
+- The remaining non-PCM sounds are now explicit named roles instead of ad hoc call-site beeps:
+  - `toneDenied()`
+  - `toneWarning()` for reset-arm / caution
+  - `toneEventError()`
+  - `toneEventNeutral()`
+  - `toneResetConfirm()` for destructive reset confirmation
+  - `tonePairing()` for new BLE passkey arrival
+- The sound-role contract is now documented in both `README.md` and `REFERENCE.md` so future audio changes can preserve behavior while swapping assets.
+- Software verification for the four-clip build passed:
+  - `python3 tools/test_wav_assets.py`
+  - `python3 -m py_compile tools/convert_openpeon_assets.py tools/test_wav_assets.py`
+  - `pio run -e m5sticks3`
+  - flash size `1290789 / 4194304`
+- Hardware upload for the four-clip build also succeeded after first freeing the busy USB port from the persistent serial simulator. That failure mode was operational, not firmware-related.
+- A follow-up upload with only the role-normalization code/doc changes also succeeded, so the connected StickS3 is confirmed to be on the documented sound-role baseline.
+- The next real text bug after audio cleanup was exactly what the code audit suggested: the parser and renderer were byte-oriented all the way through the session-console path.
+  - `src/data.h` used raw `strncpy(...)` for bounded JSON fields and could cut UTF-8 sequences mid-codepoint.
+  - `src/main.cpp` used `strlen`, `%.21s`, `text + 21`, and a byte-counted `wrapInto()` helper for prompt bodies, transcript rows, session summaries, and event overlays.
+- The UTF-8/CJK-safe rendering slice is now in place:
+  - new shared helper header `src/utf8_text.h`
+  - `_copyField()` and the remaining bounded JSON copies now preserve whole UTF-8 sequences
+  - transcript wrap now uses UTF-8-safe column slicing instead of byte `memcpy(...)`
+  - prompt/session/event views now slice lines with `utf8LineSlice(...)` and choose title sizing from `utf8DisplayWidth(...)`
+  - common CJK ranges are treated as double-width for compact row layout
+- Relevant bounded buffers were widened to make the new renderer meaningful for multibyte text:
+  - session `project` / `branch` / `last`
+  - pending `title` / `body` / option labels
+  - event `title` / `text`
+  - top-level `msg`, `lines`, `promptTool`, `promptHint`, `project`, `branch`, `assistantMsg`
+- Verification for the UTF-8 slice passed:
+  - `python3 tools/test_utf8_text.py`
+  - `python3 tools/test_wav_assets.py`
+  - `python3 -m py_compile tools/test_utf8_text.py tools/test_wav_assets.py tools/convert_openpeon_assets.py`
+  - `pio run -e m5sticks3`
+  - `pio run -e m5sticks3 -t upload`
+- One useful local-library finding during the build: M5GFX already compiles bundled CJK font sources (`lgfx_efont_cn`, `lv_font_simsun_*_cjk`). This milestone did not switch the firmware font; it only made truncation and wrapping UTF-8-safe. A future font milestone can use those bundled assets instead of importing a new font stack.
+- The CJK font milestone is now implemented on top of that UTF-8-safe renderer.
+  - The firmware uses bundled M5GFX `efont` faces, not a new external font stack.
+  - Script-aware selection is now in `src/main.cpp`:
+    - Chinese / generic Han -> `fonts::efontCN_10` body, `fonts::efontCN_12` title
+    - Japanese -> `fonts::efontJA_10` body, `fonts::efontJA_12` title
+    - Korean -> `fonts::efontKR_10` body, `fonts::efontKR_12` title
+  - ASCII-only text stays on the old built-in `Font0` path, so the non-CJK layout and title scaling behavior are preserved.
+- Important tradeoff: linking three CJK families roughly doubled firmware flash from ~1.29 MB to ~2.59 MB. That is still within the 4 MB budget, and upload succeeded on the connected StickS3, but future font work should be conscious of image growth.
+- Verification for the CJK font slice passed:
+  - `python3 tools/test_utf8_text.py`
+  - `python3 tools/test_wav_assets.py`
+  - `python3 -m py_compile tools/test_utf8_text.py tools/test_wav_assets.py`
+  - `pio run -e m5sticks3`
+  - `pio run -e m5sticks3 -t upload`
+- The local source audit also confirmed a narrower alternative we did not choose:
+  - `lv_font_simsun_14_cjk` / `16_cjk` exist, but they are larger-line-height curated subsets and less practical for dense transcript/session rows than the small `efont` faces.
 - Hardware verification now confirms the stop-and-wait screens render correctly on the connected StickS3 over native USB serial:
   - `notice` showed the expected title/body and stop-and-wait footer instead of approve/deny
   - optionless `free_text_required` showed `Need details`, the body text, and `A: focus`
@@ -234,3 +310,40 @@ Last updated: 2026-04-29
 - Project comments still mention PY32 PMIC in places; official and local library sources indicate M5PM1 for StickS3.
 - Native USB serial behavior on StickS3 is now verified for heartbeat RX and simulator decision return, provided the host uses a persistent serial transport instead of one-shot writes.
 - Speaker and mic behavior should be validated on battery and USB power before adding notice voice or push-to-talk flows.
+
+## Latest Layout Finding
+
+- The CJK layout-tuning milestone is now hardware-verified on the connected StickS3.
+- The first layout pass proved the main remaining bug was not glyph rendering or UTF-8 truncation. It was prompt-surface layout:
+  - prompt/action views were still constrained by the old bottom-card geometry under the full-height buddy
+  - prompt body wrapping reused transcript-style continuation indent
+  - prompt CJK column counts were too conservative for the actual lower-pane width
+- The effective fix was prompt-specific:
+  - prompt-active `DISP_NORMAL` now forces the buddy/character into existing `peek` mode
+  - approval/action views now consume the full lower pane from `y=70`
+  - prompt body wrapping uses block-style rows with no continuation indent
+  - prompt title/body/choice widths are widened relative to the generic transcript/session layout widths
+- Final hardware result:
+  - the previously clipped final `压` in `操作没有互相挤压` is now visible
+  - the prompt body now uses the row width correctly instead of only about 70%
+  - the buddy is compact enough in prompt mode at the current `peek` scale
+  - option rows still fit cleanly above the footer
+
+## Latest Workflow Finding
+
+- The next useful post-layout slice was host-side workflow coverage, not another device-only change.
+- The repo now has checked-in multilingual upstream examples under `docs/examples/` for the real host entry points:
+  - Chinese `UserPromptSubmit` hook relay payload
+  - Chinese `single_choice` producer prompt
+  - Japanese `multi_choice` producer prompt
+  - Korean `free_text_required` quick-reply producer prompt
+- This slice deliberately stayed at the relay/helper boundary:
+  - `tools/hook_relay.py` still owns generic hook transport
+  - `tools/post_notification_prompt.py` still owns the producer-local prompt wrapper
+  - no new transport or prompt-shape implementation was introduced
+- `tools/test_workflow_examples.py` now validates UTF-8 preservation through the real forwarding surfaces instead of only ASCII payloads.
+- Current verified host-side multilingual baseline:
+  - hook relay preserves Chinese prompt text
+  - producer helper preserves Chinese titles/options
+  - producer helper preserves Japanese multi-choice labels
+  - producer helper preserves Korean quick-reply labels
