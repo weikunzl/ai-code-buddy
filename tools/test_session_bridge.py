@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
+import base64
 import json
+import pathlib
+import tempfile
 import unittest
+import wave
 
 import session_bridge
 
@@ -217,6 +221,79 @@ class BridgeStateTests(unittest.TestCase):
         self.assertFalse(state.handle_device_command({"cmd": "answer", "id": "m_1", "choices": ["bogus"]}))
         self.assertTrue(state.handle_device_command({"cmd": "answer", "id": "m_1", "choices": ["ble", "usb"]}))
         self.assertEqual(state.decisions["m_1"], ["ble", "usb"])
+
+    def test_audio_commands_write_wav_and_sidecar(self):
+        state = session_bridge.BridgeState()
+        with tempfile.TemporaryDirectory() as tmp:
+            state.upsert_session(
+                sid="s_audio",
+                cwd=tmp,
+                project="demo",
+                branch="main",
+                dirty=0,
+                phase="running",
+                model="codex",
+                last="recording",
+                now=1,
+            )
+            chunk0 = base64.b64encode(bytes([0, 32, 64, 96])).decode("ascii")
+            chunk1 = base64.b64encode(bytes([128, 160, 192, 224])).decode("ascii")
+
+            self.assertTrue(state.handle_device_command({
+                "cmd": "audio_begin",
+                "id": "aud_1",
+                "sid": "s_audio",
+                "decision_id": "q_followup",
+                "format": "pcm_u8",
+                "sample_rate": 8000,
+                "channels": 1,
+                "bits": 8,
+            }))
+            self.assertTrue(state.handle_device_command({"cmd": "audio_chunk", "id": "aud_1", "seq": 0, "data": chunk0}))
+            self.assertTrue(state.handle_device_command({"cmd": "audio_chunk", "id": "aud_1", "seq": 1, "data": chunk1}))
+            self.assertTrue(state.handle_device_command({"cmd": "audio_end", "id": "aud_1"}))
+
+            out_dir = pathlib.Path(tmp) / ".buddy_audio"
+            wavs = sorted(out_dir.glob("*.wav"))
+            metas = sorted(out_dir.glob("*.json"))
+            self.assertEqual(len(wavs), 1)
+            self.assertEqual(len(metas), 1)
+            with wave.open(str(wavs[0]), "rb") as wav:
+                self.assertEqual(wav.getnchannels(), 1)
+                self.assertEqual(wav.getframerate(), 8000)
+                self.assertEqual(wav.getsampwidth(), 1)
+                self.assertEqual(wav.readframes(8), bytes([0, 32, 64, 96, 128, 160, 192, 224]))
+            meta = json.loads(metas[0].read_text())
+            self.assertEqual(meta["decision_id"], "q_followup")
+            self.assertEqual(meta["format"], "pcm_u8")
+            self.assertEqual(state.event["title"], "Voice Note")
+
+    def test_audio_chunk_requires_matching_sequence_and_active_upload(self):
+        state = session_bridge.BridgeState()
+        state.upsert_session("s_audio", "/tmp/a", "a", "main", 0, "running", "codex", "recording", now=1)
+        self.assertTrue(state.handle_device_command({
+            "cmd": "audio_begin",
+            "id": "aud_1",
+            "sid": "s_audio",
+            "format": "pcm_u8",
+            "sample_rate": 8000,
+            "channels": 1,
+            "bits": 8,
+        }))
+        payload = base64.b64encode(b"\x00\x01").decode("ascii")
+        self.assertFalse(state.handle_device_command({"cmd": "audio_chunk", "id": "aud_1", "seq": 1, "data": payload}))
+        self.assertTrue(state.handle_device_command({"cmd": "audio_chunk", "id": "aud_1", "seq": 0, "data": payload}))
+        self.assertFalse(state.handle_device_command({"cmd": "audio_chunk", "id": "missing", "seq": 0, "data": payload}))
+
+    def test_line_reader_notifies_on_successful_audio_command(self):
+        state = session_bridge.BridgeState()
+        state.upsert_session("s_audio", "/tmp/a", "a", "main", 0, "running", "codex", "recording", now=1)
+        hits = []
+        reader = session_bridge.LineReader(state, on_command=lambda: hits.append("ok"))
+
+        reader.feed(b'{"cmd":"audio_begin","id":"aud_1","sid":"s_audio","format":"pcm_u8","sample_rate":8000,"channels":1,"bits":8}\n')
+
+        self.assertEqual(hits, ["ok"])
 
 
 class SimulatorTests(unittest.TestCase):

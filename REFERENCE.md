@@ -238,6 +238,53 @@ single-choice answer shape:
 If `free_text_required` has no `options`, or if the pending kind is
 `notice`, the device does not send an answer payload.
 
+## Device audio upload
+
+The reference StickS3 firmware can also stream a bounded microphone note back
+through the same line-delimited bridge channel.
+
+Start of capture:
+
+```json
+{"cmd":"audio_begin","id":"mic_123","sid":"s_123","decision_id":"q_followup","format":"pcm_u8","sample_rate":8000,"channels":1,"bits":8}
+```
+
+Chunk frames:
+
+```json
+{"cmd":"audio_chunk","id":"mic_123","seq":0,"data":"AAECAwQF..."}
+```
+
+End or cancel:
+
+```json
+{"cmd":"audio_end","id":"mic_123"}
+{"cmd":"audio_cancel","id":"mic_123"}
+```
+
+Rules:
+
+- `audio_begin.sid` must match a live session id.
+- `decision_id` is optional and may be empty.
+- `format` is currently `pcm_u8` or `pcm_s16le`; the reference firmware
+  currently emits `pcm_u8`.
+- `sample_rate` must be one of `8000`, `11025`, or `16000`.
+- `channels` must be `1`.
+- `bits` must be `8` or `16`.
+- `audio_chunk.seq` must start at `0` and increase by `1`.
+- `audio_chunk.data` is base64-encoded raw PCM for that chunk.
+- the bridge rejects empty chunks and raw decoded chunks larger than `2048`
+  bytes.
+
+Current reference behavior:
+
+- firmware emits `512` raw bytes per chunk at `8000Hz`
+- host saves completed captures under `<session cwd>/.buddy_audio/`
+- host also writes a `.json` sidecar with `sid`, `decision_id`, sample
+  format, duration, byte count, and final path
+- on successful `audio_end`, the host publishes a short `Voice Note`
+  completion event back to the device
+
 ## Bridge-local hook prompt contract
 
 For real hook-runner transport, this repo also ships `tools/hook_relay.py`,

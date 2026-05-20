@@ -1,8 +1,35 @@
 # Progress
 
-Last updated: 2026-04-28
+Last updated: 2026-05-03
 
 ## Completed
+
+- Implemented the end-to-end microphone upload slice:
+  - `tools/session_bridge.py`
+    - added `AudioUpload` state
+    - added `audio_begin`, `audio_chunk`, `audio_end`, `audio_cancel`
+    - writes `<session cwd>/.buddy_audio/*.wav`
+    - writes matching `.json` metadata sidecars
+    - publishes a `Voice Note` completion event after successful upload
+  - `tools/test_session_bridge.py`
+    - added bridge tests for `.wav` writing, chunk sequencing, and
+      device-command callback notification
+  - `src/main.cpp`
+    - added StickS3 `B hold` voice-note capture
+    - records mono `pcm_u8` at `8000Hz`
+    - streams `512`-byte chunks through the existing JSON bridge
+    - bounds capture to `10s`
+    - restores speaker output after capture
+    - adds a small `REC` overlay during recording
+    - updates the INFO buttons page to document `B hold = mic`
+  - `README.md` and `REFERENCE.md`
+    - documented the user-facing mic behavior
+    - documented the wire-level `audio_begin` / `audio_chunk` /
+      `audio_end` / `audio_cancel` contract
+- Microphone slice software verification:
+  - `python3 tools/test_session_bridge.py`: PASS (`Ran 38 tests` / `OK`)
+  - `python3 -m py_compile tools/session_bridge.py tools/test_session_bridge.py`: PASS
+  - `pio run -e m5sticks3`: PASS, RAM `102916 / 327680`, Flash `2598713 / 4194304`
 
 - Recorded the next post-USB milestone for richer choice prompts:
   - added `docs/adr/0007-choice-prompts-after-usb-bridge.md`,

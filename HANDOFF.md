@@ -1,6 +1,6 @@
 # Handoff
 
-Last updated: 2026-04-28
+Last updated: 2026-05-03
 
 ## Where To Resume
 
@@ -490,6 +490,14 @@ fix: publish bridge pending state promptly
 
 - The current connected StickS3 is flashed with the four-clip embedded-PCM OpenPeon build.
 - The current connected StickS3 is flashed with the role-normalized four-clip embedded-PCM OpenPeon build plus UTF-8-safe, script-aware CJK console rendering.
+- The repo now also contains the complete microphone upload implementation:
+  - `tools/session_bridge.py` accepts `audio_begin`, ordered `audio_chunk`,
+    `audio_end`, and `audio_cancel`
+  - successful device uploads are written under `<session cwd>/.buddy_audio/`
+    as `.wav` plus `.json` sidecar metadata
+  - `src/main.cpp` maps `B hold` to bounded voice-note capture on StickS3,
+    attaches it to the active pending decision or focused session, and streams
+    `pcm_u8` / `8000Hz` chunks back over the existing BLE or USB bridge
 - Resume from hardware verification of the latest behavior, not from another upload workaround:
   - input-required should play the converted `hover-sound.wav`
   - generic menu/navigation clicks should play the converted `hover-sound-low.wav`
@@ -502,3 +510,10 @@ fix: publish bridge pending state promptly
     - Japanese -> `efontJA_10` / `efontJA_12`
     - Korean -> `efontKR_10` / `efontKR_12`
   - repeated button presses after the first send should be ignored until the prompt clears
+  - microphone still needs real hardware verification:
+    - start the bridge over serial or BLE
+    - hold `B` on the StickS3 for a few seconds
+    - release `B`
+    - confirm a `Voice Note` event returns to the device
+    - confirm `<session cwd>/.buddy_audio/` contains a `.wav` and `.json`
+      sidecar for that capture

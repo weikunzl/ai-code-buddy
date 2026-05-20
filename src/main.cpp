@@ -1,5 +1,6 @@
 #include <M5Unified.h>
 #include <LittleFS.h>
+#include <mbedtls/base64.h>
 #include <stdarg.h>
 #include "ble_bridge.h"
 #include "data.h"
@@ -51,6 +52,7 @@ bool    menuOpen    = false;
 uint8_t menuSel     = 0;
 uint8_t brightLevel = 4;           // 0..4 → ScreenBreath 20..100
 bool    btnALong    = false;
+bool    btnBLong    = false;
 
 enum DisplayMode { DISP_NORMAL, DISP_SESSION, DISP_SESSIONS, DISP_PET, DISP_INFO, DISP_COUNT };
 uint8_t displayMode = DISP_NORMAL;
@@ -99,6 +101,17 @@ const uint32_t SCREEN_OFF_MS = 30000;
 bool     napping = false;
 uint32_t napStartMs = 0;
 uint32_t promptArrivedMs = 0;
+bool     micRecording = false;
+char     micAudioId[24] = "";
+char     micAudioSid[24] = "";
+char     micDecisionId[40] = "";
+uint32_t micStartedMs = 0;
+uint16_t micChunkSeq = 0;
+uint32_t micBytesSent = 0;
+static constexpr uint32_t MIC_SAMPLE_RATE = 8000;
+static constexpr uint16_t MIC_CHUNK_BYTES = 512;
+static constexpr uint32_t MIC_MAX_MS = 10000;
+static uint8_t micChunkBuf[MIC_CHUNK_BYTES];
 
 // Face-down = Z-axis dominant and negative. Debounced so a toss doesn't count.
 static bool isFaceDown() {
@@ -237,6 +250,149 @@ static void sendFocusSession(const char* sid) {
   snprintf(cmd, sizeof(cmd), "{\"cmd\":\"focus\",\"sid\":\"%s\"}", sid);
   sendCmd(cmd);
 }
+
+extern bool settingsOpen;
+extern bool resetOpen;
+
+static void restoreSpeaker() {
+  M5.Speaker.begin();
+  M5.Speaker.setVolume(255);
+  M5.Speaker.setAllChannelVolume(255);
+}
+
+static void resetMicState() {
+  micRecording = false;
+  micAudioId[0] = 0;
+  micAudioSid[0] = 0;
+  micDecisionId[0] = 0;
+  micStartedMs = 0;
+  micChunkSeq = 0;
+  micBytesSent = 0;
+}
+
+static bool resolveMicTarget(char* sid, size_t sidSize, char* decisionId, size_t decisionSize) {
+  if (!sid || sidSize == 0 || !decisionId || decisionSize == 0) return false;
+  sid[0] = 0;
+  decisionId[0] = 0;
+  if (tama.nPending > 0) {
+    if (tama.pending[0].sid[0]) _copyField(sid, sidSize, tama.pending[0].sid);
+    if (tama.pending[0].id[0]) _copyField(decisionId, decisionSize, tama.pending[0].id);
+  }
+  if (!sid[0] && tama.focused[0]) _copyField(sid, sidSize, tama.focused);
+  if (!sid[0]) {
+    for (uint8_t i = 0; i < tama.nSessions; i++) {
+      if (tama.sessions[i].focused && tama.sessions[i].sid[0]) {
+        _copyField(sid, sidSize, tama.sessions[i].sid);
+        break;
+      }
+    }
+  }
+  if (!sid[0] && tama.nSessions > 0 && tama.sessions[0].sid[0]) {
+    _copyField(sid, sidSize, tama.sessions[0].sid);
+  }
+  return sid[0] != 0;
+}
+
+static bool micStartRecording() {
+#ifdef BUDDY_BOARD_S3
+  if (micRecording || screenOff || menuOpen || settingsOpen || resetOpen) return false;
+  char sid[24];
+  char decisionId[40];
+  if (!resolveMicTarget(sid, sizeof(sid), decisionId, sizeof(decisionId))) return false;
+  snprintf(micAudioId, sizeof(micAudioId), "mic_%lu", (unsigned long)millis());
+  _copyField(micAudioSid, sizeof(micAudioSid), sid);
+  _copyField(micDecisionId, sizeof(micDecisionId), decisionId);
+  micChunkSeq = 0;
+  micBytesSent = 0;
+  micStartedMs = millis();
+  M5.Speaker.stop();
+  M5.Speaker.end();
+  if (!M5.Mic.begin()) {
+    restoreSpeaker();
+    resetMicState();
+    toneDenied();
+    return false;
+  }
+  char cmd[192];
+  snprintf(
+      cmd, sizeof(cmd),
+      "{\"cmd\":\"audio_begin\",\"id\":\"%s\",\"sid\":\"%s\",\"decision_id\":\"%s\","
+      "\"format\":\"pcm_u8\",\"sample_rate\":%lu,\"channels\":1,\"bits\":8}",
+      micAudioId, micAudioSid, micDecisionId, (unsigned long)MIC_SAMPLE_RATE);
+  sendCmd(cmd);
+  micRecording = true;
+  wake();
+  return true;
+#else
+  return false;
+#endif
+}
+
+static bool micCaptureAndSendChunk() {
+#ifdef BUDDY_BOARD_S3
+  if (!micRecording) return false;
+  if (!M5.Mic.record(micChunkBuf, MIC_CHUNK_BYTES, MIC_SAMPLE_RATE, false)) return false;
+  uint32_t start = millis();
+  while (M5.Mic.isRecording()) {
+    M5.update();
+    delay(1);
+    if ((uint32_t)(millis() - start) > 1000) return false;
+  }
+  char b64[((MIC_CHUNK_BYTES + 2) / 3) * 4 + 4];
+  size_t outLen = 0;
+  int rc = mbedtls_base64_encode(
+      (unsigned char*)b64, sizeof(b64), &outLen, micChunkBuf, MIC_CHUNK_BYTES);
+  if (rc != 0 || outLen == 0 || outLen >= sizeof(b64)) return false;
+  b64[outLen] = 0;
+  char cmd[960];
+  snprintf(
+      cmd, sizeof(cmd),
+      "{\"cmd\":\"audio_chunk\",\"id\":\"%s\",\"seq\":%u,\"data\":\"%s\"}",
+      micAudioId, micChunkSeq, b64);
+  sendCmd(cmd);
+  micChunkSeq++;
+  micBytesSent += MIC_CHUNK_BYTES;
+  lastInteractMs = millis();
+  return true;
+#else
+  return false;
+#endif
+}
+
+static void micStopRecording(bool cancel) {
+#ifdef BUDDY_BOARD_S3
+  if (!micAudioId[0] && !micRecording) return;
+  bool hadData = micChunkSeq > 0;
+  char aid[24];
+  _copyField(aid, sizeof(aid), micAudioId);
+  if (M5.Mic.isEnabled()) {
+    while (M5.Mic.isRecording()) delay(1);
+    M5.Mic.end();
+  }
+  restoreSpeaker();
+  resetMicState();
+  if (aid[0]) {
+    char cmd[96];
+    snprintf(
+        cmd, sizeof(cmd),
+        "{\"cmd\":\"%s\",\"id\":\"%s\"}",
+        (cancel || !hadData) ? "audio_cancel" : "audio_end", aid);
+    sendCmd(cmd);
+  }
+  if (cancel || !hadData) toneDenied();
+  else toneAnswerSent();
+#endif
+}
+
+static void micTick() {
+  if (!micRecording) return;
+  if ((uint32_t)(millis() - micStartedMs) >= MIC_MAX_MS) {
+    micStopRecording(false);
+    return;
+  }
+  if (!micCaptureAndSendChunk()) micStopRecording(true);
+}
+
 const uint8_t INFO_PAGES = 6;
 const uint8_t INFO_PG_BUTTONS = 1;
 const uint8_t INFO_PG_CREDITS = 5;
@@ -702,7 +858,8 @@ void drawInfo() {
     ln("    approve prompt"); y += 4;
     spr.setTextColor(p.text, p.bg);    ln("B   right side");
     spr.setTextColor(p.textDim, p.bg); ln("    next page");
-    ln("    deny prompt"); y += 4;
+    ln("    deny prompt");
+    ln("    hold = mic"); y += 4;
     spr.setTextColor(p.text, p.bg);    ln("hold A");
     spr.setTextColor(p.textDim, p.bg); ln("    menu"); y += 4;
     spr.setTextColor(p.text, p.bg);    ln("Power  left side");
@@ -967,6 +1124,29 @@ static bool eventVisible() {
       && (millis() - tama.event.receivedMs) < tama.event.ttlMs
       && !tama.promptId[0]
       && tama.nPending == 0;
+}
+
+static void drawMicOverlay() {
+  if (!micRecording) return;
+  const Palette& p = characterPalette();
+  int x = 4;
+  int y = 54;
+  int w = 78;
+  int h = 13;
+  spr.fillRoundRect(x, y, w, h, 3, PANEL);
+  spr.drawRoundRect(x, y, w, h, 3, HOT);
+  spr.fillCircle(x + 7, y + 6, 2, HOT);
+  spr.setTextSize(1);
+  spr.setFont(&fonts::Font0);
+  spr.setTextColor(p.text, PANEL);
+  uint32_t ds = (millis() - micStartedMs) / 100;
+  spr.setCursor(x + 13, y + 3);
+  spr.printf("REC %lu.%lus", (unsigned long)(ds / 10), (unsigned long)(ds % 10));
+  int barW = 14;
+  int fill = (int)((uint64_t)barW * (millis() - micStartedMs) / MIC_MAX_MS);
+  if (fill > barW) fill = barW;
+  spr.drawRect(x + w - barW - 4, y + 3, barW, 6, p.textDim);
+  if (fill > 0) spr.fillRect(x + w - barW - 3, y + 4, fill, 4, HOT);
 }
 
 static void drawApproval() {
@@ -1680,6 +1860,7 @@ void loop() {
 
   bool inPrompt = tama.promptId[0] && !responseSent;
   bool awaitingPromptClear = responseSent && (tama.promptId[0] || tama.nPending > 0);
+  if (micRecording) inPrompt = false;
   syncCompanionPeek();
 
   // Button-press wake. Track which button woke the screen so its full
@@ -1789,10 +1970,18 @@ void loop() {
     swallowBtnA = false;
   }
 
-  // BtnB: pet → heart
-  if (M5.BtnB.wasPressed()) {
-    if (swallowBtnB) { swallowBtnB = false; }
-    else if (awaitingPromptClear) {
+  if (M5.BtnB.pressedFor(600) && !btnBLong && !swallowBtnB) {
+    btnBLong = true;
+    micStartRecording();
+  }
+
+  // BtnB: prompt navigation / paging / mic hold
+  if (M5.BtnB.wasReleased()) {
+    if (btnBLong) {
+      if (micRecording) micStopRecording(false);
+    } else if (swallowBtnB) {
+      swallowBtnB = false;
+    } else if (awaitingPromptClear) {
       // Ignore duplicate presses while the host clears the sent prompt.
     } else if (inPrompt) {
       if (tama.nPending > 0
@@ -1841,6 +2030,8 @@ void loop() {
       toneUiClick();
       msgScroll = (msgScroll >= 30) ? 0 : msgScroll + 1;
     }
+    btnBLong = false;
+    swallowBtnB = false;
   }
 
   // blink bookkeeping
@@ -1870,6 +2061,8 @@ void loop() {
     wasClocking = clocking;
     wasLandscape = landscapeClock;
   }
+
+  micTick();
   if (clocking) {
     uint8_t dow = clockDow();
     bool weekend = (dow == 0 || dow == 6);
@@ -1930,6 +2123,7 @@ void loop() {
     else if (displayMode == DISP_SESSION) drawFocusedSession();
     else if (displayMode == DISP_SESSIONS) drawSessionList();
     else if (settings().hud) drawHUD();
+    if (micRecording) drawMicOverlay();
     if (eventVisible()) drawEventOverlay();
     if (resetOpen) drawReset();
     else if (settingsOpen) drawSettings();

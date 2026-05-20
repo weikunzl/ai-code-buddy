@@ -1,6 +1,6 @@
 # Findings
 
-Last updated: 2026-04-29
+Last updated: 2026-05-03
 
 ## Repository
 
@@ -347,3 +347,32 @@ Last updated: 2026-04-29
   - producer helper preserves Chinese titles/options
   - producer helper preserves Japanese multi-choice labels
   - producer helper preserves Korean quick-reply labels
+
+## Latest Microphone Finding
+
+- The bridge now has a real audio upload path, not just a design note:
+  - `audio_begin` validates live `sid`, sample format, channel count, and
+    rate
+  - `audio_chunk` enforces ordered `seq` frames and bounded base64 payloads
+  - `audio_end` writes a `.wav` plus `.json` sidecar under
+    `<session cwd>/.buddy_audio/`
+  - successful completion also publishes a short `Voice Note` event back to
+    the device
+- The StickS3 firmware now implements `B hold` microphone capture end to end:
+  - start target is the active pending session if present, otherwise the
+    focused session
+  - current capture format is mono `pcm_u8` at `8000Hz`
+  - current chunk size is `512` raw bytes per `audio_chunk`
+  - capture is bounded to `10s`
+  - the device tears speaker output down for the recording window and then
+    restores it before sending `audio_end` / `audio_cancel`
+  - a small `REC` overlay shows elapsed time and max-duration progress while
+    recording
+- Current software verification for the microphone slice is green:
+  - `python3 tools/test_session_bridge.py`: PASS (`38` tests)
+  - `python3 -m py_compile tools/session_bridge.py tools/test_session_bridge.py`: PASS
+  - `pio run -e m5sticks3`: PASS
+- Hardware microphone verification is still the next required step. The code
+  is built, but the connected StickS3 still needs a real hold-`B` capture
+  test with the bridge running to confirm that `.buddy_audio/*.wav` is
+  actually written and that prompt/session targeting behaves as expected.

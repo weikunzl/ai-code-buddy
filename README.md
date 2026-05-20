@@ -73,6 +73,7 @@ If discovery isn't finding the stick:
 | **A** (front)           | next screen          | next screen | next screen | **approve** |
 | **B** (right)           | scroll transcript    | next page   | next page   | **deny**    |
 | **Hold A**              | menu                 | menu        | menu        | menu        |
+| **Hold B**              | voice note           | voice note  | voice note  | voice note  |
 | **Power** (left, short) | toggle screen off    |             |             |             |
 | **Power** (left, ~6s)   | hard power off       |             |             |             |
 | **Shake**               | dizzy                |             |             | —           |
@@ -260,6 +261,26 @@ For stop-and-wait host input without a device answer, use `kind` as
 `notice` or `free_text_required` without `options`. For bounded canned
 replies, use `free_text_required` with up to 4 `options`; the device reuses
 the single-choice answer path for those quick replies.
+
+## Microphone
+
+On StickS3, hold `B` to record a bounded voice note for the active pending
+decision or focused session. The current reference path records:
+
+- mono `pcm_u8`
+- `8000Hz`
+- up to `10s`
+- streamed as newline-delimited `audio_begin` / `audio_chunk` / `audio_end`
+  JSON commands over the existing BLE or USB serial bridge
+
+The device shows a small `REC` overlay while recording. On the host side,
+`tools/session_bridge.py` writes:
+
+- `<session cwd>/.buddy_audio/<timestamp>_<sid>_<id>.wav`
+- matching `<timestamp>_<sid>_<id>.json` metadata sidecar
+
+If a prompt was active when recording started, the sidecar also carries that
+pending `decision_id`.
 
 For concrete end-to-end example payloads and exact shell invocations,
 including checked-in Chinese/Japanese/Korean examples, see

@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 import argparse
+import base64
 import glob
 import json
 import os
+import pathlib
 import queue
 import subprocess
 import sys
 import threading
 import time
+import wave
 from collections import OrderedDict, deque
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -79,6 +82,22 @@ class Pending:
     pending_since: int = 0
 
 
+@dataclass
+class AudioUpload:
+    aid: str
+    sid: str
+    decision_id: str
+    cwd: str
+    project: str
+    sample_rate: int
+    channels: int
+    bits: int
+    fmt: str
+    started_at: int
+    expected_seq: int = 0
+    data: bytearray = field(default_factory=bytearray)
+
+
 class BridgeState:
     def __init__(self) -> None:
         self.lock = threading.RLock()
@@ -88,6 +107,41 @@ class BridgeState:
         self.focused_sid: str = ""
         self.entries: deque[str] = deque(maxlen=8)
         self.event: dict[str, Any] | None = None
+        self.audio_uploads: dict[str, AudioUpload] = {}
+
+    def _audio_dir_for(self, cwd: str) -> pathlib.Path:
+        base = pathlib.Path(cwd) if cwd and os.path.isdir(cwd) else pathlib.Path.cwd()
+        return base / ".buddy_audio"
+
+    def _write_audio_upload(self, upload: AudioUpload, ended_at: int) -> pathlib.Path:
+        out_dir = self._audio_dir_for(upload.cwd)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime(ended_at))
+        suffix = f"_{upload.decision_id}" if upload.decision_id else ""
+        stem = f"{stamp}_{upload.sid}{suffix}_{upload.aid}"
+        wav_path = out_dir / f"{stem}.wav"
+        with wave.open(str(wav_path), "wb") as wav:
+            wav.setnchannels(upload.channels)
+            wav.setsampwidth(max(1, upload.bits // 8))
+            wav.setframerate(upload.sample_rate)
+            wav.writeframes(bytes(upload.data))
+        meta = {
+            "id": upload.aid,
+            "sid": upload.sid,
+            "decision_id": upload.decision_id,
+            "project": upload.project,
+            "cwd": upload.cwd,
+            "sample_rate": upload.sample_rate,
+            "channels": upload.channels,
+            "bits": upload.bits,
+            "format": upload.fmt,
+            "bytes": len(upload.data),
+            "duration_ms": int((len(upload.data) * 1000) / max(1, upload.sample_rate * upload.channels * max(1, upload.bits // 8))),
+            "saved_at": ended_at,
+            "path": str(wav_path),
+        }
+        (out_dir / f"{stem}.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2) + "\n")
+        return wav_path
 
     def _oldest_pending_since(self, sid: str) -> int:
         times = [p.pending_since for p in self.pending.values() if p.sid == sid]
@@ -242,6 +296,71 @@ class BridgeState:
                     self.focused_sid = sid
                     return True
                 return False
+            if cmd == "audio_begin":
+                aid = str(obj.get("id") or "")
+                sid = str(obj.get("sid") or "")
+                fmt = str(obj.get("format") or "")
+                sample_rate = int(obj.get("sample_rate") or 0)
+                channels = int(obj.get("channels") or 0)
+                bits = int(obj.get("bits") or 0)
+                if not aid or sid not in self.sessions:
+                    return False
+                if fmt not in ("pcm_u8", "pcm_s16le"):
+                    return False
+                if sample_rate not in (8000, 11025, 16000) or channels != 1 or bits not in (8, 16):
+                    return False
+                sess = self.sessions[sid]
+                self.audio_uploads[aid] = AudioUpload(
+                    aid=aid,
+                    sid=sid,
+                    decision_id=_clip(obj.get("decision_id"), 40),
+                    cwd=sess.cwd,
+                    project=sess.project,
+                    sample_rate=sample_rate,
+                    channels=channels,
+                    bits=bits,
+                    fmt=fmt,
+                    started_at=int(time.time()),
+                )
+                return True
+            if cmd == "audio_chunk":
+                aid = str(obj.get("id") or "")
+                upload = self.audio_uploads.get(aid)
+                if not upload:
+                    return False
+                seq = int(obj.get("seq") or 0)
+                payload = obj.get("data")
+                if seq != upload.expected_seq or not isinstance(payload, str) or not payload:
+                    return False
+                try:
+                    chunk = base64.b64decode(payload.encode("ascii"), validate=True)
+                except Exception:
+                    return False
+                if not chunk or len(chunk) > 2048:
+                    return False
+                upload.data.extend(chunk)
+                upload.expected_seq += 1
+                return True
+            if cmd == "audio_end":
+                aid = str(obj.get("id") or "")
+                upload = self.audio_uploads.pop(aid, None)
+                if not upload or not upload.data:
+                    return False
+                saved_at = int(time.time())
+                path = self._write_audio_upload(upload, saved_at)
+                self.entries.appendleft(f"{time.strftime('%H:%M')} note {path.name}")
+                self.event = {
+                    "kind": "complete",
+                    "sid": upload.sid,
+                    "title": "Voice Note",
+                    "text": _clip(path.name, 120),
+                    "ttl_ms": 5000,
+                }
+                return True
+            if cmd == "audio_cancel":
+                aid = str(obj.get("id") or "")
+                upload = self.audio_uploads.pop(aid, None)
+                return upload is not None
             if cmd == "event_dismiss":
                 self.event = None
                 return True
@@ -710,15 +829,18 @@ class StdoutTransport:
 
 
 class LineReader:
-    def __init__(self, state: BridgeState) -> None:
+    def __init__(self, state: BridgeState, on_command: Any = None) -> None:
         self.state = state
+        self.on_command = on_command
         self.buf = bytearray()
 
     def feed(self, data: bytes) -> None:
         for b in data:
             if b in (10, 13):
                 if self.buf:
-                    handle_device_line(self.state, bytes(self.buf))
+                    ok = handle_device_line(self.state, bytes(self.buf))
+                    if ok and self.on_command:
+                        self.on_command()
                     self.buf.clear()
             elif len(self.buf) < 4096:
                 self.buf.append(b)
@@ -924,10 +1046,10 @@ def main() -> int:
     if args.simulate:
         return run_simulator(args.interval, args.once, transport=transport, profile=args.simulate_profile)
     state = BridgeState()
-    reader = LineReader(state)
+    runtime = BridgeRuntime(state, transport)
+    reader = LineReader(state, on_command=runtime.bump.set)
     if hasattr(transport, "start"):
         transport.start(reader)
-    runtime = BridgeRuntime(state, transport)
     threading.Thread(target=runtime.heartbeat_loop, daemon=True).start()
     server = run_http(state, runtime, args.http_port)
     print(f"[http] listening on 127.0.0.1:{args.http_port}", file=sys.stderr)
