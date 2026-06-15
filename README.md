@@ -262,6 +262,52 @@ For stop-and-wait host input without a device answer, use `kind` as
 replies, use `free_text_required` with up to 4 `options`; the device reuses
 the single-choice answer path for those quick replies.
 
+## Cursor buddy
+
+The same bridge and device can react to **Cursor** sessions, side by side with
+Claude/Codex — they share one buddy. `tools/cursor_hook.py` is a small adapter
+that translates [Cursor agent hooks](https://cursor.com/docs/hooks) into the
+bridge's existing `hook_event_name` payloads, so no firmware or bridge protocol
+change is needed.
+
+Mapping:
+
+| Cursor hook | Bridge event | Effect on buddy |
+| --- | --- | --- |
+| `sessionStart` | `SessionStart` | session appears, pet wakes |
+| `beforeSubmitPrompt` | `UserPromptSubmit` | shows the prompt, never blocks |
+| `beforeShellExecution` | `PreToolUse` / `Notification` | risky commands ask for on-device approval; others observe-only |
+| `afterShellExecution` | `Notification` | updates last activity |
+| `afterFileEdit` | `Notification` | updates last activity |
+| `stop` | `Stop` | done/celebrate |
+
+Install the user-level hooks (preserves any existing `~/.cursor/hooks.json`
+entries; idempotent and re-runnable):
+
+```bash
+python3 tools/cursor_buddy_install.py            # install / update
+python3 tools/cursor_buddy_install.py --print    # preview merged hooks.json
+python3 tools/cursor_buddy_install.py --remove    # uninstall
+```
+
+Make sure the bridge is running (BLE transport reuses the same LaunchAgent as
+the Claude path) — it serves HTTP on `127.0.0.1:9876` regardless of transport.
+
+On-device approvals are gated by `CURSOR_BUDDY_APPROVE`:
+
+| Value | Behavior |
+| --- | --- |
+| `risky` (default) | only destructive/network commands (`rm`, `sudo`, `git push`, `curl`, `dd`, …) block for an **A=approve / B=deny** press on the stick |
+| `all` | every shell command waits for a device decision |
+| `off` | never block; observe/display only |
+
+If the device doesn't answer within `CURSOR_BUDDY_TIMEOUT` (default 25s), the
+adapter fails open and returns `{"permission":"ask"}` so Cursor's normal prompt
+takes over — commands are never silently run or blocked forever. Other tunables:
+`CURSOR_BUDDY_BRIDGE_URL`, `CURSOR_BUDDY_RISKY` (custom regex).
+
+Smoke test (no live bridge needed): `python3 tools/test_cursor_hook.py`.
+
 ## Microphone
 
 On StickS3, hold `B` to record a bounded voice note for the active pending

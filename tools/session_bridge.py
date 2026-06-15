@@ -13,7 +13,7 @@ import time
 import wave
 from collections import OrderedDict, deque
 from dataclasses import dataclass, field
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, HTTPServer, ThreadingHTTPServer
 from typing import Any
 
 
@@ -873,28 +873,31 @@ def run_http(state: BridgeState, runtime: BridgeRuntime, port: int) -> HTTPServe
         def log_message(self, fmt: str, *args: Any) -> None:
             return
 
+        def _reply(self, code: int, body: bytes) -> None:
+            # The client (e.g. a hook relay) may disconnect while a blocking
+            # PreToolUse waits for a device decision; don't crash the request
+            # thread when the socket is already gone.
+            try:
+                self.send_response(code)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+                pass
+
         def do_POST(self) -> None:
             try:
                 n = int(self.headers.get("Content-Length") or "0")
                 payload = json.loads(self.rfile.read(n).decode("utf-8")) if n else {}
             except Exception as exc:
-                body = encode_line({"error": str(exc)})
-                self.send_response(400)
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Content-Length", str(len(body)))
-                self.end_headers()
-                self.wfile.write(body)
+                self._reply(400, encode_line({"error": str(exc)}))
                 return
             response = apply_hook(state, payload, on_state_change=runtime.bump.set)
             runtime.bump.set()
-            body = json.dumps(response).encode("utf-8")
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
+            self._reply(200, json.dumps(response).encode("utf-8"))
 
-    return HTTPServer(("127.0.0.1", port), Handler)
+    return ThreadingHTTPServer(("127.0.0.1", port), Handler)
 
 
 class BLETransport:
@@ -920,16 +923,20 @@ class BLETransport:
 
         async def run() -> None:
             while True:
+                print(f"[ble] scanning for {self.name_prefix}* ...", file=sys.stderr, flush=True)
                 device = await BleakScanner.find_device_by_filter(
                     lambda d, ad: bool(d.name) and d.name.startswith(self.name_prefix),
                     timeout=10.0,
                 )
                 if not device:
+                    print("[ble] no device found, retrying in 3s", file=sys.stderr, flush=True)
                     await asyncio.sleep(3.0)
                     continue
+                print(f"[ble] connecting to {device.name} @ {device.address}", file=sys.stderr, flush=True)
                 try:
                     async with BleakClient(device) as client:
                         self.client = client
+                        print(f"[ble] connected {device.name} @ {device.address}", file=sys.stderr, flush=True)
 
                         def on_notify(_sender, data: bytearray) -> None:
                             reader.feed(bytes(data))
@@ -944,9 +951,12 @@ class BLETransport:
                             for chunk in chunk_bytes(data, 180):
                                 await client.write_gatt_char(NUS_RX_UUID, chunk, response=False)
                                 await asyncio.sleep(0)
+                        print(f"[ble] disconnected {device.name}", file=sys.stderr, flush=True)
                 except Exception as exc:
-                    print(f"[ble] {exc!r}", file=sys.stderr)
+                    print(f"[ble] {exc!r}", file=sys.stderr, flush=True)
                     await asyncio.sleep(3.0)
+                finally:
+                    self.client = None
 
         asyncio.run(run())
 

@@ -135,6 +135,11 @@ static void wake() {
   if (dimmed) { applyBrightness(); dimmed = false; }
 }
 bool     responseSent = false;
+uint32_t responseSentMs = 0;
+// If the host never clears a prompt we already answered (it timed out, or the
+// link dropped), don't get stuck forever with the buttons ignored — locally
+// dismiss the prompt and return to normal after this grace period.
+const uint32_t PROMPT_CLEAR_TIMEOUT_MS = 6000;
 
 static void beep(uint16_t freq, uint16_t dur) {
   if (settings().sound) M5.Speaker.tone(freq, dur);
@@ -1860,6 +1865,29 @@ void loop() {
 
   bool inPrompt = tama.promptId[0] && !responseSent;
   bool awaitingPromptClear = responseSent && (tama.promptId[0] || tama.nPending > 0);
+
+  // Safety net: we answered a prompt but the host never cleared it (it timed
+  // out or the BLE link dropped). Without this the approval screen sticks
+  // forever with the buttons intentionally ignored. After a grace period,
+  // dismiss locally and return to normal so the device is always recoverable.
+  if (awaitingPromptClear && responseSentMs &&
+      (millis() - responseSentMs > PROMPT_CLEAR_TIMEOUT_MS)) {
+    tama.promptId[0] = '\0';
+    tama.nPending = 0;
+    lastPromptId[0] = '\0';
+    lastPendingGen = tama.pendingGen;
+    responseSent = false;
+    responseSentMs = 0;
+    awaitingPromptClear = false;
+    inPrompt = false;
+    displayMode = DISP_NORMAL;
+    menuOpen = settingsOpen = resetOpen = false;
+    applyDisplayMode();
+    characterInvalidate();
+    if (buddyMode) buddyInvalidate();
+    Serial.println("prompt: local clear timeout (host never cleared)");
+  }
+
   if (micRecording) inPrompt = false;
   syncCompanionPeek();
 
@@ -1895,6 +1923,7 @@ void loop() {
       if (multiChoiceCount(d) > 0) {
         sendAnswerChoices(d);
         responseSent = true;
+        responseSentMs = millis();
         toneAnswerSent();
       } else {
         toneDenied();
@@ -1943,6 +1972,7 @@ void loop() {
                 || strcmp(tama.pending[0].kind, "notice") == 0
                 || (strcmp(tama.pending[0].kind, "free_text_required") == 0 && tama.pending[0].nOptions == 0)))) {
           responseSent = true;
+          responseSentMs = millis();
           toneAnswerSent();
         }
       } else if (displayMode == DISP_SESSIONS && tama.nSessions > 0) {
@@ -1999,6 +2029,7 @@ void loop() {
       } else {
         sendPermissionDecision(tama.promptId, "deny");
         responseSent = true;
+        responseSentMs = millis();
         statsOnDenial();
         toneDenied();
       }

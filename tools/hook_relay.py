@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations  # allow `list[str] | None` on Python 3.9 (Apple-shipped)
+
 import argparse
 import json
 import sys
