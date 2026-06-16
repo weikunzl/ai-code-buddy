@@ -1,0 +1,15 @@
+{
+  "id": "mic_1297088",
+  "sid": "s_ble_alive",
+  "decision_id": "",
+  "project": "claude-buddy",
+  "cwd": "/Users/kunwei/Documents/workspace/ai/claude-buddy",
+  "sample_rate": 8000,
+  "channels": 1,
+  "bits": 8,
+  "format": "pcm_u8",
+  "bytes": 4608,
+  "duration_ms": 576,
+  "saved_at": 1781454046,
+  "path": "/Users/kunwei/Documents/workspace/ai/claude-buddy/.buddy_audio/20260615-002046_s_ble_alive_mic_1297088.wav"
+}

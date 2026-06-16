@@ -107,7 +107,26 @@ class BridgeState:
         self.focused_sid: str = ""
         self.entries: deque[str] = deque(maxlen=8)
         self.event: dict[str, Any] | None = None
+        self.event_set_at: float = 0.0
         self.audio_uploads: dict[str, AudioUpload] = {}
+
+    def set_event(self, event: dict[str, Any] | None) -> None:
+        # Centralise event assignment so we can expire it server-side based on
+        # its own ttl_ms. Previously the bridge relied on the device sending
+        # `event_dismiss` to clear `state.event`, which meant a flapping BLE
+        # link could leave a stale event being re-pushed forever — the device
+        # would keep treating the recurring overlay as a "new" event after its
+        # own local TTL expired.
+        self.event = event
+        self.event_set_at = time.time() if event else 0.0
+
+    def _event_expired(self, now: float) -> bool:
+        if not self.event:
+            return False
+        ttl_ms = int(self.event.get("ttl_ms") or 0)
+        if ttl_ms <= 0:
+            return False
+        return (now - self.event_set_at) * 1000.0 >= ttl_ms
 
     def _audio_dir_for(self, cwd: str) -> pathlib.Path:
         base = pathlib.Path(cwd) if cwd and os.path.isdir(cwd) else pathlib.Path.cwd()
@@ -349,20 +368,20 @@ class BridgeState:
                 saved_at = int(time.time())
                 path = self._write_audio_upload(upload, saved_at)
                 self.entries.appendleft(f"{time.strftime('%H:%M')} note {path.name}")
-                self.event = {
+                self.set_event({
                     "kind": "complete",
                     "sid": upload.sid,
                     "title": "Voice Note",
                     "text": _clip(path.name, 120),
                     "ttl_ms": 5000,
-                }
+                })
                 return True
             if cmd == "audio_cancel":
                 aid = str(obj.get("id") or "")
                 upload = self.audio_uploads.pop(aid, None)
                 return upload is not None
             if cmd == "event_dismiss":
-                self.event = None
+                self.set_event(None)
                 return True
         return False
 
@@ -437,6 +456,9 @@ class BridgeState:
                     "body": first["body"],
                     "sid": first["sid"],
                 }
+            if self._event_expired(time.time()):
+                self.event = None
+                self.event_set_at = 0.0
             if self.event:
                 hb["event"] = self.event
             return hb
@@ -498,38 +520,38 @@ def simulator_frames(now: int | None = None, profile: str = "permission"):
         _sim_single_pending(state, now)
         yield state.build_heartbeat(now=now)
         state.resolve_pending("choice_demo")
-        state.event = {
+        state.set_event({
             "kind": "complete",
             "sid": "s_demo",
             "title": "Saved",
             "text": "Choice submitted",
             "ttl_ms": 5000,
-        }
+        })
         yield state.build_heartbeat(now=now)
         return
     if profile == "multi":
         _sim_multi_pending(state, now)
         yield state.build_heartbeat(now=now)
         state.resolve_pending("multi_demo")
-        state.event = {
+        state.set_event({
             "kind": "complete",
             "sid": "s_demo",
             "title": "Saved",
             "text": "Choices submitted",
             "ttl_ms": 5000,
-        }
+        })
         yield state.build_heartbeat(now=now)
         return
     _sim_permission_pending(state, now)
     yield state.build_heartbeat(now=now)
     state.resolve_pending("req_demo")
-    state.event = {
+    state.set_event({
         "kind": "complete",
         "sid": "s_demo",
         "title": "Done",
         "text": "Build finished",
         "ttl_ms": 5000,
-    }
+    })
     yield state.build_heartbeat(now=now)
 
 
@@ -580,13 +602,13 @@ def publish_simulator_decision_cycle(state: BridgeState, transport: Any, interva
             transport.write(encode_line(state.build_heartbeat(now=int(time.time()))))
 
         state.resolve_pending(pending_id)
-        state.event = {
+        state.set_event({
             "kind": "complete",
             "sid": "s_demo",
             "title": "Saved",
             "text": f"Choice {decision}",
             "ttl_ms": 5000,
-        }
+        })
         print(f"[sim] choice={decision}", file=sys.stderr)
         transport.write(encode_line(state.build_heartbeat(now=int(time.time()))))
         return
@@ -606,13 +628,13 @@ def publish_simulator_decision_cycle(state: BridgeState, transport: Any, interva
             transport.write(encode_line(state.build_heartbeat(now=int(time.time()))))
 
         state.resolve_pending(pending_id)
-        state.event = {
+        state.set_event({
             "kind": "complete",
             "sid": "s_demo",
             "title": "Saved",
             "text": ",".join(decision),
             "ttl_ms": 5000,
-        }
+        })
         print(f"[sim] choices={decision}", file=sys.stderr)
         transport.write(encode_line(state.build_heartbeat(now=int(time.time()))))
         return
@@ -633,13 +655,13 @@ def publish_simulator_decision_cycle(state: BridgeState, transport: Any, interva
 
     state.resolve_pending(pending_id)
     approved = decision == "once"
-    state.event = {
+    state.set_event({
         "kind": "complete" if approved else "error",
         "sid": "s_demo",
         "title": "Done" if approved else "Denied",
         "text": "Build finished" if approved else "Request denied",
         "ttl_ms": 5000,
-    }
+    })
     print(f"[sim] decision={decision}", file=sys.stderr)
     transport.write(encode_line(state.build_heartbeat(now=int(time.time()))))
 
@@ -744,13 +766,13 @@ def apply_hook(
         state.clear_pending_for_session(sid)
         state.upsert_session(sid, cwd, project, branch, dirty, "done", model, "session done", now)
         with state.lock:
-            state.event = {
+            state.set_event({
                 "kind": "complete",
                 "sid": sid,
                 "title": "Done",
                 "text": project or "Session complete",
                 "ttl_ms": 5000,
-            }
+            })
         notify_state_change()
         return {}
 
@@ -1028,7 +1050,7 @@ def run_simulator(interval: float, once: bool, transport: Any | None = None, pro
         with state.lock:
             state.pending.clear()
             state.decisions.clear()
-            state.event = None
+            state.set_event(None)
             sess = state.sessions.get("s_demo")
             if sess:
                 sess.phase = "running"
