@@ -10,6 +10,7 @@ from bridge.server.http import run_http
 from bridge.transports.ble import BLETransport
 from bridge.transports.serial import SerialTransport
 from bridge.transports.stdout import StdoutTransport
+from bridge.transports.websocket import WebSocketTransport
 
 
 def main() -> int:
@@ -18,8 +19,9 @@ def main() -> int:
     parser.add_argument("--once", action="store_true", help="emit one simulator cycle and exit")
     parser.add_argument("--interval", type=float, default=1.0)
     parser.add_argument("--http-port", type=int, default=9876)
+    parser.add_argument("--ws-port", type=int, default=9877)
     parser.add_argument("--simulate-profile", choices=("permission", "single", "multi"), default="permission")
-    parser.add_argument("--transport", choices=("stdout", "ble", "serial"), default="stdout")
+    parser.add_argument("--transport", choices=("stdout", "ble", "serial", "websocket"), default="stdout")
     parser.add_argument("--serial-port", default="", help="USB serial device path")
     parser.add_argument("--serial-baud", type=int, default=115200)
     args = parser.parse_args()
@@ -27,6 +29,8 @@ def main() -> int:
         transport = BLETransport()
     elif args.transport == "serial":
         transport = SerialTransport(port=args.serial_port, baud=args.serial_baud)
+    elif args.transport == "websocket":
+        transport = WebSocketTransport(port=args.ws_port)
     else:
         transport = StdoutTransport()
     if args.simulate:
@@ -35,7 +39,10 @@ def main() -> int:
     runtime = BridgeRuntime(state, transport)
     reader = LineReader(state, on_command=runtime.bump.set)
     if hasattr(transport, "start"):
-        transport.start(reader)
+        if getattr(transport, "accepts_dict", False):
+            transport.start(runtime.on_device_message)
+        else:
+            transport.start(reader)
     threading.Thread(target=runtime.heartbeat_loop, daemon=True).start()
     server = run_http(state, runtime, args.http_port)
     print(f"[http] listening on 127.0.0.1:{args.http_port}", file=sys.stderr)

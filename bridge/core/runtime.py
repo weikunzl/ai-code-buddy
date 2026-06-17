@@ -36,14 +36,24 @@ class LineReader:
 
 
 class BridgeRuntime:
-    def __init__(self, state: BridgeState, transport: Any) -> None:
+    def __init__(self, state: BridgeState, transport: Any | list[Any]) -> None:
         self.state = state
-        self.transport = transport
+        self.transports = transport if isinstance(transport, list) else [transport]
         self.bump = threading.Event()
         self.stopped = threading.Event()
 
     def send_snapshot(self) -> None:
-        self.transport.write(encode_line(self.state.build_heartbeat()))
+        hb = self.state.build_heartbeat()
+        frame = {"type": "snapshot", **hb}
+        for transport in self.transports:
+            if getattr(transport, "accepts_dict", False):
+                transport.write(frame)
+            else:
+                transport.write(encode_line(hb))
+
+    def on_device_message(self, obj: dict[str, Any]) -> None:
+        if self.state.handle_device_command(obj):
+            self.bump.set()
 
     def heartbeat_loop(self) -> None:
         last = 0.0
