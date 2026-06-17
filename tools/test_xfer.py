@@ -53,7 +53,7 @@ def send_file(name, path):
     print(f" — {'ok' if ok else 'FAILED'} ({a.get('n') if a else '?'} written)")
     return ok
 
-src = sys.argv[1] if len(sys.argv) > 1 else f"{os.path.dirname(__file__)}/../characters/bufo"
+src = sys.argv[1] if len(sys.argv) > 1 else f"{os.path.dirname(__file__)}/../firmware/characters/bufo"
 name = sys.argv[2] if len(sys.argv) > 2 else "test"
 
 print(f"installing '{name}' from {src}")

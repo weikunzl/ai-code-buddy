@@ -182,9 +182,6 @@ This is **not** the firmware character-pack format. Hardware GIF packs
 
 ## Project layout
 
-**Target monorepo** (see design spec). Migration is phased; some paths still
-live at legacy locations today.
-
 ```text
 claude-buddy/
 ├── packages/protocol/     # JSON Schema + shared types (planned)
@@ -194,8 +191,9 @@ claude-buddy/
 │   ├── cursor/            # ← tools/cursor_hook.py today
 │   └── claude-code/       # (planned)
 ├── app/                   # Expo React Native (planned)
-├── firmware/              # ESP32 reference ← src/ today
+├── firmware/              # ESP32 reference
 │   ├── src/
+│   ├── platformio.ini
 │   └── characters/        # example BLE character packs
 ├── docs/
 │   ├── REFERENCE.md       # hardware BLE wire protocol
@@ -205,7 +203,6 @@ claude-buddy/
 
 | Legacy path (today) | Target |
 | --- | --- |
-| `src/` | `firmware/src/` |
 | `tools/session_bridge.py` | `bridge/` |
 | `tools/cursor_hook.py` | `hooks/cursor/hook.py` |
 | `tools/hook_relay.py` | `hooks/common/relay.py` |
@@ -270,21 +267,21 @@ implementation for makers. It pairs with **Claude Desktop** over BLE when
 developer mode is enabled (**Developer → Open Hardware Buddy…**).
 
 ```bash
-cd firmware          # or repo root today: pio run -t upload
+cd firmware
 pio run -t upload
 ```
 
 Controls, sound roles, UTF-8/CJK rendering, ASCII species, BLE character
-push, and microphone notes are documented in the git history and will move
-with `firmware/`. Makers should still read [`REFERENCE.md`](REFERENCE.md) —
+push, and microphone notes are documented in the git history under
+`firmware/`. Makers should still read [`REFERENCE.md`](REFERENCE.md) —
 you do not need this repository's app code to build a BLE device.
 
 ## Development
 
 ```bash
-# Firmware (today from repo root)
-pio run
-pio run -e m5sticks3
+# Firmware
+cd firmware && pio run
+cd firmware && pio run -e m5sticks3
 
 # Bridge tests
 python3 tools/test_session_bridge.py

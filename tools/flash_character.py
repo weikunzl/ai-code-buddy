@@ -4,13 +4,14 @@ Flash a prepped character pack via USB (pio run -t uploadfs).
 Faster than the BLE drop target when you're iterating on a character.
 
 Usage:
-  python3 tools/flash_character.py characters/bufo
+  python3 tools/flash_character.py firmware/characters/bufo
 """
 import json, sys, shutil, subprocess
 from pathlib import Path
 
-PROJECT = Path(__file__).resolve().parent.parent
-DATA    = PROJECT / "data" / "characters"
+REPO     = Path(__file__).resolve().parent.parent
+FIRMWARE = REPO / "firmware"
+DATA     = FIRMWARE / "data" / "characters"
 CAP     = 1_800_000
 
 
@@ -31,7 +32,7 @@ def flash(src: Path) -> None:
     shutil.copytree(src, dst)
     print(f"staged {name}: {total:,} bytes -> {dst}")
 
-    subprocess.run(["pio", "run", "-t", "uploadfs"], cwd=PROJECT, check=True)
+    subprocess.run(["pio", "run", "-t", "uploadfs"], cwd=FIRMWARE, check=True)
     print(f"\nflashed. on the stick: hold A -> settings -> species -> GIF")
 
 
