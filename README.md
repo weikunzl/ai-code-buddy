@@ -1,216 +1,245 @@
-# claude-desktop-buddy
+# claude-buddy
 
-Claude for macOS and Windows can connect Claude Cowork and Claude Code to
-maker devices over BLE, so developers and makers can build hardware that
-displays permission prompts, recent messages, and other interactions. We've
-been impressed by the creativity of the maker community around Claude -
-providing a lightweight, opt-in API is our way of making it easier to build
-fun little hardware devices that integrate with Claude.
+A desk-pet companion for AI coding sessions. Watch your buddy wake up when
+work starts, get restless when a permission prompt is waiting, and approve
+or deny risky commands from your phone instead of alt-tabbing back to the
+IDE.
 
-> **Building your own device?** You don't need any of the code here. See
-> **[REFERENCE.md](REFERENCE.md)** for the wire protocol: Nordic UART
-> Service UUIDs, JSON schemas, and the folder push transport.
+The project is evolving from an ESP32 hardware reference into a **mobile-first
+monorepo**: a phone app is the primary display and controller; your computer
+runs a local bridge and lightweight hooks for Cursor and Claude Code.
 
-As an example, we built a desk pet on ESP32 that lives off permission
-approvals and interaction with Claude. It sleeps when nothing's happening,
-wakes when sessions start, gets visibly impatient when an approval prompt is
-waiting, and lets you approve or deny right from the device.
+> **Design spec:** [`docs/superpowers/specs/2026-06-17-mobile-buddy-design.md`](docs/superpowers/specs/2026-06-17-mobile-buddy-design.md)
 
 <p align="center">
-  <img src="docs/device.jpg" alt="M5StickC Plus running the buddy firmware" width="500">
+  <img src="docs/device.jpg" alt="M5StickC Plus running the buddy firmware" width="420">
 </p>
 
-## Hardware
+## How it works
 
-The firmware targets ESP32 with the Arduino framework. As written, it
-depends on the M5StickCPlus library for its display, IMU, and button
-drivers—so you'll need that board, or a fork that swaps those drivers for
-your own pin layout.
+```text
+┌─────────────────────────────────────────────────────────┐
+│  Your computer (same Wi‑Fi)                             │
+│                                                         │
+│  Cursor / Claude Code                                   │
+│       │ hook events (stdin JSON)                        │
+│       ▼                                                 │
+│  hooks/          POST ──►  bridge/                      │
+│  cursor, claude-code       HTTP  :9876  ← hook ingress  │
+│                            WS    :9877  ← phone link    │
+│                            mDNS  _buddy._tcp            │
+└───────────────────────────────┬─────────────────────────┘
+                                │ WebSocket snapshots
+                                ▼
+┌─────────────────────────────────────────────────────────┐
+│  Phone (Expo app)                                       │
+│  • pet GIF for each state (user-uploaded)               │
+│  • session list + approval / choice UI                  │
+│  • sounds, settings, LAN pairing                        │
+└─────────────────────────────────────────────────────────┘
 
-## Flashing
-
-Install
-[PlatformIO Core](https://docs.platformio.org/en/latest/core/installation/),
-then:
-
-```bash
-pio run -t upload
+firmware/  — optional ESP32 reference (BLE desk pet)
 ```
 
-If you're starting from a previously-flashed device, wipe it first:
+**Division of labour** (see
+[`docs/adr/0002-host-bridge-owns-session-state.md`](docs/adr/0002-host-bridge-owns-session-state.md)):
 
-```bash
-pio run -t erase && pio run -t upload
-```
-
-Once running, you can also wipe everything from the device itself: **hold A
-→ settings → reset → factory reset → tap twice**.
-
-## Pairing
-
-To pair your device with Claude, first enable developer mode (**Help →
-Troubleshooting → Enable Developer Mode**). Then, open the Hardware Buddy
-window in **Developer → Open Hardware Buddy…**, click **Connect**, and pick
-your device from the list. macOS will prompt for Bluetooth permission on
-first connect; grant it.
-
-<p align="center">
-  <img src="docs/menu.png" alt="Developer → Open Hardware Buddy… menu item" width="420">
-  <img src="docs/hardware-buddy-window.png" alt="Hardware Buddy window with Connect button and folder drop target" width="420">
-</p>
-
-Once paired, the bridge auto-reconnects whenever both sides are awake.
-
-If discovery isn't finding the stick:
-
-- Make sure it's awake (any button press)
-- Check the stick's settings menu → bluetooth is on
-
-## Controls
-
-|                         | Normal               | Pet         | Info        | Approval    |
-| ----------------------- | -------------------- | ----------- | ----------- | ----------- |
-| **A** (front)           | next screen          | next screen | next screen | **approve** |
-| **B** (right)           | scroll transcript    | next page   | next page   | **deny**    |
-| **Hold A**              | menu                 | menu        | menu        | menu        |
-| **Hold B**              | voice note           | voice note  | voice note  | voice note  |
-| **Power** (left, short) | toggle screen off    |             |             |             |
-| **Power** (left, ~6s)   | hard power off       |             |             |             |
-| **Shake**               | dizzy                |             |             | —           |
-| **Face-down**           | nap (energy refills) |             |             |             |
-
-The screen auto-powers-off after 30s of no interaction (kept on while an
-approval prompt is up). Any button press wakes it.
-
-## Sound roles
-
-StickS3 audio now uses named roles instead of scattered raw beeps.
-
-| Role | Current source |
+| Piece | Owns |
 | --- | --- |
-| `ui_click` | converted `hover-sound-low.wav` |
-| `input_required` | converted `hover-sound.wav` |
-| `answer_sent` | converted `confirm-sound.wav` |
-| `complete` | converted `cancel-sound.wav` |
-| `deny` | tone fallback / explicit tone |
-| `error` | tone |
-| `warning` | tone |
-| `reset_confirm` | tone |
-| `pairing` | tone |
+| **Bridge** | Session state, pending decisions, hook responses, heartbeat |
+| **Hooks** | Translate AI-tool events → bridge protocol |
+| **App** | UI, pet rendering, user GIFs, local preferences |
+| **Firmware** | Hardware reference only (makers / BLE enthusiasts) |
 
-The OpenPeon-derived clips are embedded as trimmed mono PCM arrays through
-`tools/convert_openpeon_assets.py`. Generic navigation uses `ui_click`,
-while prompt-specific flows use the more explicit roles above.
+The phone does **not** talk to Claude Desktop over BLE. Integration is
+hook-driven: Cursor agent hooks and Claude Code hooks POST to the bridge on
+`127.0.0.1:9876`; the app receives compact JSON snapshots over WebSocket on
+port `9877`.
 
-## UTF-8 text
+## Quick start
 
-The session-console views now truncate and wrap host text on UTF-8 codepoint
-boundaries instead of raw bytes. The firmware also treats common CJK ranges
-as double-width when laying out compact rows, so prompt bodies, session
-summaries, transcript rows, and event overlays no longer split multibyte
-characters mid-sequence.
+### 1. Desktop — bridge + hooks
 
-For actual glyph rendering on StickS3, the compact session-console views now
-switch onto bundled M5GFX `efont` faces when CJK text is detected:
+**Today** (pre-migration layout):
 
-| Script | Body font | Title font |
-| --- | --- | --- |
-| Chinese / Han | `fonts::efontCN_10` | `fonts::efontCN_12` |
-| Japanese | `fonts::efontJA_10` | `fonts::efontJA_12` |
-| Korean | `fonts::efontKR_10` | `fonts::efontKR_12` |
+```bash
+# Terminal 1 — bridge (stdout simulator for smoke test)
+python3 tools/session_bridge.py --simulate
 
-ASCII-only text stays on the original built-in font path.
-
-## ASCII pets
-
-Eighteen pets, each with seven animations (sleep, idle, busy, attention,
-celebrate, dizzy, heart). Menu → "next pet" cycles them with a counter.
-Choice persists to NVS.
-
-## GIF pets
-
-If you want a custom GIF character instead of an ASCII buddy, drag a
-character pack folder onto the drop target in the Hardware Buddy window. The
-app streams it over BLE and the stick switches to GIF mode live. **Settings
-→ delete char** reverts to ASCII mode.
-
-A character pack is a folder with `manifest.json` and 96px-wide GIFs:
-
-```json
-{
-  "name": "bufo",
-  "colors": {
-    "body": "#6B8E23",
-    "bg": "#000000",
-    "text": "#FFFFFF",
-    "textDim": "#808080",
-    "ink": "#000000"
-  },
-  "states": {
-    "sleep": "sleep.gif",
-    "idle": ["idle_0.gif", "idle_1.gif", "idle_2.gif"],
-    "busy": "busy.gif",
-    "attention": "attention.gif",
-    "celebrate": "celebrate.gif",
-    "dizzy": "dizzy.gif",
-    "heart": "heart.gif"
-  }
-}
+# Terminal 2 — Cursor hooks
+python3 tools/cursor_buddy_install.py
+python3 tools/session_bridge.py --transport ble    # or serial / websocket (planned)
 ```
 
-State values can be a single filename or an array. Arrays rotate: each
-loop-end advances to the next GIF, useful for an idle activity carousel so
-the home screen doesn't loop one clip forever.
+**Target** (after migration):
 
-GIFs are 96px wide; height up to ~140px stays on a 135×240 portrait screen.
-Crop tight to the character — transparent margins waste screen and shrink
-the sprite. `tools/prep_character.py` handles the resize: feed it source
-GIFs at any sizes and it produces a 96px-wide set where the character is the
-same scale in every state.
+```bash
+./tools/install-desktop.sh
+# pip install -e bridge/
+# python -m hooks.cursor.install
+# python -m hooks.claude-code.install
+python -m bridge --http-port 9876 --ws-port 9877
+```
 
-The whole folder must fit under 1.8MB —
-`gifsicle --lossy=80 -O3 --colors 64` typically cuts 40–60%.
+The bridge exposes:
 
-See `characters/bufo/` for a working example.
+| Port | Protocol | Used by |
+| --- | --- | --- |
+| `9876` | HTTP POST | `hooks/*` |
+| `9877` | WebSocket | `app/` (phone) |
 
-If you're iterating on a character and would rather skip the BLE round-trip,
-`tools/flash_character.py characters/bufo` stages it into `data/` and runs
-`pio run -t uploadfs` directly over USB.
+Hooks read `BUDDY_BRIDGE_URL` (default `http://127.0.0.1:9876`). Cursor
+also honours `CURSOR_BUDDY_BRIDGE_URL`.
 
-For local session-console bring-up without Claude/Codex hooks:
+### 2. Phone — Expo app
+
+The mobile app (`app/`) is under active development. When ready:
+
+1. Phone and computer on the **same Wi‑Fi**.
+2. Open the app → it discovers the bridge via mDNS (`_buddy._tcp`) or manual IP.
+3. Connect → pet wakes (`idle`); approvals pop up as a full-screen modal.
+
+Build (once `app/` exists):
+
+```bash
+cd app && npm install && npx expo start
+```
+
+### 3. Smoke test without hardware or phone
 
 ```bash
 python3 tools/session_bridge.py --simulate --once
 python3 tools/session_bridge.py --simulate --once --simulate-profile single
-python3 tools/session_bridge.py --simulate --once --simulate-profile multi
 python3 tools/test_session_bridge.py
-python3 tools/test_session_frames.py
+python3 tools/test_cursor_hook.py
 ```
 
-Use `python3 tools/session_bridge.py --transport ble` for the live BLE bridge
-once a StickS3 is paired.
+## Cursor integration
 
-Use `python3 tools/session_bridge.py --transport serial --serial-port /dev/tty.usbmodem...`
-for the live native-USB bridge on StickS3.
+[`tools/cursor_hook.py`](tools/cursor_hook.py) maps [Cursor agent hooks](https://cursor.com/docs/hooks) into the bridge's `hook_event_name` payloads. Cursor and Claude Code can share one buddy.
 
-For real hook integration, run the bridge and relay hook stdin into it:
+| Cursor hook | Bridge event | Buddy effect |
+| --- | --- | --- |
+| `sessionStart` | `SessionStart` | session appears, pet wakes |
+| `beforeSubmitPrompt` | `UserPromptSubmit` | shows prompt (observe only) |
+| `beforeShellExecution` | `PreToolUse` / `Notification` | risky commands wait for approval |
+| `afterShellExecution` | `Notification` | updates activity |
+| `afterFileEdit` | `Notification` | updates activity |
+| `stop` | `Stop` | done / celebrate |
+
+Install (idempotent; preserves unrelated hooks):
+
+```bash
+python3 tools/cursor_buddy_install.py            # install / update
+python3 tools/cursor_buddy_install.py --print    # preview hooks.json
+python3 tools/cursor_buddy_install.py --remove   # uninstall
+```
+
+Approval gating (`CURSOR_BUDDY_APPROVE`):
+
+| Value | Behavior |
+| --- | --- |
+| `risky` (default) | destructive / network commands block for phone approve/deny |
+| `all` | every shell command waits |
+| `off` | observe only, never block |
+
+If the app does not answer within `CURSOR_BUDDY_TIMEOUT` (default 25s), the
+adapter **fails open** — Cursor's normal prompt takes over.
+
+## The seven pet states
+
+| State | Trigger | Feel |
+| --- | --- | --- |
+| `sleep` | bridge not connected | resting |
+| `idle` | connected, nothing urgent | calm |
+| `busy` | sessions actively running | working |
+| `attention` | approval or choice pending | alert |
+| `celebrate` | session complete / level up | happy |
+| `heart` | approved in under 5s | hearts |
+| `dizzy` | — on phone (no IMU in MVP) | hardware only |
+
+## Custom pet GIFs (phone)
+
+On the phone app, users pick their own GIFs from the photo library — one per
+state (or leave blank to use built-in defaults). Files stay in the app
+sandbox; the bridge never receives character assets.
+
+```json
+{
+  "version": 1,
+  "name": "my-cat",
+  "states": {
+    "sleep": "file:///…/sleep.gif",
+    "idle": "file:///…/idle.gif",
+    "attention": "file:///…/alert.gif"
+  }
+}
+```
+
+This is **not** the firmware character-pack format. Hardware GIF packs
+(`manifest.json` + 96px GIFs pushed over BLE) remain documented under
+[`firmware/`](firmware/) for makers.
+
+## Project layout
+
+**Target monorepo** (see design spec). Migration is phased; some paths still
+live at legacy locations today.
+
+```text
+claude-buddy/
+├── packages/protocol/     # JSON Schema + shared types (planned)
+├── bridge/                # Python daemon: state, HTTP, WebSocket, mDNS (planned)
+├── hooks/
+│   ├── common/            # relay, HTTP client (planned)
+│   ├── cursor/            # ← tools/cursor_hook.py today
+│   └── claude-code/       # (planned)
+├── app/                   # Expo React Native (planned)
+├── firmware/              # ESP32 reference ← src/ today
+│   ├── src/
+│   └── characters/        # example BLE character packs
+├── docs/
+│   ├── REFERENCE.md       # hardware BLE wire protocol
+│   └── protocol/          # mobile WebSocket protocol (planned)
+└── tools/                 # dev scripts, tests, installers
+```
+
+| Legacy path (today) | Target |
+| --- | --- |
+| `src/` | `firmware/src/` |
+| `tools/session_bridge.py` | `bridge/` |
+| `tools/cursor_hook.py` | `hooks/cursor/hook.py` |
+| `tools/hook_relay.py` | `hooks/common/relay.py` |
+
+## Protocol
+
+| Document | Audience |
+| --- | --- |
+| [`REFERENCE.md`](REFERENCE.md) | Hardware makers (BLE Nordic UART) |
+| [`docs/superpowers/specs/2026-06-17-mobile-buddy-design.md`](docs/superpowers/specs/2026-06-17-mobile-buddy-design.md) | Mobile + bridge architecture |
+| `docs/protocol/mobile-bridge.md` | WebSocket frame detail (planned) |
+
+**Mobile WebSocket (summary):** bridge pushes `snapshot` heartbeats (same
+fields as the hardware heartbeat + session-console extensions). The app
+sends intent commands the firmware already understands:
+
+```json
+{"cmd":"permission","id":"req_123","decision":"once"}
+{"cmd":"answer","id":"q_transport","choice":"usb"}
+```
+
+## Hook relay and choice prompts
+
+Relay one hook event into the bridge:
 
 ```bash
 python3 tools/session_bridge.py --transport serial --serial-port /dev/tty.usbmodem...
-printf '%s\n' '{"hook_event_name":"UserPromptSubmit","session_id":"s_demo","cwd":"'"$PWD"'","prompt":"run tests"}' | python3 tools/hook_relay.py
+printf '%s\n' '{"hook_event_name":"UserPromptSubmit","session_id":"s_demo","cwd":"'"$PWD"'","prompt":"run tests"}' \
+  | python3 tools/hook_relay.py
 ```
 
-`tools/hook_relay.py` reads one JSON object from stdin, POSTs it to the
-local bridge, and prints the bridge response to stdout. If the bridge is not
-running, it prints `{}` and exits successfully by default; use `--strict` to
-make bridge failures non-zero.
-
-For bridge-local choice-prompt integration tests, POST a `Notification`
-payload with a bounded `prompt` object to the local bridge HTTP endpoint.
-Example:
+Post a choice prompt for integration tests:
 
 ```bash
-python3 tools/session_bridge.py --transport serial --serial-port /dev/tty.usbmodem...
 curl -sS http://127.0.0.1:9876 -X POST -H 'content-type: application/json' -d '{
   "hook_event_name":"Notification",
   "session_id":"s_demo",
@@ -222,146 +251,65 @@ curl -sS http://127.0.0.1:9876 -X POST -H 'content-type: application/json' -d '{
     "title":"Transport",
     "body":"pick transport",
     "options":[
-      {"id":"ble","label":"BLE","desc":"Wireless"},
-      {"id":"usb","label":"USB","desc":"Serial"}
+      {"id":"ble","label":"BLE"},
+      {"id":"usb","label":"USB"}
     ]
   }
 }'
 ```
 
-When the device answers, the bridge returns `{"decision":"..."}` for
-`single_choice` or `{"choices":[...]}` for `multi_choice`.
-
-For a smaller producer-local input shape, use:
-
-```bash
-printf '%s\n' '{
-  "session_id":"s_demo",
-  "cwd":"'"$PWD"'",
-  "message":"Choose transport",
-  "prompt":{
-    "id":"q_transport",
-    "kind":"single_choice",
-    "title":"Transport",
-    "body":"pick transport",
-    "options":[
-      {"id":"ble","label":"BLE","desc":"Wireless"},
-      {"id":"usb","label":"USB","desc":"Serial"}
-    ]
-  }
-}' | python3 tools/post_notification_prompt.py
-```
-
-`tools/post_notification_prompt.py` wraps that payload as
-`hook_event_name = "Notification"` and reuses the relay transport. It is
-strict by default; use `--fail-open` if you want bridge failures to degrade
-to `{}`.
-
-For stop-and-wait host input without a device answer, use `kind` as
-`notice` or `free_text_required` without `options`. For bounded canned
-replies, use `free_text_required` with up to 4 `options`; the device reuses
-the single-choice answer path for those quick replies.
-
-## Cursor buddy
-
-The same bridge and device can react to **Cursor** sessions, side by side with
-Claude/Codex — they share one buddy. `tools/cursor_hook.py` is a small adapter
-that translates [Cursor agent hooks](https://cursor.com/docs/hooks) into the
-bridge's existing `hook_event_name` payloads, so no firmware or bridge protocol
-change is needed.
-
-Mapping:
-
-| Cursor hook | Bridge event | Effect on buddy |
-| --- | --- | --- |
-| `sessionStart` | `SessionStart` | session appears, pet wakes |
-| `beforeSubmitPrompt` | `UserPromptSubmit` | shows the prompt, never blocks |
-| `beforeShellExecution` | `PreToolUse` / `Notification` | risky commands ask for on-device approval; others observe-only |
-| `afterShellExecution` | `Notification` | updates last activity |
-| `afterFileEdit` | `Notification` | updates last activity |
-| `stop` | `Stop` | done/celebrate |
-
-Install the user-level hooks (preserves any existing `~/.cursor/hooks.json`
-entries; idempotent and re-runnable):
-
-```bash
-python3 tools/cursor_buddy_install.py            # install / update
-python3 tools/cursor_buddy_install.py --print    # preview merged hooks.json
-python3 tools/cursor_buddy_install.py --remove    # uninstall
-```
-
-Make sure the bridge is running (BLE transport reuses the same LaunchAgent as
-the Claude path) — it serves HTTP on `127.0.0.1:9876` regardless of transport.
-
-On-device approvals are gated by `CURSOR_BUDDY_APPROVE`:
-
-| Value | Behavior |
-| --- | --- |
-| `risky` (default) | only destructive/network commands (`rm`, `sudo`, `git push`, `curl`, `dd`, …) block for an **A=approve / B=deny** press on the stick |
-| `all` | every shell command waits for a device decision |
-| `off` | never block; observe/display only |
-
-If the device doesn't answer within `CURSOR_BUDDY_TIMEOUT` (default 25s), the
-adapter fails open and returns `{"permission":"ask"}` so Cursor's normal prompt
-takes over — commands are never silently run or blocked forever. Other tunables:
-`CURSOR_BUDDY_BRIDGE_URL`, `CURSOR_BUDDY_RISKY` (custom regex).
-
-Smoke test (no live bridge needed): `python3 tools/test_cursor_hook.py`.
-
-## Microphone
-
-On StickS3, hold `B` to record a bounded voice note for the active pending
-decision or focused session. The current reference path records:
-
-- mono `pcm_u8`
-- `8000Hz`
-- up to `10s`
-- streamed as newline-delimited `audio_begin` / `audio_chunk` / `audio_end`
-  JSON commands over the existing BLE or USB serial bridge
-
-The device shows a small `REC` overlay while recording. On the host side,
-`tools/session_bridge.py` writes:
-
-- `<session cwd>/.buddy_audio/<timestamp>_<sid>_<id>.wav`
-- matching `<timestamp>_<sid>_<id>.json` metadata sidecar
-
-If a prompt was active when recording started, the sidecar also carries that
-pending `decision_id`.
-
-For concrete end-to-end example payloads and exact shell invocations,
-including checked-in Chinese/Japanese/Korean examples, see
+More examples (including CJK payloads):
 [`docs/upstream-workflow-examples.md`](docs/upstream-workflow-examples.md).
 
-## The seven states
+Helper scripts: `tools/post_notification_prompt.py`, `tools/hook_relay.py`.
 
-| State       | Trigger                     | Feel                        |
-| ----------- | --------------------------- | --------------------------- |
-| `sleep`     | bridge not connected        | eyes closed, slow breathing |
-| `idle`      | connected, nothing urgent   | blinking, looking around    |
-| `busy`      | sessions actively running   | sweating, working           |
-| `attention` | approval pending            | alert, **LED blinks**       |
-| `celebrate` | level up (every 50K tokens) | confetti, bouncing          |
-| `dizzy`     | you shook the stick         | spiral eyes, wobbling       |
-| `heart`     | approved in under 5s        | floating hearts             |
+## Hardware reference (ESP32)
 
-## Project layout
+The original M5StickC / StickS3 desk pet remains as an optional reference
+implementation for makers. It pairs with **Claude Desktop** over BLE when
+developer mode is enabled (**Developer → Open Hardware Buddy…**).
 
+```bash
+cd firmware          # or repo root today: pio run -t upload
+pio run -t upload
 ```
-src/
-  main.cpp       — loop, state machine, UI screens
-  buddy.cpp      — ASCII species dispatch + render helpers
-  buddies/       — one file per species, seven anim functions each
-  ble_bridge.cpp — Nordic UART service, line-buffered TX/RX
-  character.cpp  — GIF decode + render
-  data.h         — wire protocol, JSON parse
-  xfer.h         — folder push receiver
-  stats.h        — NVS-backed stats, settings, owner, species choice
-characters/      — example GIF character packs
-tools/           — generators and converters
+
+Controls, sound roles, UTF-8/CJK rendering, ASCII species, BLE character
+push, and microphone notes are documented in the git history and will move
+with `firmware/`. Makers should still read [`REFERENCE.md`](REFERENCE.md) —
+you do not need this repository's app code to build a BLE device.
+
+## Development
+
+```bash
+# Firmware (today from repo root)
+pio run
+pio run -e m5sticks3
+
+# Bridge tests
+python3 tools/test_session_bridge.py
+python3 tools/test_session_frames.py
+python3 tools/test_cursor_hook.py
+
+# Simulate approval cycle
+python3 tools/session_bridge.py --simulate --once --simulate-profile permission
 ```
+
+See [`AGENTS.md`](AGENTS.md) for contributor conventions and
+[`CONTRIBUTING.md`](CONTRIBUTING.md) for PR expectations.
+
+## Roadmap
+
+| Phase | Work |
+| --- | --- |
+| **M1** | Move firmware to `firmware/` |
+| **M2** | Extract `bridge/` + `packages/protocol` |
+| **M3** | Move hooks; add WebSocket transport + mDNS |
+| **M4** | Ship Expo `app/` with LAN approval loop |
 
 ## Availability
 
-The BLE API is only available when the desktop apps are in developer mode
-(**Help → Troubleshooting → Enable Developer Mode**). It's intended for
-makers and developers and isn't an officially supported product feature.
+Claude Desktop's BLE Hardware Buddy API requires developer mode and is
+intended for makers — not a supported product surface. The hook + bridge +
+phone path in this repository is a local, opt-in developer tool. It does not
+send session data to third-party servers in the MVP design (LAN only).
