@@ -6,6 +6,7 @@ import threading
 from bridge.core.runtime import BridgeRuntime, LineReader
 from bridge.core.snapshot import run_simulator
 from bridge.core.state import BridgeState
+from bridge.server.discovery import BuddyDiscovery
 from bridge.server.http import run_http
 from bridge.transports.ble import BLETransport
 from bridge.transports.serial import SerialTransport
@@ -46,11 +47,19 @@ def main() -> int:
     threading.Thread(target=runtime.heartbeat_loop, daemon=True).start()
     server = run_http(state, runtime, args.http_port)
     print(f"[http] listening on 127.0.0.1:{args.http_port}", file=sys.stderr)
+    discovery: BuddyDiscovery | None = None
+    if args.transport == "websocket":
+        discovery = BuddyDiscovery(ws_port=args.ws_port, http_port=args.http_port)
+        discovery.register()
+        print(f"[mdns] broadcasting _buddy._tcp on port {args.ws_port}", file=sys.stderr)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         runtime.stopped.set()
         return 0
+    finally:
+        if discovery is not None:
+            discovery.unregister()
 
 
 if __name__ == "__main__":
