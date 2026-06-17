@@ -9,9 +9,7 @@ from collections import OrderedDict, deque
 from dataclasses import dataclass, field
 from typing import Any
 
-
-def _clip(value: Any, n: int) -> str:
-    return str(value or "").replace("\n", " ")[:n]
+from bridge.core.util import _clip
 
 
 @dataclass
