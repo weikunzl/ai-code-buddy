@@ -93,16 +93,17 @@ also honours `CURSOR_BUDDY_BRIDGE_URL`.
 
 ### 2. Phone — Expo app
 
-The mobile app (`app/`) is under active development. When ready:
+The mobile app lives in [`app/`](app/). MVP uses **manual bridge URL** in
+Settings (mDNS discovery deferred).
 
 1. Phone and computer on the **same Wi‑Fi**.
-2. Open the app → it discovers the bridge via mDNS (`_buddy._tcp`) or manual IP.
-3. Connect → pet wakes (`idle`); approvals pop up as a full-screen modal.
-
-Build (once `app/` exists):
+2. Start the bridge with WebSocket transport (see desktop section above).
+3. Open the app → **Settings** → enter `ws://<your-mac-ip>:9877` → **Connect**.
+4. Pet wakes (`idle`); permission and choice prompts appear as a modal.
 
 ```bash
 cd app && npm install && npx expo start
+cd app && npm test    # Jest unit tests (derivePetState, frame parser)
 ```
 
 ### 3. Smoke test without hardware or phone
@@ -184,20 +185,20 @@ This is **not** the firmware character-pack format. Hardware GIF packs
 
 ```text
 claude-buddy/
-├── packages/protocol/     # JSON Schema + shared types (planned)
-├── bridge/                # Python daemon: state, HTTP, WebSocket, mDNS (planned)
+├── packages/protocol/     # JSON Schema + shared TS/Python types
+├── bridge/                # Python daemon: state, HTTP, WebSocket, mDNS
 ├── hooks/
-│   ├── common/            # relay, HTTP client (planned)
-│   ├── cursor/            # ← tools/cursor_hook.py today
-│   └── claude-code/       # (planned)
-├── app/                   # Expo React Native (planned)
+│   ├── common/            # relay, HTTP client
+│   ├── cursor/
+│   └── claude-code/
+├── app/                   # Expo React Native (Zustand + WebSocket client)
 ├── firmware/              # ESP32 reference
 │   ├── src/
 │   ├── platformio.ini
 │   └── characters/        # example BLE character packs
 ├── docs/
 │   ├── REFERENCE.md       # hardware BLE wire protocol
-│   └── protocol/          # mobile WebSocket protocol (planned)
+│   └── protocol/          # mobile WebSocket protocol
 └── tools/                 # dev scripts, tests, installers
 ```
 
@@ -213,7 +214,7 @@ claude-buddy/
 | --- | --- |
 | [`REFERENCE.md`](REFERENCE.md) | Hardware makers (BLE Nordic UART) |
 | [`docs/superpowers/specs/2026-06-17-mobile-buddy-design.md`](docs/superpowers/specs/2026-06-17-mobile-buddy-design.md) | Mobile + bridge architecture |
-| `docs/protocol/mobile-bridge.md` | WebSocket frame detail (planned) |
+| `docs/protocol/mobile-bridge.md` | WebSocket frame detail |
 
 **Mobile WebSocket (summary):** bridge pushes `snapshot` heartbeats (same
 fields as the hardware heartbeat + session-console extensions). The app
