@@ -13,7 +13,7 @@ import pathlib
 from contextlib import redirect_stdout
 from typing import Any
 
-HOOK_PATH = pathlib.Path(__file__).resolve().parent / "cursor_hook.py"
+HOOK_PATH = pathlib.Path(__file__).resolve().parent.parent / "hooks" / "cursor" / "hook.py"
 
 
 def load_module():
