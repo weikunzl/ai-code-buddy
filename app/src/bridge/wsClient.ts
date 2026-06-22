@@ -1,23 +1,39 @@
 import type { BuddySnapshot, DeviceIntent } from "@protocol/index";
 import { parseBridgeMessage } from "./frameParser";
 
-export type ConnectionStatus = "disconnected" | "connecting" | "connected";
+export type ConnectionStatus =
+  | "disconnected"
+  | "connecting"
+  | "connected"
+  | "error";
+
+export const RECONNECT_INTERVAL_MS = 10_000;
+export const MAX_RECONNECT_ATTEMPTS = 6;
+const DEFAULT_CONNECT_TIMEOUT_MS = 10_000;
 
 export type WsClientOptions = {
   url: string;
   onSnapshot: (snap: BuddySnapshot) => void;
   onHello: (hello: { token_required: boolean }) => void;
   onConnectionChange: (status: ConnectionStatus) => void;
+  onError?: (message: string) => void;
   onFrame?: () => void;
+  onReconnectGiveUp?: () => void;
+  connectTimeoutMs?: number;
+  reconnectIntervalMs?: number;
+  maxReconnectAttempts?: number;
 };
-
-const BACKOFF_MS = [1000, 2000, 4000, 8000, 30000];
 
 export function createWsClient(opts: WsClientOptions) {
   let ws: WebSocket | null = null;
-  let stopped = false;
-  let attempt = 0;
+  let stopped = true;
+  let autoReconnect = false;
+  let failedAttempts = 0;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  let connectTimer: ReturnType<typeof setTimeout> | null = null;
+  const connectTimeoutMs = opts.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS;
+  const reconnectIntervalMs = opts.reconnectIntervalMs ?? RECONNECT_INTERVAL_MS;
+  const maxReconnectAttempts = opts.maxReconnectAttempts ?? MAX_RECONNECT_ATTEMPTS;
 
   function clearReconnect() {
     if (reconnectTimer) {
@@ -26,25 +42,85 @@ export function createWsClient(opts: WsClientOptions) {
     }
   }
 
-  function scheduleReconnect() {
-    if (stopped) return;
+  function clearConnectTimer() {
+    if (connectTimer) {
+      clearTimeout(connectTimer);
+      connectTimer = null;
+    }
+  }
+
+  function closeSocket() {
+    if (!ws) return;
+    ws.onopen = null;
+    ws.onmessage = null;
+    ws.onerror = null;
+    ws.onclose = null;
+    ws.close();
+    ws = null;
+  }
+
+  function giveUp(code: string) {
     clearReconnect();
-    const delay = BACKOFF_MS[Math.min(attempt, BACKOFF_MS.length - 1)];
-    attempt += 1;
+    clearConnectTimer();
+    closeSocket();
+    stopped = true;
+    autoReconnect = false;
+    opts.onError?.(code);
+    opts.onReconnectGiveUp?.();
+    opts.onConnectionChange("disconnected");
+  }
+
+  function afterFailure(code: string) {
+    clearConnectTimer();
+    closeSocket();
+    failedAttempts += 1;
+    opts.onError?.(code);
+    if (!autoReconnect || stopped) {
+      opts.onConnectionChange("error");
+      return;
+    }
+    if (failedAttempts >= maxReconnectAttempts) {
+      giveUp("reconnect_gave_up");
+      return;
+    }
+    opts.onConnectionChange("disconnected");
+    scheduleReconnect();
+  }
+
+  function scheduleReconnect() {
+    if (stopped || !autoReconnect) return;
+    clearReconnect();
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null;
       openSocket();
-    }, delay);
+    }, reconnectIntervalMs);
+  }
+
+  function armConnectTimeout() {
+    clearConnectTimer();
+    connectTimer = setTimeout(() => {
+      connectTimer = null;
+      afterFailure("connection_timeout");
+    }, connectTimeoutMs);
   }
 
   function openSocket() {
-    if (stopped) return;
+    if (stopped || !autoReconnect) return;
     clearReconnect();
+    clearConnectTimer();
     opts.onConnectionChange("connecting");
-    ws = new WebSocket(opts.url);
+
+    try {
+      ws = new WebSocket(opts.url);
+    } catch {
+      afterFailure("invalid_ws_url");
+      return;
+    }
+
+    armConnectTimeout();
 
     ws.onopen = () => {
-      // wait for hello before marking connected
+      // Wait for hello before marking connected.
     };
 
     ws.onmessage = (ev) => {
@@ -52,7 +128,8 @@ export function createWsClient(opts: WsClientOptions) {
       if (!frame) return;
       opts.onFrame?.();
       if (frame.type === "hello") {
-        attempt = 0;
+        clearConnectTimer();
+        failedAttempts = 0;
         opts.onConnectionChange("connected");
         opts.onHello({ token_required: frame.token_required });
         return;
@@ -63,33 +140,45 @@ export function createWsClient(opts: WsClientOptions) {
     };
 
     ws.onerror = () => {
-      ws?.close();
+      if (stopped) return;
+      afterFailure("ws_error");
     };
 
     ws.onclose = () => {
-      ws = null;
-      opts.onConnectionChange("disconnected");
-      scheduleReconnect();
+      if (stopped) return;
+      if (ws) {
+        ws.onopen = null;
+        ws.onmessage = null;
+        ws.onerror = null;
+        ws.onclose = null;
+        ws = null;
+      }
+      clearConnectTimer();
+      if (!autoReconnect) {
+        opts.onConnectionChange("disconnected");
+        return;
+      }
+      afterFailure("disconnected_reconnecting");
     };
   }
 
   function connect() {
     stopped = false;
-    attempt = 0;
-    if (ws) {
-      ws.close();
-      ws = null;
-    }
+    autoReconnect = true;
+    failedAttempts = 0;
+    clearReconnect();
+    clearConnectTimer();
+    closeSocket();
     openSocket();
   }
 
   function disconnect() {
     stopped = true;
+    autoReconnect = false;
+    failedAttempts = 0;
     clearReconnect();
-    if (ws) {
-      ws.close();
-      ws = null;
-    }
+    clearConnectTimer();
+    closeSocket();
     opts.onConnectionChange("disconnected");
   }
 
