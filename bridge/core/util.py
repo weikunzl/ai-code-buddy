@@ -1,5 +1,12 @@
+import hashlib
 import json
+import os
 from typing import Any
+
+
+def stable_local_sid(cwd: str) -> str:
+    key = (cwd or os.getcwd()).encode("utf-8")
+    return f"local_{hashlib.sha256(key).hexdigest()[:12]}"
 
 
 def _clip(value: Any, n: int) -> str:

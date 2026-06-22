@@ -4,7 +4,7 @@ import threading
 import unittest
 import urllib.request
 
-from bridge.core.state import BridgeState
+from bridge.core.state import BridgeState, SESSION_DONE_TTL_S
 from bridge.server.http import run_http
 
 
@@ -38,12 +38,114 @@ class BridgeStateTests(unittest.TestCase):
         ok = state.handle_device_command({"cmd": "permission", "id": "req_1", "decision": "once"})
         self.assertTrue(ok)
         self.assertEqual(state.decisions["req_1"], "once")
+        hb = state.build_heartbeat(now=11)
+        self.assertNotIn("pending", hb)
+
+    def test_prune_stale_running_session(self):
+        state = BridgeState()
+        state.upsert_session(
+            sid="s_old",
+            cwd="/tmp/repo",
+            project="repo",
+            branch="main",
+            dirty=0,
+            phase="running",
+            model="codex",
+            last="stale",
+            now=100,
+        )
+        state.upsert_session(
+            sid="s_live",
+            cwd="/tmp/other",
+            project="other",
+            branch="main",
+            dirty=0,
+            phase="running",
+            model="codex",
+            last="live",
+            now=2800,
+        )
+        hb = state.build_heartbeat(now=2801)
+        self.assertEqual(hb["total"], 1)
+        self.assertEqual(hb["sessions"][0]["sid"], "s_live")
+
+    def test_prune_done_session_after_ttl(self):
+        state = BridgeState()
+        state.upsert_session(
+            sid="s_done",
+            cwd="/tmp/repo",
+            project="repo",
+            branch="main",
+            dirty=0,
+            phase="done",
+            model="codex",
+            last="session done",
+            now=100,
+        )
+        hb = state.build_heartbeat(now=100 + 59)
+        self.assertEqual(hb["total"], 0)
+        self.assertIn("s_done", state.sessions)
+        hb = state.build_heartbeat(now=100 + 61)
+        self.assertEqual(hb["total"], 0)
+        self.assertNotIn("s_done", state.sessions)
+
+    def test_observe_notification_does_not_create_session(self):
+        state = BridgeState()
+        from bridge.core.hooks import apply_hook
+
+        apply_hook(state, {
+            "hook_event_name": "Notification",
+            "observe_only": True,
+            "session_id": "c1",
+            "cwd": "/tmp",
+            "model": "cursor",
+            "message": "$ lsof -i :9877",
+        }, now=100)
+        hb = state.build_heartbeat(now=101)
+        self.assertEqual(hb["total"], 0)
+        self.assertNotIn("sessions", hb)
+        self.assertNotIn("entries", hb)
+
+    def test_observe_notification_appends_entry_when_session_active(self):
+        state = BridgeState()
+        from bridge.core.hooks import apply_hook
+
+        state.upsert_session(
+            "c1", "/tmp/proj", "proj", "main", 0, "running", "cursor", "working", now=50,
+        )
+        apply_hook(state, {
+            "hook_event_name": "Notification",
+            "observe_only": True,
+            "session_id": "c1",
+            "cwd": "/tmp/proj",
+            "model": "cursor",
+            "message": "$ npm test",
+        }, now=100)
+        hb = state.build_heartbeat(now=101)
+        self.assertEqual(hb["total"], 1)
+        self.assertTrue(hb["entries"][0].endswith("$ npm test"))
+
+    def test_entries_cleared_when_no_active_sessions(self):
+        state = BridgeState()
+        state.upsert_session(
+            "s1", "/tmp", "p", "main", 0, "running", "cursor", "hi", now=100,
+        )
+        state.append_entry("line", now=101)
+        state.upsert_session(
+            "s1", "/tmp", "p", "main", 0, "done", "cursor", "done", now=200,
+        )
+        hb = state.build_heartbeat(now=200 + SESSION_DONE_TTL_S + 1)
+        self.assertEqual(hb["total"], 0)
+        self.assertNotIn("entries", hb)
 
 
 class _FakeRuntime:
     def __init__(self, state: BridgeState) -> None:
         self.state = state
         self.bump = threading.Event()
+
+    def send_snapshot(self) -> None:
+        pass
 
 
 class HttpServerTests(unittest.TestCase):
@@ -69,7 +171,9 @@ class HttpServerTests(unittest.TestCase):
 
         def decide():
             import time
-            time.sleep(0.1)
+            deadline = time.time() + 3
+            while time.time() < deadline and "q1" not in state.pending:
+                time.sleep(0.01)
             state.handle_device_command({"cmd": "answer", "id": "q1", "choice": "a"})
 
         threading.Thread(target=decide, daemon=True).start()

@@ -107,6 +107,7 @@ def test_shell_safe(mod) -> None:
         "cwd": "/tmp/proj",
     })
     check("observe via Notification", posts[0]["hook_event_name"] == "Notification")
+    check("observe_only flag", posts[0].get("observe_only") is True)
     check("no permission field (defer)", "permission" not in out)
 
 

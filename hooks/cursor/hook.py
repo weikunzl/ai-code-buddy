@@ -203,6 +203,7 @@ def on_before_shell(ev: dict[str, Any]) -> int:
         post_bridge(
             {
                 "hook_event_name": "Notification",
+                "observe_only": True,
                 "session_id": sid,
                 "cwd": cwd,
                 "model": model(ev),
@@ -245,17 +246,7 @@ def on_before_shell(ev: dict[str, Any]) -> int:
 
 
 def on_after_shell(ev: dict[str, Any]) -> int:
-    command = str(ev.get("command") or "")
-    post_bridge(
-        {
-            "hook_event_name": "Notification",
-            "session_id": session_id(ev),
-            "cwd": session_cwd(ev),
-            "model": model(ev),
-            "message": f"ran {command}"[:120],
-        },
-        timeout=2.0,
-    )
+    # Observe-only commands are logged in beforeShell; skip duplicate "ran …" lines.
     return emit({})
 
 

@@ -9,7 +9,12 @@ from collections import OrderedDict, deque
 from dataclasses import dataclass, field
 from typing import Any
 
-from bridge.core.util import _clip
+from bridge.core.util import _clip, stable_local_sid
+
+# Sessions without hook updates are considered orphaned (Cursor often omits Stop).
+SESSION_STALE_S = 900
+# Completed sessions are kept briefly for the completion event, then removed.
+SESSION_DONE_TTL_S = 60
 
 
 @dataclass
@@ -122,6 +127,43 @@ class BridgeState:
         times = [p.pending_since for p in self.pending.values() if p.sid == sid]
         return min(times) if times else 0
 
+    def _remove_session_unlocked(self, sid: str) -> None:
+        self.sessions.pop(sid, None)
+        removed = [pid for pid, pending in self.pending.items() if pending.sid == sid]
+        for pid in removed:
+            self.pending.pop(pid, None)
+            self.decisions.pop(pid, None)
+        if self.focused_sid == sid:
+            self.focused_sid = ""
+            for s in reversed(self.sessions.values()):
+                if s.phase in ("running", "waiting"):
+                    self.focused_sid = s.sid
+                    break
+
+    def prune_stale_sessions(self, now: int | None = None) -> bool:
+        now = int(now if now is not None else time.time())
+        changed = False
+        with self.lock:
+            for sid in list(self.sessions.keys()):
+                sess = self.sessions[sid]
+                age = now - sess.updated_at
+                if sess.phase == "done" and age >= SESSION_DONE_TTL_S:
+                    self._remove_session_unlocked(sid)
+                    changed = True
+                elif sess.phase in ("running", "waiting") and age >= SESSION_STALE_S:
+                    self._remove_session_unlocked(sid)
+                    changed = True
+        return changed
+
+    def append_entry(self, message: str, now: int | None = None) -> None:
+        now = int(now if now is not None else time.time())
+        line = f"{time.strftime('%H:%M', time.localtime(now))} {_clip(message, 72)}"
+        with self.lock:
+            active = [s for s in self.sessions.values() if s.phase in ("running", "waiting")]
+            if not active:
+                return
+            self.entries.appendleft(line)
+
     def clear_pending_for_session(self, sid: str) -> None:
         with self.lock:
             removed = [pid for pid, pending in self.pending.items() if pending.sid == sid]
@@ -149,7 +191,7 @@ class BridgeState:
     ) -> None:
         now = int(now if now is not None else time.time())
         if not sid:
-            sid = f"local_{now}"
+            sid = stable_local_sid(cwd)
         with self.lock:
             old = self.sessions.get(sid)
             started = old.started_at if old else now
@@ -177,7 +219,7 @@ class BridgeState:
             )
             if not self.focused_sid:
                 self.focused_sid = sid
-            if last:
+            if last and phase != "done":
                 self.entries.appendleft(f"{time.strftime('%H:%M')} {_clip(last, 72)}")
 
     def add_pending(
@@ -217,19 +259,22 @@ class BridgeState:
                 self.sessions[sid].phase = "waiting"
                 self.sessions[sid].waiting_since = self._oldest_pending_since(sid)
 
+    def _acknowledge_pending_unlocked(self, pid: str) -> None:
+        pending = self.pending.pop(pid, None)
+        if pending and pending.sid in self.sessions:
+            sess = self.sessions[pending.sid]
+            pending_since = self._oldest_pending_since(pending.sid)
+            if pending_since:
+                sess.phase = "waiting"
+                sess.waiting_since = pending_since
+            else:
+                sess.phase = "running"
+                sess.waiting_since = 0
+
     def resolve_pending(self, pid: str) -> None:
         with self.lock:
             self.decisions.pop(pid, None)
-            pending = self.pending.pop(pid, None)
-            if pending and pending.sid in self.sessions:
-                sess = self.sessions[pending.sid]
-                pending_since = self._oldest_pending_since(pending.sid)
-                if pending_since:
-                    sess.phase = "waiting"
-                    sess.waiting_since = pending_since
-                else:
-                    sess.phase = "running"
-                    sess.waiting_since = 0
+            self._acknowledge_pending_unlocked(pid)
 
     def handle_device_command(self, obj: dict[str, Any]) -> bool:
         cmd = obj.get("cmd")
@@ -239,6 +284,7 @@ class BridgeState:
                 decision = str(obj.get("decision") or "")
                 if pid in self.pending and decision in ("once", "deny"):
                     self.decisions[pid] = decision
+                    self._acknowledge_pending_unlocked(pid)
                     return True
                 return False
             if cmd == "answer":
@@ -248,6 +294,7 @@ class BridgeState:
                 if pending and pending.kind in ("single_choice", "free_text_required") and choice:
                     if any(opt.get("id") == choice for opt in pending.options):
                         self.decisions[pid] = choice
+                        self._acknowledge_pending_unlocked(pid)
                         return True
                 raw_choices = obj.get("choices")
                 if pending and pending.kind == "multi_choice" and isinstance(raw_choices, list):
@@ -263,6 +310,7 @@ class BridgeState:
                         selected.append(raw)
                     if selected:
                         self.decisions[pid] = selected
+                        self._acknowledge_pending_unlocked(pid)
                         return True
                 return False
             if cmd == "focus":
@@ -343,24 +391,29 @@ class BridgeState:
 
     def build_heartbeat(self, now: int | None = None) -> dict[str, Any]:
         now = int(now if now is not None else time.time())
+        self.prune_stale_sessions(now)
         with self.lock:
+            active = [s for s in self.sessions.values() if s.phase in ("running", "waiting")]
             focused = self.sessions.get(self.focused_sid)
-            if not focused and self.sessions:
-                focused = next(reversed(self.sessions.values()))
-                self.focused_sid = focused.sid
+            if not focused or focused.phase not in ("running", "waiting"):
+                focused = active[-1] if active else None
+                self.focused_sid = focused.sid if focused else ""
             active_pending = next(iter(self.pending.values()), None)
-            running = sum(1 for s in self.sessions.values() if s.phase == "running")
-            waiting = sum(1 for s in self.sessions.values() if s.phase == "waiting") or (1 if self.pending else 0)
+            running = sum(1 for s in active if s.phase == "running")
+            waiting = sum(1 for s in active if s.phase == "waiting") or (1 if self.pending else 0)
             msg = active_pending.title if active_pending else (focused.last if focused else "idle")
+            if not active and not self.pending:
+                self.entries.clear()
             hb: dict[str, Any] = {
-                "total": len(self.sessions),
+                "total": len(active),
                 "running": running,
                 "waiting": waiting,
                 "msg": _clip(msg, 23),
-                "entries": list(self.entries),
                 "tokens": 0,
                 "tokens_today": 0,
             }
+            if self.entries:
+                hb["entries"] = list(self.entries)
             if focused:
                 hb.update({
                     "focused": focused.sid,
@@ -371,7 +424,7 @@ class BridgeState:
                     "assistant_msg": focused.last,
                 })
             sessions = []
-            for s in list(self.sessions.values())[:5]:
+            for s in active[:5]:
                 sessions.append({
                     "sid": s.sid,
                     "project": s.project,

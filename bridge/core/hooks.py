@@ -5,7 +5,7 @@ import time
 from typing import Any
 
 from bridge.core.state import BridgeState
-from bridge.core.util import _clip
+from bridge.core.util import _clip, stable_local_sid
 
 
 def git_value(cwd: str, *args: str) -> str:
@@ -91,7 +91,9 @@ def apply_hook(
 
     now = int(now if now is not None else time.time())
     event = str(payload.get("hook_event_name") or "")
-    sid = str(payload.get("session_id") or f"local_{now}")
+    sid = str(payload.get("session_id") or "").strip()
+    if not sid:
+        sid = stable_local_sid(str(payload.get("cwd") or os.getcwd()))
     cwd = str(payload.get("cwd") or os.getcwd())
     project = project_name(cwd)
     branch = git_value(cwd, "rev-parse", "--abbrev-ref", "HEAD") or ""
@@ -140,6 +142,10 @@ def apply_hook(
                 return {"choices": decision}
             return {}
         lower = message.lower()
+        if payload.get("observe_only"):
+            state.append_entry(message, now)
+            notify_state_change()
+            return {}
         phase = "waiting" if "waiting" in lower or "permission" in lower else "running"
         state.upsert_session(sid, cwd, project, branch, dirty, phase, model, message, now)
         notify_state_change()
