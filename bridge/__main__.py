@@ -21,6 +21,11 @@ def main() -> int:
     parser.add_argument("--interval", type=float, default=1.0)
     parser.add_argument("--http-port", type=int, default=9876)
     parser.add_argument("--ws-port", type=int, default=9877)
+    parser.add_argument(
+        "--ws-host",
+        default="0.0.0.0",
+        help="WebSocket bind address (0.0.0.0 for LAN / Expo Go on phone)",
+    )
     parser.add_argument("--simulate-profile", choices=("permission", "single", "multi"), default="permission")
     parser.add_argument("--transport", choices=("stdout", "ble", "serial", "websocket"), default="stdout")
     parser.add_argument("--serial-port", default="", help="USB serial device path")
@@ -31,7 +36,7 @@ def main() -> int:
     elif args.transport == "serial":
         transport = SerialTransport(port=args.serial_port, baud=args.serial_baud)
     elif args.transport == "websocket":
-        transport = WebSocketTransport(port=args.ws_port)
+        transport = WebSocketTransport(host=args.ws_host, port=args.ws_port)
     else:
         transport = StdoutTransport()
     if args.simulate:
@@ -39,27 +44,49 @@ def main() -> int:
     state = BridgeState()
     runtime = BridgeRuntime(state, transport)
     reader = LineReader(state, on_command=runtime.bump.set)
+
+    server = None
+    if args.http_port > 0:
+        try:
+            server = run_http(state, runtime, args.http_port)
+            print(f"[http] listening on 127.0.0.1:{args.http_port}", file=sys.stderr)
+        except OSError as exc:
+            if args.transport == "websocket":
+                print(
+                    f"[http] could not bind 127.0.0.1:{args.http_port} ({exc}); "
+                    "continuing WebSocket-only (phone OK, hooks need HTTP)",
+                    file=sys.stderr,
+                )
+            else:
+                raise
+
     if hasattr(transport, "start"):
         if getattr(transport, "accepts_dict", False):
             transport.start(runtime.on_device_message)
         else:
             transport.start(reader)
     threading.Thread(target=runtime.heartbeat_loop, daemon=True).start()
-    server = run_http(state, runtime, args.http_port)
-    print(f"[http] listening on 127.0.0.1:{args.http_port}", file=sys.stderr)
+
     discovery: BuddyDiscovery | None = None
     if args.transport == "websocket":
         discovery = BuddyDiscovery(ws_port=args.ws_port, http_port=args.http_port)
         discovery.register()
         print(f"[mdns] broadcasting _buddy._tcp on port {args.ws_port}", file=sys.stderr)
     try:
-        server.serve_forever()
+        if server is not None:
+            server.serve_forever()
+        else:
+            print("[bridge] running (WebSocket only); Ctrl+C to stop", file=sys.stderr)
+            while not runtime.stopped.is_set():
+                runtime.stopped.wait(timeout=3600)
     except KeyboardInterrupt:
         runtime.stopped.set()
         return 0
     finally:
         if discovery is not None:
             discovery.unregister()
+        if hasattr(transport, "stop"):
+            transport.stop()
 
 
 if __name__ == "__main__":

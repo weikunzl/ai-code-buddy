@@ -10,7 +10,7 @@ BRIDGE_VERSION = "0.1.0"
 class WebSocketTransport:
     accepts_dict = True
 
-    def __init__(self, host: str = "127.0.0.1", port: int = 9877) -> None:
+    def __init__(self, host: str = "0.0.0.0", port: int = 9877) -> None:
         self.host = host
         self.port = port
         self._clients: set[Any] = set()
