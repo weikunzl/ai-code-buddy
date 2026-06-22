@@ -1,12 +1,18 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Pressable,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
 } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useTranslation } from "react-i18next";
+import { BUDDY_WS_PORT, buildBridgeUrl, parseBridgeUrl } from "../bridge/bridgeUrl";
+import { translateErrorKey } from "../i18n";
+import { LanguagePicker } from "../components/LanguagePicker";
+import { PetNameEditor } from "../components/PetNameEditor";
 import { useConnectionStore } from "../store/connection";
 import { useBridge } from "../bridge/BridgeProvider";
 import type { SettingsStackParamList } from "../navigation/RootNavigator";
@@ -14,37 +20,95 @@ import type { SettingsStackParamList } from "../navigation/RootNavigator";
 type Props = NativeStackScreenProps<SettingsStackParamList, "SettingsMain">;
 
 export function SettingsScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const bridgeUrl = useConnectionStore((s) => s.bridgeUrl);
   const status = useConnectionStore((s) => s.status);
+  const lastError = useConnectionStore((s) => s.lastError);
   const setBridgeUrl = useConnectionStore((s) => s.setBridgeUrl);
+  const soundsMuted = useConnectionStore((s) => s.soundsMuted);
+  const setSoundsMuted = useConnectionStore((s) => s.setSoundsMuted);
   const { connect, disconnect } = useBridge();
 
+  const parsed = parseBridgeUrl(bridgeUrl);
+  const [host, setHost] = useState(parsed.host);
+  const [port, setPort] = useState(parsed.port || String(BUDDY_WS_PORT));
+
+  useEffect(() => {
+    const p = parseBridgeUrl(bridgeUrl);
+    setHost(p.host);
+    setPort(p.port || String(BUDDY_WS_PORT));
+  }, [bridgeUrl]);
+
   const connected = status === "connected";
+  const busy = status === "connecting";
+  const fullUrl = buildBridgeUrl(host, port);
+  const errorText = translateErrorKey(lastError);
+
+  function handleConnect() {
+    setBridgeUrl(fullUrl);
+    setTimeout(() => connect(), 0);
+  }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Bridge WebSocket URL</Text>
-      <Text style={styles.hint}>Manual LAN IP for MVP (mDNS discovery deferred).</Text>
+      <Text style={styles.label}>{t("settings.bridgeTitle", { port: BUDDY_WS_PORT })}</Text>
+      <Text style={styles.hint}>
+        {t("settings.bridgeHint", { port: BUDDY_WS_PORT })}
+      </Text>
+
+      <Text style={styles.fieldLabel}>{t("settings.lanIp")}</Text>
       <TextInput
         style={styles.input}
-        value={bridgeUrl}
-        onChangeText={setBridgeUrl}
+        value={host}
+        onChangeText={setHost}
         autoCapitalize="none"
         autoCorrect={false}
-        placeholder="ws://192.168.1.10:9877"
+        placeholder="192.168.1.10"
+        editable={!busy}
       />
 
+      <Text style={styles.fieldLabel}>{t("settings.port")}</Text>
+      <TextInput
+        style={styles.input}
+        value={port}
+        onChangeText={setPort}
+        autoCapitalize="none"
+        autoCorrect={false}
+        placeholder={String(BUDDY_WS_PORT)}
+        keyboardType="number-pad"
+        editable={!busy}
+      />
+
+      <Text style={styles.preview}>
+        {t("settings.urlPreview", { url: fullUrl || t("common.emDash") })}
+      </Text>
+
       <Pressable
-        style={[styles.btn, connected ? styles.disconnect : styles.connect]}
-        onPress={() => (connected ? disconnect() : connect())}
+        style={[styles.btn, connected ? styles.disconnect : styles.connect, busy && styles.disabled]}
+        onPress={() => (connected ? disconnect() : handleConnect())}
+        disabled={busy || (!connected && !host.trim())}
       >
-        <Text style={styles.btnText}>{connected ? "Disconnect" : "Connect"}</Text>
+        <Text style={styles.btnText}>
+          {busy ? t("common.connecting") : connected ? t("common.disconnect") : t("common.connect")}
+        </Text>
       </Pressable>
 
-      <Text style={styles.status}>Status: {status}</Text>
+      <Text style={styles.status}>
+        {t("settings.status", { status: t(`connectionStatus.${status}`) })}
+      </Text>
+      {errorText ? <Text style={styles.error}>{errorText}</Text> : null}
+
+      <View style={styles.row}>
+        <Text style={styles.rowLabel}>{t("settings.sounds")}</Text>
+        <Switch value={!soundsMuted} onValueChange={(on) => setSoundsMuted(!on)} />
+      </View>
+
+      <LanguagePicker />
+
+      <PetNameEditor />
 
       <Pressable style={styles.link} onPress={() => navigation.navigate("PetEditor")}>
-        <Text style={styles.linkText}>Edit pet GIFs →</Text>
+        <Text style={styles.linkText}>{t("settings.editGifs")}</Text>
       </Pressable>
     </View>
   );
@@ -53,7 +117,8 @@ export function SettingsScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: "#fff" },
   label: { fontSize: 16, fontWeight: "600", marginBottom: 4 },
-  hint: { fontSize: 12, color: "#6b7280", marginBottom: 8 },
+  hint: { fontSize: 12, color: "#6b7280", marginBottom: 12, lineHeight: 18 },
+  fieldLabel: { fontSize: 13, fontWeight: "500", marginBottom: 4, color: "#374151" },
   input: {
     borderWidth: 1,
     borderColor: "#d1d5db",
@@ -61,8 +126,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    marginBottom: 16,
+    marginBottom: 12,
   },
+  preview: { fontSize: 12, color: "#6b7280", marginBottom: 16 },
   btn: {
     paddingVertical: 12,
     borderRadius: 8,
@@ -71,8 +137,18 @@ const styles = StyleSheet.create({
   },
   connect: { backgroundColor: "#2563eb" },
   disconnect: { backgroundColor: "#6b7280" },
+  disabled: { opacity: 0.6 },
   btnText: { color: "#fff", fontWeight: "600" },
-  status: { fontSize: 14, color: "#374151", marginBottom: 24 },
+  status: { fontSize: 14, color: "#374151", marginBottom: 8 },
+  error: { fontSize: 13, color: "#b91c1c", marginBottom: 16, lineHeight: 18 },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+    paddingVertical: 4,
+  },
+  rowLabel: { fontSize: 15, color: "#374151" },
   link: { paddingVertical: 8 },
   linkText: { fontSize: 16, color: "#2563eb" },
 });

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Claude Buddy",
-    "slug": "claude-buddy",
+    "name": "DevPet",
+    "slug": "devpet",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,14 +13,20 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocalNetworkUsageDescription": "Connect DevPet to the bridge on your computer over the local network.",
+        "NSBonjourServices": ["_buddy._tcp"],
+        "NSPhotoLibraryUsageDescription": "Choose GIF animations for your DevPet companion."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "usesCleartextTraffic": true
     },
     "web": {
       "favicon": "./assets/favicon.png"
