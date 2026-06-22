@@ -33,8 +33,21 @@ def run_http(state: BridgeState, runtime: BridgeRuntime, port: int, host: str = 
             except Exception as exc:
                 self._reply(400, encode_line({"error": str(exc)}))
                 return
-            response = apply_hook(state, payload, on_state_change=runtime.bump.set)
-            runtime.bump.set()
+            if not isinstance(payload, dict):
+                payload = {}
+            wait_for_decision = payload.pop("_buddy_wait", True) is not False
+
+            def on_change() -> None:
+                runtime.bump.set()
+                runtime.send_snapshot()
+
+            response = apply_hook(
+                state,
+                payload,
+                wait_for_decision=wait_for_decision,
+                on_state_change=on_change,
+            )
+            on_change()
             self._reply(200, json.dumps(response).encode("utf-8"))
 
     return ThreadingHTTPServer((host, port), Handler)

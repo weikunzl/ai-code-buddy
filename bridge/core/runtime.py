@@ -54,6 +54,7 @@ class BridgeRuntime:
     def on_device_message(self, obj: dict[str, Any]) -> None:
         if self.state.handle_device_command(obj):
             self.bump.set()
+            self.send_snapshot()
 
     def heartbeat_loop(self) -> None:
         last = 0.0
