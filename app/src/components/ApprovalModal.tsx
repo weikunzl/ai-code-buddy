@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -7,6 +7,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { useTranslation } from "react-i18next";
 import type { PendingItem } from "@protocol/index";
 import type { DeviceIntent } from "@protocol/index";
 
@@ -24,6 +25,7 @@ const APPROVAL_KINDS = new Set([
 ]);
 
 export function ApprovalModal({ pending, onSend, onDismiss }: Props) {
+  const { t } = useTranslation();
   const [selected, setSelected] = useState<string[]>([]);
   const visible = pending !== null && APPROVAL_KINDS.has(pending.kind);
 
@@ -68,10 +70,10 @@ export function ApprovalModal({ pending, onSend, onDismiss }: Props) {
           {pending.kind === "permission" && (
             <View style={styles.row}>
               <Pressable style={[styles.btn, styles.deny]} onPress={denyPermission}>
-                <Text style={styles.btnText}>Deny</Text>
+                <Text style={styles.btnText}>{t("approval.deny")}</Text>
               </Pressable>
               <Pressable style={[styles.btn, styles.approve]} onPress={approvePermission}>
-                <Text style={styles.btnText}>Allow once</Text>
+                <Text style={styles.btnText}>{t("approval.allowOnce")}</Text>
               </Pressable>
             </View>
           )}
@@ -106,12 +108,12 @@ export function ApprovalModal({ pending, onSend, onDismiss }: Props) {
               disabled={selected.length === 0}
               onPress={submitMulti}
             >
-              <Text style={styles.btnText}>Submit</Text>
+              <Text style={styles.btnText}>{t("common.submit")}</Text>
             </Pressable>
           )}
 
           {pending.kind === "free_text_required" && (
-            <Text style={styles.hint}>Free-text prompts require IDE input for now.</Text>
+            <Text style={styles.hint}>{t("approval.freeTextHint")}</Text>
           )}
         </View>
       </View>
