@@ -57,4 +57,13 @@ export interface AnswerIntent {
   choices?: string[];
 }
 
-export type DeviceIntent = PermissionIntent | AnswerIntent | { cmd: string; [key: string]: unknown };
+export interface FocusIntent {
+  cmd: "focus";
+  sid: string;
+}
+
+export type DeviceIntent =
+  | PermissionIntent
+  | AnswerIntent
+  | FocusIntent
+  | { cmd: string; [key: string]: unknown };
