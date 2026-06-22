@@ -13,10 +13,10 @@ const PLACEHOLDER_COLORS: Record<PetState, string> = {
   heart: "#ec4899",
 };
 
-const STATE_LABELS: Record<PetState, string> = {
+const STATE_SYMBOLS: Record<PetState, string> = {
   sleep: "Zzz",
-  idle: "Idle",
-  busy: "Busy",
+  idle: "·",
+  busy: "…",
   attention: "!",
   celebrate: "★",
   dizzy: "@",
@@ -53,7 +53,9 @@ export function GifRenderer({ state, size = 160 }: Props) {
         },
       ]}
     >
-      <Text style={styles.label}>{STATE_LABELS[state]}</Text>
+      <Text style={[styles.label, size < 100 && styles.labelSmall]}>
+        {STATE_SYMBOLS[state]}
+      </Text>
     </View>
   );
 }
@@ -67,5 +69,8 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 32,
     fontWeight: "700",
+  },
+  labelSmall: {
+    fontSize: 22,
   },
 });
