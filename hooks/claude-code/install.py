@@ -31,7 +31,7 @@ EVENTS = (
 
 
 def hook_command() -> str:
-    return f'/usr/bin/env python3 "{HOOK_SCRIPT}"'
+    return f'/usr/bin/env PYTHONPATH="{REPO_ROOT}" python3 "{HOOK_SCRIPT}"'
 
 
 def hook_entry() -> dict[str, object]:

@@ -35,8 +35,8 @@ EVENTS: dict[str, dict[str, object]] = {
 
 
 def hook_command() -> str:
-    # Absolute path so it resolves regardless of the hook process cwd.
-    return f'/usr/bin/env python3 "{HOOK_SCRIPT}"'
+    # PYTHONPATH so `import hooks.*` works when Cursor runs from any cwd.
+    return f'/usr/bin/env PYTHONPATH="{REPO_ROOT}" python3 "{HOOK_SCRIPT}"'
 
 
 def is_ours(entry: object) -> bool:

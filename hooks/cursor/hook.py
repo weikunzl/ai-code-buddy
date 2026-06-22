@@ -30,10 +30,15 @@ from __future__ import annotations
 import json
 import os
 import re
+import pathlib
 import sys
 import urllib.error
 import urllib.request
 from typing import Any
+
+_REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 from hooks.common.client import bridge_url
 

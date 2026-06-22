@@ -4,8 +4,13 @@ from __future__ import annotations
 
 import json
 import os
+import pathlib
 import sys
 from typing import Any
+
+_REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 from hooks.common.client import bridge_url
 from hooks.common.relay import forward_hook
