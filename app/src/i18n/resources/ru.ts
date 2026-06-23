@@ -3,6 +3,7 @@ export default {
     pet: "DevPet",
     sessions: "Сессии",
     settings: "Настройки",
+    bridgeSetup: "Установка Bridge",
     petGifs: "GIF {{product}}",
   },
   common: {
@@ -35,12 +36,23 @@ export default {
     step3: "3. Или начните чат в Cursor — хуки автоматически запустят bridge (по умолчанию).",
     step4: "4. В настройках ниже введите LAN IP компьютера и нажмите «Подключить». Пример:",
     wsExample: "ws://192.168.x.x:{{port}}",
+    screenIntro: "Выполните шаги на компьютере, затем введите LAN IP в настройках.",
+    hooksTitle: "Один раз: хуки Cursor / Claude Code",
+    hooksBody: "npm CLI запускает bridge. Хуки требуют git-клон.",
+    hooksStep1: "1. Клонировать репозиторий:",
+    cmdCloneRepo: "git clone https://github.com/weikunzl/ai-code-buddy.git",
+    hooksStep2: "2. Установить bridge и хуки:",
+    cmdInstallDesktop: "./tools/install-desktop.sh",
+    hooksHint: "Можно запускать повторно после обновления хуков.",
+    openSettings: "Перейти в настройки",
+    done: "Готово",
   },
   home: {
     notConnected: "Нет подключения к bridge",
     connecting: "Подключение к bridge…",
     reconnectGaveUp: "Не удалось подключиться. Нажмите «Подключить», когда будете готовы.",
     tapConnect: "Подключить",
+    openBridgeGuide: "Полная инструкция →",
     watching: "Ожидание сессий…",
     stats: "{{running}} активных · {{waiting}} ожидают · {{total}} всего",
   },
@@ -83,6 +95,49 @@ export default {
     languageZh: "中文",
     languageKo: "한국어",
     languageRu: "Русский",
+    openBridgeGuide: "Установка Bridge (компьютер) →",
+  },
+  help: {
+    title: "Справка",
+    subtitle: "Нажмите на вопрос, чтобы развернуть. По умолчанию всё свёрнуто.",
+    faq: {
+      wifi: {
+        q: "Телефон не подключается — с чего начать?",
+        a: "Одна Wi‑Fi, devpet-bridge restart, LAN IP компьютера (не 127.0.0.1) в ws://IP:9877.",
+      },
+      lanIp: {
+        q: "Почему нельзя 127.0.0.1?",
+        a: "Это адрес самого телефона. Укажите LAN IP компьютера.",
+      },
+      installCli: {
+        q: "Как установить devpet-bridge?",
+        a: "npm install -g github:weikunzl/ai-code-buddy#feat/mobile-buddy\nзатем devpet-bridge restart",
+      },
+      installHooks: {
+        q: "Нужен ли клон репозитория?",
+        a: "Да, для хуков Cursor. Выполните ./tools/install-desktop.sh один раз.",
+      },
+      wsError: {
+        q: "Ошибка WebSocket",
+        a: "Проверьте bridge, IP, Wi‑Fi и разрешение локальной сети на iOS.",
+      },
+      ports: {
+        q: "Порты 9876 и 9877",
+        a: "9876 — HTTP для хуков, 9877 — WebSocket для телефона. Один процесс bridge.",
+      },
+      sessions: {
+        q: "Сессии пропали после переключения",
+        a: "Завершённые сессии видны 24 часа. В сводке только активные.",
+      },
+      notifications: {
+        q: "Нет уведомлений на Android",
+        a: "Expo Go на Android не поддерживает системные уведомления.",
+      },
+      restart: {
+        q: "Таймаут одобрения",
+        a: "Возможно два bridge. Запустите devpet-bridge restart.",
+      },
+    },
   },
   notifications: {
     approvalTitle: "Требуется одобрение",

@@ -10,15 +10,16 @@ import {
   View,
 } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { BUDDY_WS_PORT, buildBridgeUrl, parseBridgeUrl } from "../bridge/bridgeUrl";
 import { translateErrorKey } from "../i18n";
 import { LanguagePicker } from "../components/LanguagePicker";
-import { BridgeSetupGuide } from "../components/BridgeSetupGuide";
+import { HelpFaqSection } from "../components/HelpFaqSection";
 import { PetNameEditor } from "../components/PetNameEditor";
 import { useConnectionStore } from "../store/connection";
 import { useBridge } from "../bridge/BridgeProvider";
-import type { SettingsStackParamList } from "../navigation/RootNavigator";
+import type { SettingsStackParamList } from "../navigation/types";
 
 type Props = NativeStackScreenProps<SettingsStackParamList, "SettingsMain">;
 
@@ -66,6 +67,10 @@ export function SettingsScreen({ navigation }: Props) {
     setTimeout(() => connect(), 0);
   }
 
+  function openBridgeGuide() {
+    navigation.navigate("BridgeSetup");
+  }
+
   return (
     <ScrollView
       style={styles.scroll}
@@ -75,6 +80,16 @@ export function SettingsScreen({ navigation }: Props) {
       keyboardShouldPersistTaps="handled"
       nestedScrollEnabled
     >
+      <Pressable
+        style={styles.guideBanner}
+        onPress={openBridgeGuide}
+        accessibilityRole="button"
+      >
+        <Ionicons name="laptop-outline" size={20} color="#2563eb" />
+        <Text style={styles.guideBannerText}>{t("settings.openBridgeGuide")}</Text>
+        <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
+      </Pressable>
+
       <SettingsSection first>
         <Text style={styles.label}>{t("settings.bridgeTitle", { port: BUDDY_WS_PORT })}</Text>
         <Text style={styles.hint}>
@@ -122,11 +137,6 @@ export function SettingsScreen({ navigation }: Props) {
           {t("settings.status", { status: t(`connectionStatus.${status}`) })}
         </Text>
         {errorText ? <Text style={styles.error}>{errorText}</Text> : null}
-        {!connected ? (
-          <View style={styles.guideWrap}>
-            <BridgeSetupGuide />
-          </View>
-        ) : null}
       </SettingsSection>
 
       <SettingsSection>
@@ -150,13 +160,35 @@ export function SettingsScreen({ navigation }: Props) {
           <Text style={styles.linkText}>{t("settings.editGifs")}</Text>
         </Pressable>
       </SettingsSection>
+
+      <SettingsSection>
+        <HelpFaqSection />
+      </SettingsSection>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: "#fff" },
-  content: { paddingHorizontal: 20, paddingBottom: 32 },
+  content: { paddingHorizontal: 20, paddingBottom: 32, paddingTop: 12 },
+  guideBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#eff6ff",
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "#bfdbfe",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 4,
+  },
+  guideBannerText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1d4ed8",
+  },
   section: {
     paddingVertical: 16,
   },
@@ -190,7 +222,6 @@ const styles = StyleSheet.create({
   btnText: { color: "#fff", fontWeight: "600" },
   status: { fontSize: 14, color: "#374151", marginBottom: 4 },
   error: { fontSize: 13, color: "#b91c1c", lineHeight: 18, marginBottom: 8 },
-  guideWrap: { marginTop: 12 },
   row: {
     flexDirection: "row",
     alignItems: "center",

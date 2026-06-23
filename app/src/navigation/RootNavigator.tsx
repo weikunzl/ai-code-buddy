@@ -8,12 +8,11 @@ import { PRODUCT_NAME } from "../constants/product";
 import { HomeScreen } from "../screens/HomeScreen";
 import { SessionsScreen } from "../screens/SessionsScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
+import { BridgeSetupScreen } from "../screens/BridgeSetupScreen";
 import { PetEditorScreen } from "../screens/PetEditorScreen";
-
-export type SettingsStackParamList = {
-  SettingsMain: undefined;
-  PetEditor: undefined;
-};
+import type { SettingsStackParamList } from "./types";
+export type { SettingsStackParamList } from "./types";
+import { navigationRef } from "./navigationRef";
 
 const Tab = createBottomTabNavigator();
 const SettingsStack = createNativeStackNavigator<SettingsStackParamList>();
@@ -36,6 +35,14 @@ function SettingsStackScreen() {
         options={{ title: t("nav.settings") }}
       />
       <SettingsStack.Screen
+        name="BridgeSetup"
+        component={BridgeSetupScreen}
+        options={{
+          title: t("nav.bridgeSetup"),
+          presentation: "modal",
+        }}
+      />
+      <SettingsStack.Screen
         name="PetEditor"
         component={PetEditorScreen}
         options={{ title: t("nav.petGifs", { product: PRODUCT_NAME }) }}
@@ -48,7 +55,7 @@ export function RootNavigator() {
   const { t } = useTranslation();
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Tab.Navigator
         screenOptions={{
           headerShown: true,
