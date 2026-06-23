@@ -13,7 +13,7 @@ import pathlib
 from contextlib import redirect_stdout
 from typing import Any
 
-HOOK_PATH = pathlib.Path(__file__).resolve().parent / "cursor_hook.py"
+HOOK_PATH = pathlib.Path(__file__).resolve().parent.parent / "hooks" / "cursor" / "hook.py"
 
 
 def load_module():
@@ -107,6 +107,7 @@ def test_shell_safe(mod) -> None:
         "cwd": "/tmp/proj",
     })
     check("observe via Notification", posts[0]["hook_event_name"] == "Notification")
+    check("observe_only flag", posts[0].get("observe_only") is True)
     check("no permission field (defer)", "permission" not in out)
 
 

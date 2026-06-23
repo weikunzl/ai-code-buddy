@@ -533,8 +533,9 @@ class HookHandlingTests(unittest.TestCase):
         hb = state.build_heartbeat(now=31)
         self.assertEqual(hb["running"], 0)
         self.assertEqual(hb["waiting"], 0)
+        self.assertEqual(hb["total"], 0)
         self.assertNotIn("pending", hb)
-        self.assertEqual(hb["sessions"][0]["phase"], "done")
+        self.assertNotIn("sessions", hb)
         self.assertEqual(hb["event"]["kind"], "complete")
 
     def test_notification_single_choice_prompt_waits_for_and_returns_decision(self):

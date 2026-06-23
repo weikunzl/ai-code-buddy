@@ -15,4 +15,4 @@ home screen rotates through different blinks and glances instead of looping
 one clip.
 
 Drag this folder onto the Hardware Buddy window to install, or
-`python3 tools/flash_character.py characters/bufo` to flash over USB.
+`python3 tools/flash_character.py firmware/characters/bufo` to flash over USB.

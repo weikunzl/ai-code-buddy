@@ -5,3 +5,6 @@ data/
 __pycache__/
 *.pyc
 .buddy_audio/
+.buddy/
+.venv/
+*.egg-info/

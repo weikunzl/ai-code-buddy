@@ -1,0 +1,33 @@
+{
+  "name": "devpet-cli",
+  "version": "0.1.0",
+  "description": "Global CLI to start the DevPet session bridge for Cursor and Claude Code hooks",
+  "keywords": ["devpet", "cursor", "claude", "bridge", "hooks"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/weikunzl/ai-code-buddy.git"
+  },
+  "bugs": {
+    "url": "https://github.com/weikunzl/ai-code-buddy/issues"
+  },
+  "homepage": "https://github.com/weikunzl/ai-code-buddy#readme",
+  "bin": {
+    "devpet-bridge": "bin/devpet-bridge.js"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "bridge",
+    "hooks",
+    "tools/ensure_bridge.py",
+    "tools/restart_bridge.sh",
+    "tools/start_bridge.sh"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "postinstall": "node lib/postinstall.js || true"
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DeviceIntent",
+  "oneOf": [
+    { "$ref": "#/$defs/PermissionIntent" },
+    { "$ref": "#/$defs/AnswerIntent" },
+    {
+      "type": "object",
+      "required": ["cmd"],
+      "properties": {
+        "cmd": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  ],
+  "$defs": {
+    "PermissionIntent": {
+      "type": "object",
+      "required": ["cmd", "id", "decision"],
+      "properties": {
+        "cmd": { "const": "permission" },
+        "id": { "type": "string" },
+        "decision": { "enum": ["once", "deny"] }
+      },
+      "additionalProperties": false
+    },
+    "AnswerIntent": {
+      "type": "object",
+      "required": ["cmd", "id"],
+      "properties": {
+        "cmd": { "const": "answer" },
+        "id": { "type": "string" },
+        "choice": { "type": "string" },
+        "choices": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

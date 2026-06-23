@@ -2,7 +2,7 @@
 """
 Prep a character pack: downscale GIFs to 96px with a CONSISTENT crop
 across all states, so the character is the same size in every animation.
-Writes to characters/<name>/ ready to drag onto the Hardware Buddy window.
+Writes to firmware/characters/<name>/ ready to drag onto the Hardware Buddy window.
 
 Usage:
   python3 tools/prep_character.py <character-dir-or-zip>
@@ -14,7 +14,7 @@ from PIL import Image, ImageSequence
 TARGET_W = 96
 REF_W    = 1000   # normalize to this before computing the cross-state bbox
 PROJECT  = Path(__file__).resolve().parent.parent
-OUT_ROOT = PROJECT / "characters"
+OUT_ROOT = PROJECT / "firmware" / "characters"
 
 
 def _load_normalized(src_path: Path) -> tuple[list[Image.Image], list[int]]:
