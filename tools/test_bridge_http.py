@@ -4,7 +4,7 @@ import threading
 import unittest
 import urllib.request
 
-from bridge.core.state import BridgeState, SESSION_DONE_TTL_S
+from bridge.core.state import BridgeState, SESSION_RETENTION_S
 from bridge.server.http import run_http
 
 
@@ -63,13 +63,13 @@ class BridgeStateTests(unittest.TestCase):
             phase="running",
             model="codex",
             last="live",
-            now=2800,
+            now=100 + SESSION_RETENTION_S - 10,
         )
-        hb = state.build_heartbeat(now=2801)
+        hb = state.build_heartbeat(now=100 + SESSION_RETENTION_S + 1)
         self.assertEqual(hb["total"], 1)
         self.assertEqual(hb["sessions"][0]["sid"], "s_live")
 
-    def test_prune_done_session_after_ttl(self):
+    def test_done_session_stays_visible_for_24h(self):
         state = BridgeState()
         state.upsert_session(
             sid="s_done",
@@ -82,11 +82,14 @@ class BridgeStateTests(unittest.TestCase):
             last="session done",
             now=100,
         )
-        hb = state.build_heartbeat(now=100 + 59)
+        hb = state.build_heartbeat(now=100 + 3600)
         self.assertEqual(hb["total"], 0)
+        self.assertEqual(hb["sessions"][0]["sid"], "s_done")
+        self.assertEqual(hb["sessions"][0]["phase"], "done")
         self.assertIn("s_done", state.sessions)
-        hb = state.build_heartbeat(now=100 + 61)
+        hb = state.build_heartbeat(now=100 + SESSION_RETENTION_S + 1)
         self.assertEqual(hb["total"], 0)
+        self.assertNotIn("sessions", hb)
         self.assertNotIn("s_done", state.sessions)
 
     def test_observe_notification_does_not_create_session(self):
@@ -134,7 +137,7 @@ class BridgeStateTests(unittest.TestCase):
         state.upsert_session(
             "s1", "/tmp", "p", "main", 0, "done", "cursor", "done", now=200,
         )
-        hb = state.build_heartbeat(now=200 + SESSION_DONE_TTL_S + 1)
+        hb = state.build_heartbeat(now=200 + SESSION_RETENTION_S + 1)
         self.assertEqual(hb["total"], 0)
         self.assertNotIn("entries", hb)
 

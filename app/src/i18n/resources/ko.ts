@@ -125,6 +125,8 @@ export default {
   },
   errors: {
     invalid_bridge_url: "유효한 URL을 입력하세요. 예: ws://192.168.1.10:9877",
+    bridge_url_missing: "위에 컴퓨터 LAN IP를 입력하세요(127.0.0.1 아님).",
+    bridge_url_loopback: "127.0.0.1은 컴퓨터에서만 동작합니다. LAN IP를 사용하세요.",
     connection_timeout:
       "연결 시간 초과. 브리지 실행, 동일 Wi‑Fi, LAN IP(127.0.0.1 아님)를 확인하세요.",
     invalid_ws_url: "WebSocket URL이 유효하지 않습니다.",

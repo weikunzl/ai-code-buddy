@@ -16,4 +16,6 @@ test("parseBridgeUrl", () => {
 test("validate ws url", () => {
   expect(isValidBridgeUrl("ws://192.168.1.5:9877")).toBe(true);
   expect(isValidBridgeUrl("")).toBe(false);
+  expect(isValidBridgeUrl("ws://127.0.0.1:9877")).toBe(false);
+  expect(isValidBridgeUrl("ws://localhost:9877")).toBe(false);
 });

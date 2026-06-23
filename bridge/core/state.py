@@ -11,10 +11,8 @@ from typing import Any
 
 from bridge.core.util import _clip, stable_local_sid
 
-# Sessions without hook updates are considered orphaned (Cursor often omits Stop).
-SESSION_STALE_S = 900
-# Completed sessions are kept briefly for the completion event, then removed.
-SESSION_DONE_TTL_S = 60
+# Drop sessions with no hook updates for this long (active or completed).
+SESSION_RETENTION_S = 86400  # 24h
 
 
 @dataclass
@@ -146,14 +144,19 @@ class BridgeState:
         with self.lock:
             for sid in list(self.sessions.keys()):
                 sess = self.sessions[sid]
-                age = now - sess.updated_at
-                if sess.phase == "done" and age >= SESSION_DONE_TTL_S:
-                    self._remove_session_unlocked(sid)
-                    changed = True
-                elif sess.phase in ("running", "waiting") and age >= SESSION_STALE_S:
+                if now - sess.updated_at >= SESSION_RETENTION_S:
                     self._remove_session_unlocked(sid)
                     changed = True
         return changed
+
+    def _active_sessions_unlocked(self) -> list[Session]:
+        return [s for s in self.sessions.values() if s.phase in ("running", "waiting")]
+
+    def _visible_sessions_unlocked(self) -> list[Session]:
+        active = self._active_sessions_unlocked()
+        done = [s for s in self.sessions.values() if s.phase == "done"]
+        done.sort(key=lambda s: s.updated_at, reverse=True)
+        return active + done
 
     def append_entry(self, message: str, now: int | None = None) -> None:
         now = int(now if now is not None else time.time())
@@ -393,16 +396,21 @@ class BridgeState:
         now = int(now if now is not None else time.time())
         self.prune_stale_sessions(now)
         with self.lock:
-            active = [s for s in self.sessions.values() if s.phase in ("running", "waiting")]
+            active = self._active_sessions_unlocked()
+            visible = self._visible_sessions_unlocked()
             focused = self.sessions.get(self.focused_sid)
-            if not focused or focused.phase not in ("running", "waiting"):
-                focused = active[-1] if active else None
+            if not focused:
+                if active:
+                    focused = active[-1]
+                else:
+                    done = [s for s in visible if s.phase == "done"]
+                    focused = done[0] if done else None
                 self.focused_sid = focused.sid if focused else ""
             active_pending = next(iter(self.pending.values()), None)
             running = sum(1 for s in active if s.phase == "running")
             waiting = sum(1 for s in active if s.phase == "waiting") or (1 if self.pending else 0)
             msg = active_pending.title if active_pending else (focused.last if focused else "idle")
-            if not active and not self.pending:
+            if not self.sessions and not self.pending:
                 self.entries.clear()
             hb: dict[str, Any] = {
                 "total": len(active),
@@ -424,7 +432,7 @@ class BridgeState:
                     "assistant_msg": focused.last,
                 })
             sessions = []
-            for s in active[:5]:
+            for s in visible[:10]:
                 sessions.append({
                     "sid": s.sid,
                     "project": s.project,

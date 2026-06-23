@@ -404,8 +404,9 @@ sends intent commands the firmware already understands:
 ```
 
 **Session lifecycle (bridge):** sessions are keyed by `session_id`. Completed
-sessions are removed after ~60s; orphaned `running` rows expire after ~15
-minutes without hook updates. `total` counts only active sessions.
+sessions stay visible in the app for **24 hours**; any session without hook
+updates for 24h is pruned. `total` counts only active (`running` / `waiting`)
+sessions.
 
 ## Hook relay and choice prompts
 

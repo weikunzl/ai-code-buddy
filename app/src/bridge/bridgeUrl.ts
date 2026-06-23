@@ -49,11 +49,19 @@ export function normalizeBridgeUrl(raw: string): string {
   return `ws://${trimmed}`;
 }
 
+export function isLoopbackHost(host: string): boolean {
+  const h = host.trim().toLowerCase();
+  return h === "localhost" || h === "127.0.0.1" || h === "::1" || h === "0.0.0.0";
+}
+
 export function isValidBridgeUrl(url: string): boolean {
   if (!url) return false;
   try {
     const u = new URL(url);
-    return (u.protocol === "ws:" || u.protocol === "wss:") && Boolean(u.hostname);
+    if (u.protocol !== "ws:" && u.protocol !== "wss:") return false;
+    if (!u.hostname) return false;
+    if (isLoopbackHost(u.hostname)) return false;
+    return true;
   } catch {
     return false;
   }

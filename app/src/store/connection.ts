@@ -4,7 +4,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { ConnectionStatus } from "../bridge/wsClient";
 import { BUDDY_WS_PORT } from "../bridge/bridgeUrl";
 
-export const DEFAULT_BRIDGE_URL = `ws://192.168.0.249:${BUDDY_WS_PORT}`;
+/** Empty until the user enters their computer's LAN IP in Settings. */
+export const DEFAULT_BRIDGE_URL = "";
 
 type ConnectionState = {
   status: ConnectionStatus;

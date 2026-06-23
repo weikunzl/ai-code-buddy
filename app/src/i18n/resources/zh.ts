@@ -124,6 +124,8 @@ export default {
   },
   errors: {
     invalid_bridge_url: "请输入有效地址，例如 ws://192.168.1.10:9877",
+    bridge_url_missing: "请在上方填入电脑的局域网 IP（不要用 127.0.0.1）。",
+    bridge_url_loopback: "127.0.0.1 只能在电脑上本机访问，请填局域网 IP。",
     connection_timeout:
       "连接超时。请确认 Bridge 已启动、同一 Wi‑Fi，并使用局域网 IP（不要用 127.0.0.1）。",
     invalid_ws_url: "WebSocket 地址无效。",

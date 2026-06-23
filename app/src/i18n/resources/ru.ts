@@ -125,6 +125,8 @@ export default {
   },
   errors: {
     invalid_bridge_url: "Введите корректный URL, напр. ws://192.168.1.10:9877",
+    bridge_url_missing: "Введите LAN IP компьютера выше (не 127.0.0.1).",
+    bridge_url_loopback: "127.0.0.1 работает только на компьютере. Используйте LAN IP.",
     connection_timeout:
       "Таймаут подключения. Проверьте bridge, одну Wi‑Fi сеть и LAN IP (не 127.0.0.1).",
     invalid_ws_url: "Некорректный WebSocket URL.",

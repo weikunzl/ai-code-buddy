@@ -125,6 +125,8 @@ export default {
   },
   errors: {
     invalid_bridge_url: "Enter a valid URL, e.g. ws://192.168.1.10:9877",
+    bridge_url_missing: "Enter your computer's LAN IP above (not 127.0.0.1).",
+    bridge_url_loopback: "127.0.0.1 only works on the computer itself. Use your LAN IP.",
     connection_timeout:
       "Connection timed out. Check bridge is running, same Wi‑Fi, and LAN IP (not 127.0.0.1).",
     invalid_ws_url: "Invalid WebSocket URL.",

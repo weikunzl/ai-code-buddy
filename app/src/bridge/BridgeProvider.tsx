@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import type { DeviceIntent } from "@protocol/index";
-import { isValidBridgeUrl, normalizeBridgeUrl } from "./bridgeUrl";
+import { isValidBridgeUrl, isLoopbackHost, normalizeBridgeUrl, parseBridgeUrl } from "./bridgeUrl";
 import { createWsClient } from "./wsClient";
 import { useConnectionStore } from "../store/connection";
 import { useSnapshotStore } from "../store/snapshot";
@@ -66,6 +66,17 @@ export function BridgeProvider({ children }: { children: React.ReactNode }) {
 
   const connect = useCallback(() => {
     const url = normalizeBridgeUrl(bridgeUrl);
+    if (!url) {
+      setLastError("bridge_url_missing");
+      setStatus("error");
+      return false;
+    }
+    const { host } = parseBridgeUrl(url);
+    if (isLoopbackHost(host)) {
+      setLastError("bridge_url_loopback");
+      setStatus("error");
+      return false;
+    }
     if (!isValidBridgeUrl(url)) {
       setLastError("invalid_bridge_url");
       setStatus("error");
@@ -85,9 +96,11 @@ export function BridgeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!storeReady || autoStartedRef.current || reconnectGaveUp) return;
+    const url = normalizeBridgeUrl(bridgeUrl);
+    if (!isValidBridgeUrl(url)) return;
     autoStartedRef.current = true;
     connect();
-  }, [storeReady, reconnectGaveUp, connect]);
+  }, [storeReady, reconnectGaveUp, connect, bridgeUrl]);
 
   const sendIntent = useCallback(
     (intent: DeviceIntent) => {

@@ -29,6 +29,7 @@ export function createWsClient(opts: WsClientOptions) {
   let stopped = true;
   let autoReconnect = false;
   let failedAttempts = 0;
+  let failing = false;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let connectTimer: ReturnType<typeof setTimeout> | null = null;
   const connectTimeoutMs = opts.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS;
@@ -71,19 +72,24 @@ export function createWsClient(opts: WsClientOptions) {
   }
 
   function afterFailure(code: string) {
+    if (failing) return;
+    failing = true;
     clearConnectTimer();
     closeSocket();
     failedAttempts += 1;
     opts.onError?.(code);
     if (!autoReconnect || stopped) {
       opts.onConnectionChange("error");
+      failing = false;
       return;
     }
     if (failedAttempts >= maxReconnectAttempts) {
       giveUp("reconnect_gave_up");
+      failing = false;
       return;
     }
     opts.onConnectionChange("disconnected");
+    failing = false;
     scheduleReconnect();
   }
 
@@ -108,6 +114,7 @@ export function createWsClient(opts: WsClientOptions) {
     if (stopped || !autoReconnect) return;
     clearReconnect();
     clearConnectTimer();
+    failing = false;
     opts.onConnectionChange("connecting");
 
     try {
@@ -145,7 +152,7 @@ export function createWsClient(opts: WsClientOptions) {
     };
 
     ws.onclose = () => {
-      if (stopped) return;
+      if (stopped || failing) return;
       if (ws) {
         ws.onopen = null;
         ws.onmessage = null;
