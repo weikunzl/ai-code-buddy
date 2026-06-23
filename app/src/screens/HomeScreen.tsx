@@ -1,7 +1,8 @@
 import React, { useMemo } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useBridge } from "../bridge/BridgeProvider";
+import { BridgeSetupGuide } from "../components/BridgeSetupGuide";
 import { derivePetState } from "../pet/derivePetState";
 import { GifRenderer } from "../pet/GifRenderer";
 import { useConnectionStore } from "../store/connection";
@@ -18,6 +19,7 @@ export function HomeScreen() {
   const petName = usePetProfile((s) => s.profile.name);
   const connected = status === "connected";
   const connecting = status === "connecting";
+  const showSetupGuide = !connected && !connecting;
 
   const petState = derivePetState(
     snapshot,
@@ -48,25 +50,37 @@ export function HomeScreen() {
         </Text>
       </View>
 
-      <View style={styles.petArea}>
-        <Text style={styles.petName}>{petName}</Text>
-        <GifRenderer state={petState} size={200} />
-        <Text style={styles.stateLabel}>{t(`petStates.${petState}`)}</Text>
-        {snapshot && connected ? (
-          <Text style={styles.stats}>
-            {t("home.stats", {
-              running: snapshot.running,
-              waiting: snapshot.waiting,
-              total: snapshot.total,
-            })}
-          </Text>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator
+      >
+        <View style={styles.petArea}>
+          <Text style={styles.petName}>{petName}</Text>
+          <GifRenderer state={petState} size={200} />
+          <Text style={styles.stateLabel}>{t(`petStates.${petState}`)}</Text>
+          {snapshot && connected ? (
+            <Text style={styles.stats}>
+              {t("home.stats", {
+                running: snapshot.running,
+                waiting: snapshot.waiting,
+                total: snapshot.total,
+              })}
+            </Text>
+          ) : null}
+          {showConnectCta ? (
+            <Pressable style={styles.connectBtn} onPress={() => connect()}>
+              <Text style={styles.connectBtnText}>{t("home.tapConnect")}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+
+        {showSetupGuide ? (
+          <View style={styles.guideWrap}>
+            <BridgeSetupGuide compact />
+          </View>
         ) : null}
-        {showConnectCta ? (
-          <Pressable style={styles.connectBtn} onPress={() => connect()}>
-            <Text style={styles.connectBtnText}>{t("home.tapConnect")}</Text>
-          </Pressable>
-        ) : null}
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -80,7 +94,9 @@ const styles = StyleSheet.create({
   },
   bannerOff: { backgroundColor: "#e5e7eb" },
   bannerText: { fontSize: 14, color: "#1e3a8a" },
-  petArea: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
+  scroll: { flex: 1 },
+  scrollContent: { flexGrow: 1, paddingBottom: 24 },
+  petArea: { alignItems: "center", justifyContent: "center", gap: 12, paddingVertical: 24 },
   petName: { fontSize: 22, fontWeight: "700", color: "#111827" },
   stateLabel: { fontSize: 16, fontWeight: "600" },
   stats: { fontSize: 13, color: "#6b7280" },
@@ -92,4 +108,5 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   connectBtnText: { color: "#fff", fontWeight: "600", fontSize: 15 },
+  guideWrap: { paddingHorizontal: 16 },
 });

@@ -53,7 +53,7 @@ export function PetNameEditor() {
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginBottom: 16 },
+  wrap: { marginBottom: 0 },
   label: { fontSize: 15, fontWeight: "500", color: "#374151", marginBottom: 4 },
   hint: { fontSize: 12, color: "#6b7280", marginBottom: 8, lineHeight: 18 },
   input: {

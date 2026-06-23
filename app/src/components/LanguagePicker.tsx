@@ -41,7 +41,7 @@ export function LanguagePicker() {
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginBottom: 16 },
+  wrap: { marginBottom: 0 },
   label: { fontSize: 15, color: "#374151", marginBottom: 8 },
   row: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {

@@ -19,6 +19,7 @@ Environment overrides:
   CURSOR_BUDDY_APPROVE      off | risky | all   (default: risky)
   CURSOR_BUDDY_TIMEOUT      device decision wait seconds (default: 25)
   CURSOR_BUDDY_RISKY        custom risky-command regex (overrides default)
+  BUDDY_BRIDGE_AUTOSTART    1 | 0  auto-start local bridge when hooks fire (default: 1)
 
 Fail-open by design: if the bridge is down or anything goes wrong, shell
 commands are never blocked (we return an empty verdict so Cursor's normal
@@ -41,6 +42,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from hooks.common.client import bridge_url
+from hooks.common.ensure_bridge import ensure_bridge_running
 
 # Commands that should require an explicit approve/deny on the hardware buddy
 # when CURSOR_BUDDY_APPROVE=risky (the default). Deliberately conservative:
@@ -109,6 +111,7 @@ def needs_device_approval(command: str) -> bool:
 
 def post_bridge(payload: dict[str, Any], timeout: float) -> dict[str, Any]:
     """POST a payload to the bridge; return parsed JSON or {} on any failure."""
+    ensure_bridge_running()
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
         url=bridge_url(),

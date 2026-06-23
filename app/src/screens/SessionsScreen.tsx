@@ -3,6 +3,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { PendingItem } from "@protocol/index";
 import { useBridge } from "../bridge/BridgeProvider";
+import { BridgeSetupGuide } from "../components/BridgeSetupGuide";
 import { useConnectionStore } from "../store/connection";
 import { useSnapshotStore } from "../store/snapshot";
 
@@ -29,7 +30,9 @@ function EmptyState({
     return (
       <View style={styles.emptyBox}>
         <Text style={styles.emptyTitle}>{t("sessions.notConnectedTitle")}</Text>
-        <Text style={styles.empty}>{t("sessions.notConnectedBody")}</Text>
+        <View style={styles.guideWrap}>
+          <BridgeSetupGuide compact />
+        </View>
       </View>
     );
   }
@@ -211,7 +214,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 4,
   },
-  emptyBox: { padding: 24 },
+  emptyBox: { padding: 16 },
+  guideWrap: { marginTop: 12 },
   emptyTitle: { fontSize: 16, fontWeight: "600", color: "#374151", marginBottom: 8, textAlign: "center" },
   empty: { color: "#6b7280", textAlign: "center", lineHeight: 20, fontSize: 14 },
   row: {

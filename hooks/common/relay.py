@@ -9,6 +9,7 @@ import urllib.request
 from typing import Any
 
 from hooks.common.client import bridge_url as default_bridge_url
+from hooks.common.ensure_bridge import ensure_bridge_running
 
 
 def bridge_url(args: argparse.Namespace) -> str:
@@ -43,6 +44,8 @@ def forward_hook(
             print(f"[hook-relay] invalid stdin json: {exc}", file=stderr)
             return 2
         return fail_open(stdout)
+
+    ensure_bridge_running(url)
 
     req = urllib.request.Request(
         url=url,

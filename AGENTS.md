@@ -14,6 +14,8 @@ This is a PlatformIO firmware reference for an ESP32 hardware buddy. Core firmwa
 - `cd firmware && pio run -t uploadfs` uploads LittleFS character assets.
 - `python3 tools/flash_character.py firmware/characters/bufo` stages the example pack and uploads it over USB.
 - `python3 tools/test_serial.py` and `python3 tools/test_xfer.py` smoke-test serial JSON state updates and folder transfer.
+- `npm install -g github:weikunzl/ai-code-buddy` installs the `devpet-bridge` CLI (`restart` / `start`); repo-root `package.json` is `devpet-cli`.
+- `./tools/restart_bridge.sh` and `./tools/start_bridge.sh` remain for git-clone workflows; `devpet-bridge` wraps the same scripts.
 
 ## Coding Style & Naming Conventions
 

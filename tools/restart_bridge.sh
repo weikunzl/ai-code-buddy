@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Stop stale buddy bridges on 9876/9877 and start one process with HTTP + WebSocket.
 set -euo pipefail
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ROOT="${DEVPET_PACKAGE_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 HTTP_PORT="${BUDDY_HTTP_PORT:-9876}"
 WS_PORT="${BUDDY_WS_PORT:-9877}"
 
@@ -21,4 +21,5 @@ stop_port "$WS_PORT"
 
 echo "[start] python3 -m bridge --transport websocket --http-port $HTTP_PORT --ws-port $WS_PORT"
 cd "$ROOT"
+export DEVPET_PACKAGE_ROOT="$ROOT"
 exec python3 -m bridge --transport websocket --http-port "$HTTP_PORT" --ws-port "$WS_PORT"
