@@ -497,6 +497,19 @@ See [`AGENTS.md`](AGENTS.md) for contributor conventions and
 | **M4** | done | Ship Expo `app/` with LAN approval loop |
 | **Next** | — | mDNS auto-pair in app, dev build for custom notification sounds, optional `preToolUse` on phone |
 
+## 赞助支持
+
+DevPet / claude-buddy 从固件参考、Bridge、Hooks 到手机 App，都是业余时间一点点打磨出来的。  
+如果这个工具帮你省了来回切屏、让写代码时多了一点陪伴感，欢迎请我喝杯咖啡 ☕️  
+**创作不易，感谢每一份支持！**
+
+| 支付宝 | 微信 |
+| --- | --- |
+| <img src="docs/sponsor/alipay.png" alt="支付宝收款码" width="220"> | <img src="docs/sponsor/wechat.png" alt="微信赞赏码" width="220"> |
+
+也欢迎通过 [GitHub Sponsors](https://github.com/sponsors/weikunzl) 支持（配置中）。  
+你的鼓励是我继续维护和改进这个项目的动力。
+
 ## Availability
 
 Claude Desktop's BLE Hardware Buddy API requires developer mode and is
