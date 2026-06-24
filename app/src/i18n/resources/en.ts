@@ -3,6 +3,7 @@ export default {
     pet: "DevPet",
     sessions: "Sessions",
     settings: "Settings",
+    bridgeSetup: "Bridge setup",
     petGifs: "{{product}} GIFs",
   },
   common: {
@@ -35,12 +36,25 @@ export default {
     step3: "3. Or just start a chat in Cursor — hooks auto-start the bridge (default).",
     step4: "4. In Settings below, enter your computer LAN IP and tap Connect. Example:",
     wsExample: "ws://192.168.x.x:{{port}}",
+    screenIntro:
+      "Follow these steps on your computer, then enter your LAN IP in Settings to connect the phone.",
+    hooksTitle: "One-time: Cursor / Claude Code hooks",
+    hooksBody:
+      "The npm CLI starts the bridge. Hooks still need a git clone so Cursor can POST session events.",
+    hooksStep1: "1. Clone the repository:",
+    cmdCloneRepo: "git clone https://github.com/weikunzl/ai-code-buddy.git",
+    hooksStep2: "2. Install bridge + hooks:",
+    cmdInstallDesktop: "./tools/install-desktop.sh",
+    hooksHint: "Re-run after pulling hook updates. Safe to run multiple times.",
+    openSettings: "Go to Settings to connect",
+    done: "Done",
   },
   home: {
     notConnected: "Not connected to bridge",
     connecting: "Connecting to bridge…",
     reconnectGaveUp: "Could not reach bridge after several tries. Tap Connect when ready.",
     tapConnect: "Connect",
+    openBridgeGuide: "Full setup guide →",
     watching: "Watching sessions…",
     stats: "{{running}} running · {{waiting}} waiting · {{total}} total",
   },
@@ -83,6 +97,49 @@ export default {
     languageZh: "中文",
     languageKo: "한국어",
     languageRu: "Русский",
+    openBridgeGuide: "Bridge setup guide (computer) →",
+  },
+  help: {
+    title: "Help",
+    subtitle: "Tap a question to expand. All items are collapsed by default.",
+    faq: {
+      wifi: {
+        q: "Phone cannot connect — what should I check first?",
+        a: "Same Wi‑Fi for phone and computer. Start the bridge with devpet-bridge restart. Use your computer's LAN IP (not 127.0.0.1) as ws://<IP>:9877 in Settings.",
+      },
+      lanIp: {
+        q: "Why not use 127.0.0.1?",
+        a: "127.0.0.1 is the phone itself. Find your computer's LAN address (e.g. ipconfig / ifconfig) and enter that IP in Settings.",
+      },
+      installCli: {
+        q: "How do I install devpet-bridge?",
+        a: "On your computer: npm install -g github:weikunzl/ai-code-buddy#feat/mobile-buddy\nThen: devpet-bridge restart\nRequires Node.js 18+ and Python 3.",
+      },
+      installHooks: {
+        q: "Do I still need to clone the repo?",
+        a: "Yes, for Cursor / Claude Code hooks. Clone the repo and run ./tools/install-desktop.sh once. The global CLI only starts the bridge process.",
+      },
+      wsError: {
+        q: "WebSocket error in Settings",
+        a: "Confirm bridge is running, IP is correct, same Wi‑Fi, and iOS Local Network permission is allowed for Expo Go / DevPet.",
+      },
+      ports: {
+        q: "What are ports 9876 and 9877?",
+        a: "9876 = HTTP for hooks on the computer. 9877 = WebSocket for the phone. Both must be the same bridge process — run devpet-bridge restart if things get stuck.",
+      },
+      sessions: {
+        q: "Sessions disappeared after switching tabs",
+        a: "Completed sessions stay in the list for 24 hours. Only running/waiting sessions count in the summary. Start a new chat in Cursor to create a fresh session.",
+      },
+      notifications: {
+        q: "No lock-screen notifications on Android",
+        a: "Expo Go on Android does not support expo-notifications. You still get in-app sounds. Use a dev build for system notifications.",
+      },
+      restart: {
+        q: "Approval prompts time out or behave oddly",
+        a: "You may have two bridge processes. Run devpet-bridge restart (or ./tools/restart_bridge.sh) to kill stale listeners and start one process.",
+      },
+    },
   },
   notifications: {
     approvalTitle: "Approval needed",

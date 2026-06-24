@@ -1,16 +1,28 @@
 import React, { useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import type { CompositeNavigationProp } from "@react-navigation/native";
+import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTranslation } from "react-i18next";
 import { useBridge } from "../bridge/BridgeProvider";
 import { BridgeSetupGuide } from "../components/BridgeSetupGuide";
+import type { RootParamList } from "../navigation/navigationRef";
+import type { SettingsStackParamList } from "../navigation/types";
 import { derivePetState } from "../pet/derivePetState";
 import { GifRenderer } from "../pet/GifRenderer";
 import { useConnectionStore } from "../store/connection";
 import { usePetProfile } from "../store/petProfile";
 import { useSnapshotStore } from "../store/snapshot";
 
+type HomeNav = CompositeNavigationProp<
+  BottomTabNavigationProp<RootParamList, "Home">,
+  NativeStackNavigationProp<SettingsStackParamList>
+>;
+
 export function HomeScreen() {
   const { t } = useTranslation();
+  const navigation = useNavigation<HomeNav>();
   const { connect } = useBridge();
   const snapshot = useSnapshotStore((s) => s.snapshot);
   const lastApproveAt = useSnapshotStore((s) => s.lastApproveAt);
@@ -78,6 +90,12 @@ export function HomeScreen() {
         {showSetupGuide ? (
           <View style={styles.guideWrap}>
             <BridgeSetupGuide compact />
+            <Pressable
+              style={styles.guideLink}
+              onPress={() => navigation.navigate("Settings", { screen: "BridgeSetup" })}
+            >
+              <Text style={styles.guideLinkText}>{t("home.openBridgeGuide")}</Text>
+            </Pressable>
           </View>
         ) : null}
       </ScrollView>
@@ -108,5 +126,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   connectBtnText: { color: "#fff", fontWeight: "600", fontSize: 15 },
-  guideWrap: { paddingHorizontal: 16 },
+  guideWrap: { paddingHorizontal: 16, gap: 10 },
+  guideLink: { alignItems: "center", paddingVertical: 8 },
+  guideLinkText: { fontSize: 14, color: "#2563eb", fontWeight: "600" },
 });

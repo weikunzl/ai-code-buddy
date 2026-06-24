@@ -3,6 +3,7 @@ export default {
     pet: "DevPet",
     sessions: "会话",
     settings: "设置",
+    bridgeSetup: "Bridge 安装指南",
     petGifs: "{{product}} GIF",
   },
   common: {
@@ -35,12 +36,23 @@ export default {
     step3: "3. 或在 Cursor 里开始对话 — hooks 会自动启动 Bridge（默认开启）。",
     step4: "4. 在下方设置填入电脑局域网 IP 并点「连接」。示例：",
     wsExample: "ws://192.168.x.x:{{port}}",
+    screenIntro: "在电脑上按以下步骤操作，然后在设置中填入局域网 IP 连接手机。",
+    hooksTitle: "一次性：安装 Cursor / Claude Code Hooks",
+    hooksBody: "npm 全局 CLI 用于启动 Bridge；Hooks 仍需 git 克隆仓库，Cursor 才能把会话事件发到 Bridge。",
+    hooksStep1: "1. 克隆仓库：",
+    cmdCloneRepo: "git clone https://github.com/weikunzl/ai-code-buddy.git",
+    hooksStep2: "2. 安装 Bridge 与 Hooks：",
+    cmdInstallDesktop: "./tools/install-desktop.sh",
+    hooksHint: "拉取 hook 更新后可重复执行，安全幂等。",
+    openSettings: "前往设置连接",
+    done: "完成",
   },
   home: {
     notConnected: "未连接 Bridge",
     connecting: "正在连接 Bridge…",
     reconnectGaveUp: "多次重连失败，请稍后点击连接。",
     tapConnect: "连接",
+    openBridgeGuide: "查看完整安装指南 →",
     watching: "正在监听会话…",
     stats: "{{running}} 运行中 · {{waiting}} 等待中 · {{total}} 总计",
   },
@@ -82,6 +94,49 @@ export default {
     languageZh: "中文",
     languageKo: "한국어",
     languageRu: "Русский",
+    openBridgeGuide: "电脑 Bridge 安装引导 →",
+  },
+  help: {
+    title: "帮助",
+    subtitle: "点击问题展开答案，默认全部折叠。",
+    faq: {
+      wifi: {
+        q: "手机连不上，先检查什么？",
+        a: "手机与电脑同一 Wi‑Fi；电脑运行 devpet-bridge restart；设置里填电脑局域网 IP（不要用 127.0.0.1），格式 ws://IP:9877。",
+      },
+      lanIp: {
+        q: "为什么不能用 127.0.0.1？",
+        a: "127.0.0.1 是手机本机。请在电脑上查局域网 IP（如 ipconfig / ifconfig），把该地址填到设置里。",
+      },
+      installCli: {
+        q: "如何安装 devpet-bridge？",
+        a: "电脑执行：npm install -g github:weikunzl/ai-code-buddy#feat/mobile-buddy\n然后：devpet-bridge restart\n需要 Node.js 18+ 与 Python 3。",
+      },
+      installHooks: {
+        q: "还需要克隆仓库吗？",
+        a: "需要，用于 Cursor / Claude Code Hooks。克隆后执行一次 ./tools/install-desktop.sh。全局 CLI 只负责启动 Bridge 进程。",
+      },
+      wsError: {
+        q: "设置里提示 WebSocket 错误",
+        a: "确认 Bridge 已启动、IP 正确、同一 Wi‑Fi；iOS 需允许 Expo Go / DevPet 的本地网络权限。",
+      },
+      ports: {
+        q: "9876 和 9877 端口是什么？",
+        a: "9876 = 电脑 Hooks 的 HTTP；9877 = 手机 WebSocket。必须是同一 Bridge 进程，异常时执行 devpet-bridge restart。",
+      },
+      sessions: {
+        q: "切换页面后会话不见了",
+        a: "已结束的会话会保留 24 小时仍显示在列表；摘要只统计运行中/等待中。在 Cursor 发起新对话可创建新会话。",
+      },
+      notifications: {
+        q: "Android 没有锁屏通知",
+        a: "Android 版 Expo Go 不支持 expo-notifications，仍有应用内音效。需要系统通知请使用 dev build。",
+      },
+      restart: {
+        q: "审批超时或行为异常",
+        a: "可能有两个 Bridge 进程。执行 devpet-bridge restart（或 ./tools/restart_bridge.sh）清理旧进程并只启动一个。",
+      },
+    },
   },
   notifications: {
     approvalTitle: "需要审批",

@@ -3,6 +3,7 @@ export default {
     pet: "DevPet",
     sessions: "세션",
     settings: "설정",
+    bridgeSetup: "Bridge 설치 가이드",
     petGifs: "{{product}} GIF",
   },
   common: {
@@ -35,12 +36,23 @@ export default {
     step3: "3. 또는 Cursor에서 대화를 시작하면 훅이 Bridge를 자동 시작합니다(기본값).",
     step4: "4. 아래 설정에 컴퓨터 LAN IP를 입력하고 연결을 누르세요. 예:",
     wsExample: "ws://192.168.x.x:{{port}}",
+    screenIntro: "컴퓨터에서 아래 단계를 따른 뒤 설정에서 LAN IP로 연결하세요.",
+    hooksTitle: "1회: Cursor / Claude Code 훅",
+    hooksBody: "npm CLI는 bridge를 시작합니다. 훅은 git 클론이 필요합니다.",
+    hooksStep1: "1. 저장소 클론:",
+    cmdCloneRepo: "git clone https://github.com/weikunzl/ai-code-buddy.git",
+    hooksStep2: "2. bridge + 훅 설치:",
+    cmdInstallDesktop: "./tools/install-desktop.sh",
+    hooksHint: "훅 업데이트 후 다시 실행해도 안전합니다.",
+    openSettings: "설정에서 연결",
+    done: "완료",
   },
   home: {
     notConnected: "브리지에 연결되지 않음",
     connecting: "브리지에 연결 중…",
     reconnectGaveUp: "여러 번 재연결에 실패했습니다. 준비되면 연결을 누르세요.",
     tapConnect: "연결",
+    openBridgeGuide: "전체 설치 가이드 →",
     watching: "세션 대기 중…",
     stats: "실행 {{running}} · 대기 {{waiting}} · 전체 {{total}}",
   },
@@ -83,6 +95,49 @@ export default {
     languageZh: "中文",
     languageKo: "한국어",
     languageRu: "Русский",
+    openBridgeGuide: "Bridge 설치 가이드 (PC) →",
+  },
+  help: {
+    title: "도움말",
+    subtitle: "질문을 눌러 펼치세요. 기본적으로 모두 접혀 있습니다.",
+    faq: {
+      wifi: {
+        q: "연결이 안 될 때 먼저 확인할 것은?",
+        a: "같은 Wi‑Fi, devpet-bridge restart 실행, 설정에 컴퓨터 LAN IP(127.0.0.1 아님) ws://IP:9877 입력.",
+      },
+      lanIp: {
+        q: "127.0.0.1을 쓰면 안 되나요?",
+        a: "127.0.0.1은 휴대폰 자신입니다. 컴퓨터의 LAN IP를 찾아 설정에 입력하세요.",
+      },
+      installCli: {
+        q: "devpet-bridge 설치 방법",
+        a: "npm install -g github:weikunzl/ai-code-buddy#feat/mobile-buddy\n그다음 devpet-bridge restart",
+      },
+      installHooks: {
+        q: "저장소 클론이 필요한가요?",
+        a: "예. Cursor 훅용입니다. 클론 후 ./tools/install-desktop.sh 를 한 번 실행하세요.",
+      },
+      wsError: {
+        q: "WebSocket 오류",
+        a: "bridge 실행, IP, Wi‑Fi, iOS 로컬 네트워크 권한을 확인하세요.",
+      },
+      ports: {
+        q: "9876과 9877 포트",
+        a: "9876=훅 HTTP, 9877=휴대폰 WebSocket. 하나의 bridge 프로세스여야 합니다.",
+      },
+      sessions: {
+        q: "탭 전환 후 세션이 사라짐",
+        a: "완료된 세션은 24시간 목록에 남습니다. 요약은 활성 세션만 집계합니다.",
+      },
+      notifications: {
+        q: "Android 잠금 화면 알림 없음",
+        a: "Expo Go Android는 시스템 알림 미지원. 앱 내 소리는 재생됩니다.",
+      },
+      restart: {
+        q: "승인 시간 초과",
+        a: "bridge가 두 개일 수 있습니다. devpet-bridge restart 로 정리하세요.",
+      },
+    },
   },
   notifications: {
     approvalTitle: "승인 필요",
