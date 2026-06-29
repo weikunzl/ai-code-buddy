@@ -17,11 +17,76 @@ users connect over **Wi‑Fi WebSocket** instead of BLE.
 
 ## Build & flash
 
+PlatformIO project lives in **`firmware/`** — run all `pio` commands from this
+directory, not the repo root.
+
 ```bash
-cd firmware
-pio run -t upload
-# M5StickC Plus: pio run -e m5stickc-plus -t upload
-# M5 StickS3:     pio run -e m5sticks3 -t upload
+cd firmware          # required; repo root has no platformio.ini
+```
+
+### Prerequisites
+
+- [PlatformIO](https://platformio.org/) (`pio` on PATH)
+- USB cable to the board
+- For **M5 StickS3**: install the board USB driver if macOS does not show
+  `/dev/cu.usbmodem*`
+
+### Compile only
+
+```bash
+pio run                      # default env: m5stickc-plus
+pio run -e m5sticks3         # M5 StickS3 (recommended)
+pio run -e m5stickc-plus     # original M5StickC Plus
+```
+
+### Flash firmware
+
+Connect the device, then:
+
+```bash
+pio run -e m5sticks3 -t upload
+```
+
+Other boards:
+
+```bash
+pio run -e m5stickc-plus -t upload
+```
+
+Wipe flash and reflash (fixes corrupt FS or bad NVS):
+
+```bash
+pio run -e m5sticks3 -t erase && pio run -e m5sticks3 -t upload
+```
+
+### M5 StickS3 bootloader note
+
+StickS3 uses native USB-CDC — esptool cannot auto-reset into download mode.
+If upload fails, enter bootloader manually:
+
+1. Hold **Btn B**
+2. Short-press **Power**
+3. Release **Btn B**
+4. Retry `pio run -e m5sticks3 -t upload`
+
+Find the serial port:
+
+```bash
+ls /dev/cu.usbmodem*
+```
+
+### Flash GIF character pack (optional)
+
+```bash
+pio run -e m5sticks3 -t uploadfs
+# or from repo root:
+python3 tools/flash_character.py firmware/characters/bufo
+```
+
+### Serial monitor
+
+```bash
+pio device monitor -e m5sticks3
 ```
 
 Hardware abstraction (`m5_compat.h`) merged from
