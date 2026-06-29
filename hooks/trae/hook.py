@@ -1,37 +1,31 @@
 #!/usr/bin/env python3
-"""Translate Cursor agent hook events into claude-buddy session_bridge payloads.
+"""Translate TRAE IDE hook events into claude-buddy bridge payloads.
 
-The session bridge (tools/session_bridge.py) speaks one internal protocol:
-Claude-Code-style `hook_event_name` payloads POSTed to a local HTTP endpoint.
-This adapter lets Cursor share the very same bridge and device, so a single
-desk buddy reacts to both Cursor and Claude/Codex sessions at once.
+TRAE fires lifecycle hooks with `hook_event_name` on stdin JSON. This adapter
+maps those events to the same internal bridge protocol used by Cursor and
+Claude Code so one desk buddy reacts to every IDE at once.
 
-One script handles every Cursor hook event: Cursor includes `hook_event_name`
-in the stdin JSON, so we dispatch on it. Most events are fire-and-forget
-(observe/display only). `beforeShellExecution` can block waiting for an
-approve/deny decision made on the hardware buddy and translate it back into
-Cursor's `{"permission": ...}` verdict.
+Most events are observe-only. `PreToolUse` can block until the buddy returns
+allow/deny, translated into TRAE's `hookSpecificOutput.permissionDecision`.
 
 Pure stdlib (urllib) so it runs under any python3 without a venv.
 
 Environment overrides:
   BUDDY_BRIDGE_URL / CURSOR_BUDDY_BRIDGE_URL   bridge endpoint (default http://127.0.0.1:19876)
-  CURSOR_BUDDY_APPROVE      off | risky | all   (default: risky)
-  CURSOR_BUDDY_TIMEOUT      device decision wait seconds (default: 25)
-  CURSOR_BUDDY_RISKY        custom risky-command regex (overrides default)
-  BUDDY_BRIDGE_AUTOSTART    1 | 0  auto-start local bridge when hooks fire (default: 1)
+  TRAE_BUDDY_APPROVE       off | risky | all    (default: risky)
+  TRAE_BUDDY_TIMEOUT       device decision wait seconds (default: 25)
+  TRAE_BUDDY_RISKY         custom risky-command regex (overrides default)
+  BUDDY_BRIDGE_AUTOSTART   1 | 0  auto-start local bridge when hooks fire (default: 1)
 
-Fail-open by design: if the bridge is down or anything goes wrong, shell
-commands are never blocked (we return an empty verdict so Cursor's normal
-flow takes over). Set the hook's `failClosed: true` in hooks.json only if you
-want the opposite.
+Fail-open by design: if the bridge is down or times out, we return an empty
+verdict so TRAE's normal permission flow takes over.
 """
 from __future__ import annotations
 
 import json
 import os
-import re
 import pathlib
+import re
 import sys
 import time
 import urllib.error
@@ -45,13 +39,9 @@ if str(_REPO_ROOT) not in sys.path:
 from hooks.common.client import bridge_url
 from hooks.common.ensure_bridge import ensure_bridge_running
 
-# Commands that should require an explicit approve/deny on the hardware buddy
-# when CURSOR_BUDDY_APPROVE=risky (the default). Deliberately conservative:
-# clearly destructive or outbound-network commands only, so everyday commands
-# keep running through Cursor's normal flow without a device round-trip.
 RISKY_DEFAULT = re.compile(
-    r"""(?ix)            # case-insensitive, verbose
-    (?:^|[\s;&|`($])     # start, or a shell separator
+    r"""(?ix)
+    (?:^|[\s;&|`($])
     (?:
         sudo
       | rm\b | rmdir\b
@@ -73,6 +63,9 @@ RISKY_DEFAULT = re.compile(
     """
 )
 
+_APPROVED_UNTIL: dict[str, float] = {}
+_APPROVAL_TTL_S = 120.0
+
 
 def _env(name: str, default: str) -> str:
     val = os.environ.get(name)
@@ -80,19 +73,19 @@ def _env(name: str, default: str) -> str:
 
 
 def approve_mode() -> str:
-    mode = _env("CURSOR_BUDDY_APPROVE", "risky").strip().lower()
+    mode = _env("TRAE_BUDDY_APPROVE", "risky").strip().lower()
     return mode if mode in ("off", "risky", "all") else "risky"
 
 
 def decision_timeout() -> float:
     try:
-        return max(1.0, float(_env("CURSOR_BUDDY_TIMEOUT", "25")))
+        return max(1.0, float(_env("TRAE_BUDDY_TIMEOUT", "25")))
     except ValueError:
         return 25.0
 
 
 def risky_pattern() -> re.Pattern[str]:
-    custom = os.environ.get("CURSOR_BUDDY_RISKY")
+    custom = os.environ.get("TRAE_BUDDY_RISKY")
     if custom:
         try:
             return re.compile(custom, re.IGNORECASE)
@@ -108,11 +101,6 @@ def needs_device_approval(command: str) -> bool:
     if mode == "all":
         return True
     return bool(command and risky_pattern().search(command))
-
-
-# Skip a second blocking hook when preToolUse already approved the same action.
-_APPROVED_UNTIL: dict[str, float] = {}
-_APPROVAL_TTL_S = 120.0
 
 
 def _approval_key(sid: str, kind: str, detail: str) -> str:
@@ -137,20 +125,23 @@ def was_recently_approved(sid: str, kind: str, detail: str) -> bool:
 
 
 def bridge_tool_name(tool_name: str) -> str:
-    if tool_name in ("Shell", "shell"):
+    if tool_name in ("RunCommand", "execute_command", "Shell", "shell"):
         return "Bash"
+    if tool_name in ("write_to_file",):
+        return "Write"
+    if tool_name in ("replace_in_file",):
+        return "Edit"
     return tool_name
 
 
 def shell_command(tool_name: str, tool_input: dict[str, Any]) -> str:
-    if tool_name in ("Shell", "shell", "Bash"):
+    if tool_name in ("RunCommand", "execute_command", "Shell", "shell", "Bash"):
         return str(tool_input.get("command") or "")
     return ""
 
 
 def is_mcp_tool(tool_name: str) -> bool:
-    lower = tool_name.lower()
-    return lower.startswith("mcp:") or lower.startswith("mcp ") or lower == "mcp"
+    return tool_name.startswith("mcp__") or tool_name.lower().startswith("mcp:")
 
 
 def needs_tool_approval(tool_name: str, tool_input: dict[str, Any]) -> bool:
@@ -164,19 +155,31 @@ def needs_tool_approval(tool_name: str, tool_input: dict[str, Any]) -> bool:
         return needs_device_approval(command)
     if is_mcp_tool(tool_name):
         return True
+    if tool_name in ("Write", "Edit", "write_to_file", "replace_in_file"):
+        return True
     return False
 
 
-def cursor_permission_verdict(decision: str) -> dict[str, Any]:
+def trae_permission_verdict(decision: str) -> dict[str, Any]:
     if decision == "allow":
-        return {"permission": "allow"}
+        return {
+            "continue": True,
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "allow",
+                "permissionDecisionReason": "Approved on DevPet",
+            },
+        }
     if decision == "deny":
         return {
-            "permission": "deny",
-            "user_message": "Denied on the hardware buddy.",
-            "agent_message": "The user denied this action on the hardware buddy.",
+            "continue": True,
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "deny",
+                "permissionDecisionReason": "Denied on DevPet",
+            },
         }
-    return {"permission": "ask"}
+    return {"continue": True}
 
 
 def bridge_permission_decision(resp: dict[str, Any]) -> str:
@@ -186,48 +189,7 @@ def bridge_permission_decision(resp: dict[str, Any]) -> str:
     return ""
 
 
-def wait_for_device_approval(
-    sid: str,
-    cwd: str,
-    model_name: str,
-    tool_name: str,
-    tool_input: dict[str, Any],
-) -> str:
-    resp = post_bridge(
-        {
-            "hook_event_name": "PreToolUse",
-            "session_id": sid,
-            "cwd": cwd,
-            "model": model_name,
-            "tool_name": bridge_tool_name(tool_name),
-            "tool_input": tool_input,
-        },
-        timeout=decision_timeout() + 5.0,
-    )
-    return bridge_permission_decision(resp)
-
-
-def observe_tool(
-    sid: str,
-    cwd: str,
-    model_name: str,
-    message: str,
-) -> None:
-    post_bridge(
-        {
-            "hook_event_name": "Notification",
-            "observe_only": True,
-            "session_id": sid,
-            "cwd": cwd,
-            "model": model_name,
-            "message": message[:120],
-        },
-        timeout=2.0,
-    )
-
-
 def post_bridge(payload: dict[str, Any], timeout: float) -> dict[str, Any]:
-    """POST a payload to the bridge; return parsed JSON or {} on any failure."""
     ensure_bridge_running()
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
@@ -257,7 +219,7 @@ def read_stdin() -> dict[str, Any]:
 
 
 def session_id(ev: dict[str, Any]) -> str:
-    return str(ev.get("conversation_id") or ev.get("session_id") or "")
+    return str(ev.get("session_id") or ev.get("conversation_id") or "")
 
 
 def session_cwd(ev: dict[str, Any]) -> str:
@@ -271,7 +233,7 @@ def session_cwd(ev: dict[str, Any]) -> str:
 
 
 def model(ev: dict[str, Any]) -> str:
-    return str(ev.get("model") or "cursor")
+    return str(ev.get("model") or "trae")
 
 
 def emit(obj: dict[str, Any] | None) -> int:
@@ -281,7 +243,39 @@ def emit(obj: dict[str, Any] | None) -> int:
     return 0
 
 
-# --- per-event handlers ---------------------------------------------------
+def observe_tool(sid: str, cwd: str, model_name: str, message: str) -> None:
+    post_bridge(
+        {
+            "hook_event_name": "Notification",
+            "observe_only": True,
+            "session_id": sid,
+            "cwd": cwd,
+            "model": model_name,
+            "message": message[:120],
+        },
+        timeout=2.0,
+    )
+
+
+def wait_for_device_approval(
+    sid: str,
+    cwd: str,
+    model_name: str,
+    tool_name: str,
+    tool_input: dict[str, Any],
+) -> str:
+    resp = post_bridge(
+        {
+            "hook_event_name": "PreToolUse",
+            "session_id": sid,
+            "cwd": cwd,
+            "model": model_name,
+            "tool_name": bridge_tool_name(tool_name),
+            "tool_input": tool_input,
+        },
+        timeout=decision_timeout() + 5.0,
+    )
+    return bridge_permission_decision(resp)
 
 
 def on_session_start(ev: dict[str, Any]) -> int:
@@ -294,10 +288,10 @@ def on_session_start(ev: dict[str, Any]) -> int:
         },
         timeout=2.0,
     )
-    return emit({})
+    return emit({"continue": True})
 
 
-def on_before_submit_prompt(ev: dict[str, Any]) -> int:
+def on_user_prompt_submit(ev: dict[str, Any]) -> int:
     prompt = str(ev.get("prompt") or "")
     post_bridge(
         {
@@ -309,33 +303,7 @@ def on_before_submit_prompt(ev: dict[str, Any]) -> int:
         },
         timeout=2.0,
     )
-    # Never block prompt submission from the buddy.
     return emit({"continue": True})
-
-
-def on_before_shell(ev: dict[str, Any]) -> int:
-    command = str(ev.get("command") or "")
-    sid = session_id(ev)
-    cwd = session_cwd(ev)
-    model_name = model(ev)
-
-    if was_recently_approved(sid, "shell", command):
-        return emit({"permission": "allow"})
-
-    if not needs_device_approval(command):
-        observe_tool(sid, cwd, model_name, f"$ {command}")
-        return emit({})
-
-    decision = wait_for_device_approval(
-        sid,
-        cwd,
-        model_name,
-        "Bash",
-        {"command": command, "description": ""},
-    )
-    if decision == "allow":
-        mark_recently_approved(sid, "shell", command)
-    return emit(cursor_permission_verdict(decision))
 
 
 def on_pre_tool_use(ev: dict[str, Any]) -> int:
@@ -347,16 +315,16 @@ def on_pre_tool_use(ev: dict[str, Any]) -> int:
     command = shell_command(tool_name, tool_input)
 
     if command and was_recently_approved(sid, "shell", command):
-        return emit({"permission": "allow"})
+        return emit(trae_permission_verdict("allow"))
     if is_mcp_tool(tool_name):
         mcp_key = json.dumps(tool_input, sort_keys=True, ensure_ascii=False)[:240]
         if was_recently_approved(sid, "mcp", f"{tool_name}:{mcp_key}"):
-            return emit({"permission": "allow"})
+            return emit(trae_permission_verdict("allow"))
 
     if not needs_tool_approval(tool_name, tool_input):
         message = f"$ {command}"[:120] if command else tool_name[:120]
         observe_tool(sid, cwd, model_name, message)
-        return emit({})
+        return emit({"continue": True})
 
     decision = wait_for_device_approval(sid, cwd, model_name, tool_name, tool_input)
     if decision == "allow":
@@ -365,53 +333,20 @@ def on_pre_tool_use(ev: dict[str, Any]) -> int:
         elif is_mcp_tool(tool_name):
             mcp_key = json.dumps(tool_input, sort_keys=True, ensure_ascii=False)[:240]
             mark_recently_approved(sid, "mcp", f"{tool_name}:{mcp_key}")
-    return emit(cursor_permission_verdict(decision))
+    if decision:
+        return emit(trae_permission_verdict(decision))
+    return emit({"continue": True})
 
 
-def on_before_mcp(ev: dict[str, Any]) -> int:
-    tool_name = str(ev.get("tool_name") or ev.get("mcp_tool") or "MCP")
-    tool_input = ev.get("tool_input") if isinstance(ev.get("tool_input"), dict) else {}
-    if not tool_input and isinstance(ev.get("arguments"), dict):
-        tool_input = ev["arguments"]
-    sid = session_id(ev)
-    cwd = session_cwd(ev)
-    model_name = model(ev)
-    mcp_key = json.dumps(tool_input, sort_keys=True, ensure_ascii=False)[:240]
-    dedupe_detail = f"{tool_name}:{mcp_key}"
-
-    if was_recently_approved(sid, "mcp", dedupe_detail):
-        return emit({"permission": "allow"})
-
-    mode = approve_mode()
-    if mode == "off":
-        observe_tool(sid, cwd, model_name, tool_name[:120])
-        return emit({})
-
-    decision = wait_for_device_approval(sid, cwd, model_name, tool_name, tool_input)
-    if decision == "allow":
-        mark_recently_approved(sid, "mcp", dedupe_detail)
-    return emit(cursor_permission_verdict(decision))
-
-
-def on_after_shell(ev: dict[str, Any]) -> int:
-    # Observe-only commands are logged in beforeShell; skip duplicate "ran …" lines.
-    return emit({})
-
-
-def on_after_file_edit(ev: dict[str, Any]) -> int:
-    path = str(ev.get("file_path") or "")
-    name = os.path.basename(path) or path
-    post_bridge(
-        {
-            "hook_event_name": "Notification",
-            "session_id": session_id(ev),
-            "cwd": session_cwd(ev),
-            "model": model(ev),
-            "message": f"edit {name}"[:120],
-        },
-        timeout=2.0,
-    )
-    return emit({})
+def on_post_tool_use(ev: dict[str, Any]) -> int:
+    tool_name = str(ev.get("tool_name") or "Tool")
+    tool_response = ev.get("tool_response") if isinstance(ev.get("tool_response"), dict) else {}
+    exit_code = tool_response.get("exitCode", tool_response.get("exit_code"))
+    message = f"ran {tool_name}"
+    if exit_code is not None:
+        message += f" (exit {exit_code})"
+    observe_tool(session_id(ev), session_cwd(ev), model(ev), message)
+    return emit({"continue": True})
 
 
 def on_stop(ev: dict[str, Any]) -> int:
@@ -424,19 +359,22 @@ def on_stop(ev: dict[str, Any]) -> int:
         },
         timeout=2.0,
     )
-    # Never auto-submit a follow-up from the buddy.
-    return emit({})
+    return emit({"continue": True})
+
+
+def on_notification(ev: dict[str, Any]) -> int:
+    message = str(ev.get("message") or ev.get("notification_type") or "notification")
+    observe_tool(session_id(ev), session_cwd(ev), model(ev), message)
+    return emit({"continue": True})
 
 
 HANDLERS = {
-    "sessionStart": on_session_start,
-    "beforeSubmitPrompt": on_before_submit_prompt,
-    "preToolUse": on_pre_tool_use,
-    "beforeShellExecution": on_before_shell,
-    "beforeMCPExecution": on_before_mcp,
-    "afterShellExecution": on_after_shell,
-    "afterFileEdit": on_after_file_edit,
-    "stop": on_stop,
+    "SessionStart": on_session_start,
+    "UserPromptSubmit": on_user_prompt_submit,
+    "PreToolUse": on_pre_tool_use,
+    "PostToolUse": on_post_tool_use,
+    "Stop": on_stop,
+    "Notification": on_notification,
 }
 
 
@@ -444,8 +382,7 @@ def dispatch(ev: dict[str, Any]) -> int:
     event = str(ev.get("hook_event_name") or "")
     handler = HANDLERS.get(event)
     if handler is None:
-        # Unknown / unmapped event: stay out of the way.
-        return emit({})
+        return emit({"continue": True})
     return handler(ev)
 
 

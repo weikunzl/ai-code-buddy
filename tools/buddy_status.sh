@@ -20,7 +20,7 @@
 # Exit code: 0 if 1+2+3 all green; non-zero otherwise.
 
 set -u
-PORT="${BRIDGE_HTTP_PORT:-9876}"
+PORT="${BRIDGE_HTTP_PORT:-19876}"
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENV_PY="${PROJECT_ROOT}/.venv-session-bridge/bin/python"
 RELAY="${PROJECT_ROOT}/tools/hook_relay.py"

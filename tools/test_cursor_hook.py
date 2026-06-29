@@ -147,6 +147,59 @@ def test_shell_timeout(mod) -> None:
     check("falls back to ask", out.get("permission") == "ask")
 
 
+def test_pre_tool_safe(mod) -> None:
+    print("preToolUse (safe Shell -> observe + defer):")
+    posts, out = run_event(mod, {
+        "hook_event_name": "preToolUse",
+        "conversation_id": "c1",
+        "tool_name": "Shell",
+        "tool_input": {"command": "ls -la"},
+        "cwd": "/tmp/proj",
+    })
+    check("observe via Notification", posts[0]["hook_event_name"] == "Notification")
+    check("no permission field (defer)", "permission" not in out)
+
+
+def test_pre_tool_approve(mod) -> None:
+    print("preToolUse (risky Shell -> approved on device):")
+    posts, out = run_event(mod, {
+        "hook_event_name": "preToolUse",
+        "conversation_id": "c2",
+        "tool_name": "Shell",
+        "tool_input": {"command": "git push --force"},
+        "cwd": "/tmp/proj",
+    }, bridge_response={"hookSpecificOutput": {"permissionDecision": "allow"}})
+    check("posts PreToolUse", posts[0]["hook_event_name"] == "PreToolUse")
+    check("maps Shell -> Bash", posts[0]["tool_name"] == "Bash")
+    check("permission allow", out.get("permission") == "allow")
+
+
+def test_pre_tool_dedupe_shell(mod) -> None:
+    print("beforeShellExecution (dedupe after preToolUse allow):")
+    mod.mark_recently_approved("c1", "shell", "rm -rf build")
+    posts, out = run_event(mod, {
+        "hook_event_name": "beforeShellExecution",
+        "conversation_id": "c1",
+        "command": "rm -rf build",
+        "cwd": "/tmp/proj",
+    })
+    check("no bridge post", posts == [])
+    check("permission allow", out.get("permission") == "allow")
+
+
+def test_before_mcp_approve(mod) -> None:
+    print("beforeMCPExecution (MCP -> approved on device):")
+    posts, out = run_event(mod, {
+        "hook_event_name": "beforeMCPExecution",
+        "conversation_id": "c1",
+        "tool_name": "MCP: test-server",
+        "tool_input": {"url": "https://example.com"},
+        "cwd": "/tmp/proj",
+    }, bridge_response={"hookSpecificOutput": {"permissionDecision": "allow"}})
+    check("posts PreToolUse", posts[0]["hook_event_name"] == "PreToolUse")
+    check("permission allow", out.get("permission") == "allow")
+
+
 def test_stop(mod) -> None:
     print("stop:")
     posts, out = run_event(mod, {
@@ -175,6 +228,10 @@ def main() -> int:
     test_shell_approve(mod)
     test_shell_deny(mod)
     test_shell_timeout(mod)
+    test_pre_tool_safe(mod)
+    test_pre_tool_approve(mod)
+    test_pre_tool_dedupe_shell(mod)
+    test_before_mcp_approve(mod)
     test_stop(mod)
     test_unknown(mod)
     print("\nALL CURSOR HOOK TESTS PASSED")

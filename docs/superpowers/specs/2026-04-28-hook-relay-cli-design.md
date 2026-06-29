@@ -45,8 +45,8 @@ Behavior:
 
 Defaults:
 
-- default port: `9876`
-- default URL: `http://127.0.0.1:9876`
+- default port: `19876`
+- default URL: `http://127.0.0.1:19876`
 - default connection timeout: short, around `2s`
 - bridge unavailable: print `{}` and exit `0`
 

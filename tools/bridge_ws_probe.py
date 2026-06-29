@@ -42,7 +42,7 @@ async def probe(url: str) -> None:
 
 
 def main() -> int:
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 9877
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else 19877
     ips = lan_ips() or ["127.0.0.1"]
     print("Suggested phone URLs:")
     for ip in ips:

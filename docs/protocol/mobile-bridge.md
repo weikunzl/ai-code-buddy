@@ -1,13 +1,13 @@
 # Mobile Bridge Protocol
 
-LAN WebSocket transport for the Expo mobile app. Hooks continue to use HTTP on port `9876`; the phone connects over WebSocket on port `9877`.
+LAN WebSocket transport for the Expo mobile app. Hooks continue to use HTTP on port `19876`; the phone connects over WebSocket on port `19877`.
 
 ## Ports
 
 | Port | Protocol | Consumer | Direction |
 | --- | --- | --- | --- |
-| `9876` | HTTP POST | `hooks/*` | Hook → bridge |
-| `9877` | WebSocket | `app/` | Bridge ↔ phone |
+| `19876` | HTTP POST | `hooks/*` | Hook → bridge |
+| `19877` | WebSocket | `app/` | Bridge ↔ phone |
 
 ## Wire format
 
@@ -89,15 +89,15 @@ Successful intents are written to `state.decisions` via the same path as BLE/ser
 
 ```text
 _service: _buddy._tcp.local
-port:     9877
-txt:      version=1, http=9876, name=<hostname>
+port:     19877
+txt:      version=1, http=19876, name=<hostname>
 ```
 
 App flow:
 
 1. Scan with `react-native-zeroconf`.
 2. User picks a bridge or enters IP manually (fallback).
-3. Connect `ws://<ip>:9877`, receive `hello`, consume snapshots.
+3. Connect `ws://<ip>:19877`, receive `hello`, consume snapshots.
 4. MVP security: same LAN + optional pairing token printed at bridge start.
 
 ## Error handling
@@ -113,7 +113,7 @@ App flow:
 ## Start command
 
 ```bash
-python -m bridge --transport websocket --http-port 9876 --ws-port 9877
+python -m bridge --transport websocket --http-port 19876 --ws-port 19877
 ```
 
 Multiple transports may run in parallel; all broadcast the same snapshot. Multiple phone clients may connect; first decision wins (same as hardware).

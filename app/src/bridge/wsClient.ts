@@ -189,9 +189,10 @@ export function createWsClient(opts: WsClientOptions) {
     opts.onConnectionChange("disconnected");
   }
 
-  function sendIntent(intent: DeviceIntent) {
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  function sendIntent(intent: DeviceIntent): boolean {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return false;
     ws.send(JSON.stringify(intent));
+    return true;
   }
 
   return { connect, disconnect, sendIntent };

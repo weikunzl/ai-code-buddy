@@ -90,7 +90,7 @@ class NotificationPromptHelperTests(unittest.TestCase):
         stderr = io.StringIO()
         rc = post_notification_prompt.forward_notification_prompt(
             b'{"session_id":"s_1","prompt":{"kind":"single_choice"}}',
-            url="http://127.0.0.1:9876",
+            url="http://127.0.0.1:19876",
             timeout=2.0,
             strict=True,
             stdout=stdout,
@@ -109,7 +109,7 @@ class NotificationPromptHelperTests(unittest.TestCase):
         stderr = io.StringIO()
         rc = post_notification_prompt.forward_notification_prompt(
             b'{"session_id":"s_1","prompt":{"id":"q_transport","kind":"single_choice","options":[{"id":"ble","label":"BLE"}]}}',
-            url="http://127.0.0.1:9876",
+            url="http://127.0.0.1:19876",
             timeout=2.0,
             strict=True,
             stdout=stdout,
@@ -129,7 +129,7 @@ class NotificationPromptHelperTests(unittest.TestCase):
         stderr = io.StringIO()
         rc = post_notification_prompt.forward_notification_prompt(
             b'{"session_id":"s_1","prompt":{"id":"q_transport","kind":"single_choice","options":[{"id":"ble","label":"BLE"}]}}',
-            url="http://127.0.0.1:9876",
+            url="http://127.0.0.1:19876",
             timeout=2.0,
             strict=False,
             stdout=stdout,
@@ -152,7 +152,7 @@ class NotificationPromptHelperTests(unittest.TestCase):
         stderr = io.StringIO()
         rc = post_notification_prompt.forward_notification_prompt(
             b'{"session_id":"s_1","cwd":"/tmp/project","message":"Choose transport","prompt":{"id":"q_transport","kind":"single_choice","options":[{"id":"ble","label":"BLE"},{"id":"usb","label":"USB"}]}}',
-            url="http://127.0.0.1:9876",
+            url="http://127.0.0.1:19876",
             timeout=2.0,
             strict=True,
             stdout=stdout,

@@ -887,7 +887,7 @@ def main() -> int:
     parser.add_argument("--simulate", action="store_true", help="emit canned firmware frames")
     parser.add_argument("--once", action="store_true", help="emit one simulator cycle and exit")
     parser.add_argument("--interval", type=float, default=1.0)
-    parser.add_argument("--http-port", type=int, default=9876)
+    parser.add_argument("--http-port", type=int, default=19876)
     parser.add_argument("--transport", choices=("stdout", "ble"), default="stdout")
     args = parser.parse_args()
     if args.simulate:

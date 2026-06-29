@@ -38,7 +38,7 @@ class WorkflowExampleTests(unittest.TestCase):
 
         rc = hook_relay.forward_hook(
             self.load("hook-user-prompt-submit.json"),
-            url="http://127.0.0.1:9876",
+            url="http://127.0.0.1:19876",
             timeout=2.0,
             strict=True,
             stdout=_StringSink(),
@@ -59,7 +59,7 @@ class WorkflowExampleTests(unittest.TestCase):
 
         rc = hook_relay.forward_hook(
             self.load("hook-user-prompt-submit-zh.json"),
-            url="http://127.0.0.1:9876",
+            url="http://127.0.0.1:19876",
             timeout=2.0,
             strict=True,
             stdout=_StringSink(),
@@ -79,7 +79,7 @@ class WorkflowExampleTests(unittest.TestCase):
 
         rc = post_notification_prompt.forward_notification_prompt(
             self.load("prompt-single-choice.json"),
-            url="http://127.0.0.1:9876",
+            url="http://127.0.0.1:19876",
             timeout=35.0,
             strict=True,
             stdout=_StringSink(),
@@ -100,7 +100,7 @@ class WorkflowExampleTests(unittest.TestCase):
 
         rc = post_notification_prompt.forward_notification_prompt(
             self.load("prompt-single-choice-zh.json"),
-            url="http://127.0.0.1:9876",
+            url="http://127.0.0.1:19876",
             timeout=35.0,
             strict=True,
             stdout=_StringSink(),
@@ -122,7 +122,7 @@ class WorkflowExampleTests(unittest.TestCase):
 
         rc = post_notification_prompt.forward_notification_prompt(
             self.load("prompt-multi-choice-ja.json"),
-            url="http://127.0.0.1:9876",
+            url="http://127.0.0.1:19876",
             timeout=35.0,
             strict=True,
             stdout=_StringSink(),
@@ -145,7 +145,7 @@ class WorkflowExampleTests(unittest.TestCase):
 
         rc = post_notification_prompt.forward_notification_prompt(
             self.load("prompt-free-text-required.json"),
-            url="http://127.0.0.1:9876",
+            url="http://127.0.0.1:19876",
             timeout=35.0,
             strict=True,
             stdout=_StringSink(),
@@ -167,7 +167,7 @@ class WorkflowExampleTests(unittest.TestCase):
 
         rc = post_notification_prompt.forward_notification_prompt(
             self.load("prompt-free-text-required-ko.json"),
-            url="http://127.0.0.1:9876",
+            url="http://127.0.0.1:19876",
             timeout=35.0,
             strict=True,
             stdout=_StringSink(),

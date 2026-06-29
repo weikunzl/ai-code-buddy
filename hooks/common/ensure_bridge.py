@@ -17,12 +17,40 @@ from urllib.parse import urlparse
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 RUNTIME_DIR = REPO_ROOT / ".buddy"
 LOCK_PATH = RUNTIME_DIR / "bridge-autostart.lock"
+RESTART_LOCK_PATH = RUNTIME_DIR / "bridge-restarting"
 LOG_PATH = RUNTIME_DIR / "bridge.log"
+RESTART_LOCK_MAX_AGE = 30.0
 
 
 def autostart_enabled() -> bool:
     raw = os.environ.get("BUDDY_BRIDGE_AUTOSTART", "1").strip().lower()
     return raw not in ("0", "false", "no", "off")
+
+
+def restart_in_progress() -> bool:
+    """True while devpet-bridge restart is stopping listeners and rebinding."""
+    if not RESTART_LOCK_PATH.exists():
+        return False
+    try:
+        age = time.time() - RESTART_LOCK_PATH.stat().st_mtime
+        if age > RESTART_LOCK_MAX_AGE:
+            RESTART_LOCK_PATH.unlink(missing_ok=True)
+            return False
+    except OSError:
+        return False
+    return True
+
+
+def touch_restart_lock() -> None:
+    RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
+    RESTART_LOCK_PATH.touch()
+
+
+def clear_restart_lock() -> None:
+    try:
+        RESTART_LOCK_PATH.unlink(missing_ok=True)
+    except OSError:
+        pass
 
 
 def bridge_http_url() -> str:
@@ -34,8 +62,8 @@ def bridge_http_url() -> str:
 def bridge_ports(url: str | None = None) -> tuple[str, int, int]:
     parsed = urlparse(url or bridge_http_url())
     host = parsed.hostname or "127.0.0.1"
-    http_port = parsed.port or int(os.environ.get("BUDDY_HTTP_PORT", "9876"))
-    ws_port = int(os.environ.get("BUDDY_WS_PORT", "9877"))
+    http_port = parsed.port or int(os.environ.get("BUDDY_HTTP_PORT", "19876"))
+    ws_port = int(os.environ.get("BUDDY_WS_PORT", "19877"))
     return host, http_port, ws_port
 
 
@@ -86,6 +114,8 @@ def _bridge_command(http_port: int, ws_port: int) -> list[str]:
 
 
 def start_bridge_background(url: str | None = None) -> None:
+    if restart_in_progress():
+        return
     _, http_port, ws_port = bridge_ports(url)
     RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
     log_handle = LOG_PATH.open("a", encoding="utf-8")
@@ -131,10 +161,14 @@ def ensure_bridge_running(
         return bridge_is_running(target)
     if bridge_is_running(target):
         return True
+    if restart_in_progress():
+        return wait_for_bridge(target, timeout=min(wait_timeout, 8.0))
     try:
         with _autostart_lock():
             if bridge_is_running(target):
                 return True
+            if restart_in_progress():
+                return wait_for_bridge(target, timeout=min(wait_timeout, 8.0))
             start_bridge_background(target)
     except OSError:
         return bridge_is_running(target)

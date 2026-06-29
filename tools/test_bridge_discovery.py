@@ -10,7 +10,7 @@ class DiscoveryTests(unittest.TestCase):
     def test_register_service(self, mock_zc_cls):
         mock_zc = MagicMock()
         mock_zc_cls.return_value = mock_zc
-        disc = BuddyDiscovery(ws_port=9877, http_port=9876, name="dev-mac")
+        disc = BuddyDiscovery(ws_port=19877, http_port=19876, name="dev-mac")
         disc.register()
         mock_zc.register_service.assert_called_once()
         disc.unregister()

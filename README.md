@@ -51,7 +51,7 @@ placeholders. Files stay on the phone; the bridge never receives your assets.
 ```text
 ┌──────────────── Computer (same Wi‑Fi) ─────────────────┐
 │  Cursor / Claude Code  →  hooks/  →  bridge/         │
-│                          HTTP :9876    WS :9877        │
+│                          HTTP :19876    WS :19877        │
 └────────────────────────────┬───────────────────────────┘
                              │ WebSocket snapshots
                              ▼
@@ -86,8 +86,8 @@ Phone + computer on the **same Wi‑Fi**. Full steps:
 
 | Port | Protocol | Consumer |
 | --- | --- | --- |
-| `9876` | HTTP POST | `hooks/*` |
-| `9877` | WebSocket | `app/` |
+| `19876` | HTTP POST | `hooks/*` |
+| `19877` | WebSocket | `app/` |
 
 ### 1. Clone & desktop setup
 
@@ -125,7 +125,7 @@ cd app && npm install && npm start
 
 1. Scan QR with Expo Go (same Wi‑Fi as the computer).
 2. First launch opens the **Bridge setup guide** (also in Settings).
-3. Enter computer **LAN IP** → `ws://<ip>:9877` → **Connect**.
+3. Enter computer **LAN IP** → `ws://<ip>:19877` → **Connect**.
 
 ### 5. Verify
 

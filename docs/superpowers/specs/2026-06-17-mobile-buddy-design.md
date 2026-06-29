@@ -46,8 +46,8 @@ personalize the pet.
 │  User computer (LAN)                                    │
 │  ┌──────────┐  ┌──────────────┐  ┌──────────────────┐ │
 │  │ Cursor   │  │ Claude Code  │  │ bridge/          │ │
-│  │ hooks    │  │ hooks        │  │ HTTP :9876       │ │
-│  └────┬─────┘  └──────┬───────┘  │ WS   :9877       │ │
+│  │ hooks    │  │ hooks        │  │ HTTP :19876       │ │
+│  └────┬─────┘  └──────┬───────┘  │ WS   :19877       │ │
 │       │               │          │ BridgeState      │ │
 │       └───────────────┴──────────┤ mDNS _buddy._tcp │ │
 │                                  └────────┬─────────┘ │
@@ -110,8 +110,8 @@ Dependency rules:
 
 | Port | Protocol | Consumer | Direction |
 | --- | --- | --- | --- |
-| `:9876` | HTTP POST | `hooks/*` | Hook → bridge |
-| `:9877` | WebSocket | `app/` | Bridge ↔ phone |
+| `:19876` | HTTP POST | `hooks/*` | Hook → bridge |
+| `:19877` | WebSocket | `app/` | Bridge ↔ phone |
 
 Hook HTTP behavior stays compatible with existing `session_bridge.py`.
 The phone is a new transport alongside BLE and USB serial, sharing
@@ -165,15 +165,15 @@ mDNS service:
 
 ```text
 _service: _buddy._tcp.local
-port:     9877
-txt:      version=1, http=9876, name=<hostname>
+port:     19877
+txt:      version=1, http=19876, name=<hostname>
 ```
 
 App flow:
 
 1. Scan with `react-native-zeroconf`.
 2. User picks a bridge or enters IP manually (fallback).
-3. Connect `ws://<ip>:9877`, receive `hello`, consume snapshots.
+3. Connect `ws://<ip>:19877`, receive `hello`, consume snapshots.
 4. MVP security: same LAN + optional pairing token printed at bridge start.
 
 ## Mobile App
@@ -283,7 +283,7 @@ Extract from `tools/session_bridge.py`:
 Start command:
 
 ```bash
-python -m bridge --transport websocket --ws-port 9877 --http-port 9876
+python -m bridge --transport websocket --ws-port 19877 --http-port 19876
 ```
 
 Multiple transports may run in parallel; all broadcast the same snapshot.

@@ -3,8 +3,8 @@
 
 Use _buddy_wait=false so curl returns immediately while the phone shows the modal.
 
-If the phone does not update, ensure only ONE bridge is running: HTTP :9876 and
-WS :9877 must be the same process (kill stale python bridge on 9876).
+If the phone does not update, ensure only ONE bridge is running: HTTP :19876 and
+WS :19877 must be the same process (kill stale python bridge on 19876).
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ def bridge_url() -> str:
     return (
         os.environ.get("BUDDY_BRIDGE_URL")
         or os.environ.get("CURSOR_BUDDY_BRIDGE_URL")
-        or "http://127.0.0.1:9876"
+        or "http://127.0.0.1:19876"
     )
 
 
@@ -60,7 +60,7 @@ def main() -> int:
     except TimeoutError:
         print(f"FAIL POST {url}: timed out", file=sys.stderr)
         print(
-            "Often two bridge processes: HTTP :9876 and WS :9877 must be ONE process.\n"
+            "Often two bridge processes: HTTP :19876 and WS :19877 must be ONE process.\n"
             "Fix: ./tools/restart_bridge.sh\n"
             "Then reconnect phone in Settings.",
             file=sys.stderr,
@@ -68,7 +68,7 @@ def main() -> int:
         return 1
     except urllib.error.URLError as exc:
         print(f"FAIL POST {url}: {exc}", file=sys.stderr)
-        print("Is bridge running with HTTP on 9876? Same process as WS 9877?", file=sys.stderr)
+        print("Is bridge running with HTTP on 19876? Same process as WS 19877?", file=sys.stderr)
         return 1
     print(out)
     if not args.wait:

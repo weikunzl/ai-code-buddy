@@ -4,7 +4,7 @@
 
 **Goal:** Ship a mobile-first claude-buddy monorepo where an Expo phone app replaces the hardware stick, connecting over LAN WebSocket to a refactored Python bridge fed by Cursor and Claude Code hooks.
 
-**Architecture:** Migrate firmware to `firmware/`, extract `tools/session_bridge.py` into `bridge/` with HTTP (`:9876`) and WebSocket (`:9877`) transports, move hooks into `hooks/`, share wire types via `packages/protocol`, and build `app/` with Zustand + a WebSocket client. Bridge owns session state (ADR-0002); app owns pet GIFs locally.
+**Architecture:** Migrate firmware to `firmware/`, extract `tools/session_bridge.py` into `bridge/` with HTTP (`:19876`) and WebSocket (`:19877`) transports, move hooks into `hooks/`, share wire types via `packages/protocol`, and build `app/` with Zustand + a WebSocket client. Bridge owns session state (ADR-0002); app owns pet GIFs locally.
 
 **Tech Stack:** Python 3.11+ (`bridge/`, `hooks/`), PlatformIO/Arduino (`firmware/`), Expo SDK 52 / React Native / TypeScript / Zustand (`app/`), `websockets`, `zeroconf`, Jest, existing `unittest` smoke tests under `tools/`.
 
@@ -622,7 +622,7 @@ class DiscoveryTests(unittest.TestCase):
     def test_register_service(self, mock_zc_cls):
         mock_zc = MagicMock()
         mock_zc_cls.return_value = mock_zc
-        disc = BuddyDiscovery(ws_port=9877, http_port=9876, name="dev-mac")
+        disc = BuddyDiscovery(ws_port=19877, http_port=19876, name="dev-mac")
         disc.register()
         mock_zc.register_service.assert_called_once()
         disc.unregister()
@@ -634,12 +634,12 @@ if __name__ == "__main__":
 
 - [ ] **Step 2: Implement `BuddyDiscovery`**
 
-Service type `_buddy._tcp.local.`, properties `version=1`, `http=9876`, `name=<hostname>`.
+Service type `_buddy._tcp.local.`, properties `version=1`, `http=19876`, `name=<hostname>`.
 
 - [ ] **Step 3: Wire into `bridge/__main__.py`**
 
 ```python
-parser.add_argument("--ws-port", type=int, default=9877)
+parser.add_argument("--ws-port", type=int, default=19877)
 parser.add_argument("--transport", default="websocket")
 # When websocket in transport list, start WebSocketTransport + BuddyDiscovery
 ```
@@ -675,7 +675,7 @@ def bridge_url() -> str:
     return (
         os.environ.get("BUDDY_BRIDGE_URL")
         or os.environ.get("CURSOR_BUDDY_BRIDGE_URL")
-        or "http://127.0.0.1:9876"
+        or "http://127.0.0.1:19876"
     )
 ```
 
@@ -715,7 +715,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 pip install -e "$ROOT/bridge"
 python3 "$ROOT/hooks/cursor/install.py"
 python3 "$ROOT/hooks/claude-code/install.py"
-echo "Start bridge: python3 -m bridge --transport websocket --http-port 9876 --ws-port 9877"
+echo "Start bridge: python3 -m bridge --transport websocket --http-port 19876 --ws-port 19877"
 ```
 
 - [ ] **Step 5: Run hook tests**
@@ -932,7 +932,7 @@ sendIntent({ cmd: "permission", id: pending.id, decision: "once" });
 
 ```bash
 # Terminal 1
-python3 -m bridge --transport websocket --http-port 9876 --ws-port 9877
+python3 -m bridge --transport websocket --http-port 19876 --ws-port 19877
 
 # Terminal 2
 cd app && npx expo start
@@ -1028,7 +1028,7 @@ git commit -m "feat: add app sounds and finalize mobile README"
 | Spec requirement | Task |
 | --- | --- |
 | Monorepo layout `packages/ bridge/ hooks/ app/ firmware/` | M1, M2, M3, M4 |
-| HTTP 9876 + WS 9877 | M2-3, M3-1 |
+| HTTP 19876 + WS 19877 | M2-3, M3-1 |
 | mDNS `_buddy._tcp` | M3-2 |
 | Reuse heartbeat + intent commands | M3-1, M4-3 |
 | Cursor + Claude Code hooks | M3-3 |

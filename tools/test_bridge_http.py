@@ -102,7 +102,7 @@ class BridgeStateTests(unittest.TestCase):
             "session_id": "c1",
             "cwd": "/tmp",
             "model": "cursor",
-            "message": "$ lsof -i :9877",
+            "message": "$ lsof -i :19877",
         }, now=100)
         hb = state.build_heartbeat(now=101)
         self.assertEqual(hb["total"], 0)

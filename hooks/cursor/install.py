@@ -27,7 +27,9 @@ HOOKS_JSON = pathlib.Path.home() / ".cursor" / "hooks.json"
 EVENTS: dict[str, dict[str, object]] = {
     "sessionStart": {},
     "beforeSubmitPrompt": {},
+    "preToolUse": {"timeout": 60},
     "beforeShellExecution": {"timeout": 60},
+    "beforeMCPExecution": {"timeout": 60},
     "afterShellExecution": {},
     "afterFileEdit": {},
     "stop": {},

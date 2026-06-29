@@ -25,13 +25,13 @@ export default {
     step1: "1. Откройте терминал на компьютере.",
     step2: "2. Запустите bridge:",
     cmdRestart: "devpet-bridge restart",
-    cmdRestartHint: "Рекомендуется — завершает старые процессы, один процесс на HTTP 9876 и WS 9877.",
+    cmdRestartHint: "Рекомендуется — завершает старые процессы, один процесс на HTTP 19876 и WS 19877.",
     cmdStart: "devpet-bridge start",
     cmdStartHint: "Запуск только если порты свободны (не убивает текущий процесс).",
     stepCloneAlt: "Или из git-клона в каталоге проекта:",
     cmdCloneRestart: "./tools/restart_bridge.sh",
     cmdCloneStart: "./tools/start_bridge.sh",
-    cmdManual: "python3 -m bridge --transport websocket --http-port 9876 --ws-port {{port}}",
+    cmdManual: "python3 -m bridge --transport websocket --http-port 19876 --ws-port {{port}}",
     stepCompact: "На компьютере выполните:",
     step3: "3. Или начните чат в Cursor — хуки автоматически запустят bridge (по умолчанию).",
     step4: "4. В настройках ниже введите LAN IP компьютера и нажмите «Подключить». Пример:",
@@ -59,7 +59,7 @@ export default {
   sessions: {
     notConnectedTitle: "Bridge не подключён",
     notConnectedBody:
-      "Откройте Настройки, введите ws://<LAN-IP>:9877 и нажмите Подключить.",
+      "Откройте Настройки, введите ws://<LAN-IP>:19877 и нажмите Подключить.",
     emptyTitle: "Подключено, сессий нет",
     emptyBody:
       "Сессии создаются хуками Cursor / Claude Code. На компьютере выполните:\n\npython3 tools/push_test_prompt.py\n\nИли начните чат в Cursor и обновите эту вкладку.",
@@ -103,7 +103,7 @@ export default {
     faq: {
       wifi: {
         q: "Телефон не подключается — с чего начать?",
-        a: "Одна Wi‑Fi, devpet-bridge restart, LAN IP компьютера (не 127.0.0.1) в ws://IP:9877.",
+        a: "Одна Wi‑Fi, devpet-bridge restart, LAN IP компьютера (не 127.0.0.1) в ws://IP:19877.",
       },
       lanIp: {
         q: "Почему нельзя 127.0.0.1?",
@@ -122,8 +122,8 @@ export default {
         a: "Проверьте bridge, IP, Wi‑Fi и разрешение локальной сети на iOS.",
       },
       ports: {
-        q: "Порты 9876 и 9877",
-        a: "9876 — HTTP для хуков, 9877 — WebSocket для телефона. Один процесс bridge.",
+        q: "Порты 19876 и 19877",
+        a: "19876 — HTTP для хуков, 19877 — WebSocket для телефона. Один процесс bridge.",
       },
       sessions: {
         q: "Сессии пропали после переключения",
@@ -152,6 +152,7 @@ export default {
   approval: {
     deny: "Отклонить",
     allowOnce: "Разрешить один раз",
+    sendFailed: "Нет подключения к bridge. Проверьте настройки.",
     freeTextHint: "Свободный текст пока вводится в IDE.",
   },
   petStates: {
@@ -179,13 +180,13 @@ export default {
     error: "ошибка",
   },
   errors: {
-    invalid_bridge_url: "Введите корректный URL, напр. ws://192.168.1.10:9877",
+    invalid_bridge_url: "Введите корректный URL, напр. ws://192.168.1.10:19877",
     bridge_url_missing: "Введите LAN IP компьютера выше (не 127.0.0.1).",
     bridge_url_loopback: "127.0.0.1 работает только на компьютере. Используйте LAN IP.",
     connection_timeout:
       "Таймаут подключения. Проверьте bridge, одну Wi‑Fi сеть и LAN IP (не 127.0.0.1).",
     invalid_ws_url: "Некорректный WebSocket URL.",
-    ws_error: "Ошибка WebSocket. Используйте ws://<LAN-IP>:9877 в той же Wi‑Fi.",
+    ws_error: "Ошибка WebSocket. Используйте ws://<LAN-IP>:19877 в той же Wi‑Fi.",
     disconnected_reconnecting: "Соединение с bridge потеряно. Переподключение…",
     reconnect_gave_up: "Автопереподключение остановлено после 6 попыток. Подключитесь вручную.",
     gif_permission_denied: "Нужен доступ к фото для выбора GIF.",

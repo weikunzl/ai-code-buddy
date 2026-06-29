@@ -27,11 +27,12 @@ def project_name(cwd: str) -> str:
 
 
 def tool_body(tool: str, tin: dict[str, Any]) -> str:
-    if tool == "Bash":
+    if tool in ("Bash", "Shell", "execute_command"):
         desc = _clip(tin.get("description"), 120)
         command = _clip(tin.get("command"), 220)
         return f"{desc}\n$ {command}" if desc else command
-    if tool in ("Edit", "MultiEdit", "Write", "Read"):
+    if tool in ("Edit", "MultiEdit", "Write", "Read",
+                "write_to_file", "replace_in_file", "read_file"):
         return _clip(tin.get("file_path"), 220)
     if tool == "WebSearch":
         return _clip(tin.get("query"), 220)

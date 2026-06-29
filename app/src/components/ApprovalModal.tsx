@@ -15,6 +15,7 @@ type Props = {
   pending: PendingItem | null;
   onSend: (intent: DeviceIntent) => void;
   onDismiss?: () => void;
+  sendError?: string | null;
 };
 
 const APPROVAL_KINDS = new Set([
@@ -24,7 +25,7 @@ const APPROVAL_KINDS = new Set([
   "free_text_required",
 ]);
 
-export function ApprovalModal({ pending, onSend, onDismiss }: Props) {
+export function ApprovalModal({ pending, onSend, onDismiss, sendError }: Props) {
   const { t } = useTranslation();
   const [selected, setSelected] = useState<string[]>([]);
   const visible = pending !== null && APPROVAL_KINDS.has(pending.kind);
@@ -66,6 +67,8 @@ export function ApprovalModal({ pending, onSend, onDismiss }: Props) {
           <ScrollView style={styles.bodyScroll}>
             <Text style={styles.body}>{pending.body}</Text>
           </ScrollView>
+
+          {sendError ? <Text style={styles.error}>{sendError}</Text> : null}
 
           {pending.kind === "permission" && (
             <View style={styles.row}>
@@ -137,6 +140,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 18, fontWeight: "700", marginBottom: 8 },
   bodyScroll: { maxHeight: 160, marginBottom: 16 },
   body: { fontSize: 14, color: "#374151" },
+  error: { fontSize: 13, color: "#dc2626", marginBottom: 12 },
   row: { flexDirection: "row", gap: 12 },
   btn: {
     flex: 1,

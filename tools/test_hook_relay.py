@@ -35,7 +35,7 @@ class HookRelayTests(unittest.TestCase):
         stderr = io.StringIO()
         rc = hook_relay.forward_hook(
             b'{"hook_event_name":"Notification"}',
-            url="http://127.0.0.1:9876",
+            url="http://127.0.0.1:19876",
             timeout=2.5,
             strict=False,
             stdout=stdout,
@@ -46,7 +46,7 @@ class HookRelayTests(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertEqual(stdout.getvalue(), '{"decision":"usb"}\n')
         self.assertEqual(stderr.getvalue(), "")
-        self.assertEqual(seen["url"], "http://127.0.0.1:9876")
+        self.assertEqual(seen["url"], "http://127.0.0.1:19876")
         self.assertEqual(json.loads(seen["body"].decode("utf-8"))["hook_event_name"], "Notification")
         self.assertEqual(seen["timeout"], 2.5)
 
@@ -55,7 +55,7 @@ class HookRelayTests(unittest.TestCase):
         stderr = io.StringIO()
         rc = hook_relay.forward_hook(
             b"{bad",
-            url="http://127.0.0.1:9876",
+            url="http://127.0.0.1:19876",
             timeout=2.0,
             strict=False,
             stdout=stdout,
@@ -71,7 +71,7 @@ class HookRelayTests(unittest.TestCase):
         stderr = io.StringIO()
         rc = hook_relay.forward_hook(
             b"{bad",
-            url="http://127.0.0.1:9876",
+            url="http://127.0.0.1:19876",
             timeout=2.0,
             strict=True,
             stdout=stdout,
@@ -90,7 +90,7 @@ class HookRelayTests(unittest.TestCase):
         stderr = io.StringIO()
         rc = hook_relay.forward_hook(
             b'{"hook_event_name":"Notification"}',
-            url="http://127.0.0.1:9876",
+            url="http://127.0.0.1:19876",
             timeout=2.0,
             strict=False,
             stdout=stdout,
@@ -110,7 +110,7 @@ class HookRelayTests(unittest.TestCase):
         stderr = io.StringIO()
         rc = hook_relay.forward_hook(
             b'{"hook_event_name":"Notification"}',
-            url="http://127.0.0.1:9876",
+            url="http://127.0.0.1:19876",
             timeout=2.0,
             strict=True,
             stdout=stdout,
@@ -130,7 +130,7 @@ class HookRelayTests(unittest.TestCase):
         stderr = io.StringIO()
         rc = hook_relay.forward_hook(
             b'{"hook_event_name":"Notification"}',
-            url="http://127.0.0.1:9876",
+            url="http://127.0.0.1:19876",
             timeout=2.0,
             strict=False,
             stdout=stdout,

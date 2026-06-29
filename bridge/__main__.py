@@ -19,8 +19,8 @@ def main() -> int:
     parser.add_argument("--simulate", action="store_true", help="emit canned firmware frames")
     parser.add_argument("--once", action="store_true", help="emit one simulator cycle and exit")
     parser.add_argument("--interval", type=float, default=1.0)
-    parser.add_argument("--http-port", type=int, default=9876)
-    parser.add_argument("--ws-port", type=int, default=9877)
+    parser.add_argument("--http-port", type=int, default=19876)
+    parser.add_argument("--ws-port", type=int, default=19877)
     parser.add_argument(
         "--ws-host",
         default="0.0.0.0",
@@ -65,7 +65,19 @@ def main() -> int:
             transport.start(runtime.on_device_message)
         else:
             transport.start(reader)
+    if args.transport == "websocket" and args.http_port > 0 and server is None:
+        raise SystemExit(
+            f"[bridge] HTTP :{args.http_port} and WS :{args.ws_port} must bind in one process; "
+            "run devpet-bridge restart to clear stale listeners"
+        )
     threading.Thread(target=runtime.heartbeat_loop, daemon=True).start()
+
+    try:
+        from hooks.common.ensure_bridge import clear_restart_lock
+    except ImportError:
+        clear_restart_lock = None  # type: ignore[assignment]
+    if clear_restart_lock is not None:
+        clear_restart_lock()
 
     discovery: BuddyDiscovery | None = None
     if args.transport == "websocket":

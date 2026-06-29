@@ -44,7 +44,7 @@
 ```text
 ┌──────────────── 电脑（同一 Wi‑Fi）─────────────────┐
 │  Cursor / Claude Code  →  hooks/  →  bridge/      │
-│                          HTTP 9876    WS 9877      │
+│                          HTTP 19876    WS 19877      │
 └──────────────────────────┬─────────────────────────┘
                            │ WebSocket 快照
                            ▼
@@ -77,8 +77,8 @@
 
 | 端口 | 协议 | 用途 |
 | --- | --- | --- |
-| `9876` | HTTP POST | Hooks |
-| `9877` | WebSocket | 手机 App |
+| `19876` | HTTP POST | Hooks |
+| `19877` | WebSocket | 手机 App |
 
 ### 1. 克隆与电脑端一次性配置
 
@@ -116,7 +116,7 @@ cd app && npm install && npm start
 
 1. Expo Go 扫描 QR（与电脑同一 Wi‑Fi）。
 2. 首次打开会进入 **Bridge 安装引导**（设置里可随时再看）。
-3. 填入电脑 **局域网 IP** → `ws://<IP>:9877` → **连接**。
+3. 填入电脑 **局域网 IP** → `ws://<IP>:19877` → **连接**。
 
 ### 5. 验证
 
@@ -152,13 +152,30 @@ python3 hooks/cursor/install.py
 
 默认 25 秒超时后 **放行**，由 Cursor 原有提示接管。
 
+## TRAE 集成
+
+[`hooks/trae/hook.py`](hooks/trae/hook.py) 对接 [TRAE IDE Hook](https://docs.trae.cn/ide_hook-configuration-reference)。安装：
+
+```bash
+python3 hooks/trae/install.py              # 全局 ~/.trae-cn/hooks.json
+python3 hooks/trae/install.py --project    # 仅当前项目 .trae/hooks.json
+```
+
+| `TRAE_BUDDY_APPROVE` | 行为 |
+| --- | --- |
+| `risky`（默认） | `RunCommand` 中危险命令需在手机审批 |
+| `all` | 所有工具调用都等待 |
+| `off` | 仅观察，不拦截 |
+
+TRAE 使用嵌套 `hooks.json` 格式；`PreToolUse` 将 `RunCommand` 映射为 Bridge 的 `Bash` 工具名。超时后 **放行**，由 TRAE 原有确认流程接管。
+
 ## 仓库结构
 
 ```text
 claude-buddy/
 ├── app/                   # DevPet 手机应用（主产品）
 ├── bridge/                # Python：HTTP、WebSocket、mDNS
-├── hooks/                 # Cursor / Claude Code 适配
+├── hooks/                 # Cursor / Claude Code / TRAE 适配
 ├── packages/protocol/     # 共享协议类型
 ├── firmware/              # ESP32 参考实现（可选）→ firmware/README.md
 ├── docs/                  # 设计与协议文档

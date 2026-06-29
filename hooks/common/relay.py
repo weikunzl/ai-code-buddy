@@ -15,7 +15,7 @@ from hooks.common.ensure_bridge import ensure_bridge_running
 def bridge_url(args: argparse.Namespace) -> str:
     if args.bridge_url:
         return args.bridge_url
-    if args.http_port != 9876:
+    if args.http_port != 19876:
         return f"http://127.0.0.1:{args.http_port}"
     return default_bridge_url()
 
@@ -81,7 +81,7 @@ def forward_hook(
 def main(argv: list[str] | None = None, stdin: Any = None, stdout: Any = None, stderr: Any = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--bridge-url", default="")
-    parser.add_argument("--http-port", type=int, default=9876)
+    parser.add_argument("--http-port", type=int, default=19876)
     parser.add_argument("--timeout", type=float, default=2.0)
     parser.add_argument("--strict", action="store_true")
     args = parser.parse_args(argv)

@@ -25,13 +25,13 @@ export default {
     step1: "1. 在电脑上打开终端。",
     step2: "2. 启动 Bridge：",
     cmdRestart: "devpet-bridge restart",
-    cmdRestartHint: "推荐 — 清理旧进程，单一进程同时监听 HTTP 9876 与 WS 9877。",
+    cmdRestartHint: "推荐 — 清理旧进程，单一进程同时监听 HTTP 19876 与 WS 19877。",
     cmdStart: "devpet-bridge start",
     cmdStartHint: "仅在未运行时启动，不会结束已有进程。",
     stepCloneAlt: "或在 git 克隆的项目目录中：",
     cmdCloneRestart: "./tools/restart_bridge.sh",
     cmdCloneStart: "./tools/start_bridge.sh",
-    cmdManual: "python3 -m bridge --transport websocket --http-port 9876 --ws-port {{port}}",
+    cmdManual: "python3 -m bridge --transport websocket --http-port 19876 --ws-port {{port}}",
     stepCompact: "在电脑上运行：",
     step3: "3. 或在 Cursor 里开始对话 — hooks 会自动启动 Bridge（默认开启）。",
     step4: "4. 在下方设置填入电脑局域网 IP 并点「连接」。示例：",
@@ -58,7 +58,7 @@ export default {
   },
   sessions: {
     notConnectedTitle: "未连接 Bridge",
-    notConnectedBody: "打开设置，填入 ws://电脑局域网IP:9877 后点连接。",
+    notConnectedBody: "打开设置，填入 ws://电脑局域网IP:19877 后点连接。",
     emptyTitle: "已连接，暂无会话",
     emptyBody:
       "会话由 Cursor / Claude Code hooks 创建。可在电脑运行：\n\npython3 tools/push_test_prompt.py\n\n或在 Cursor 里发起对话后刷新此页。",
@@ -102,7 +102,7 @@ export default {
     faq: {
       wifi: {
         q: "手机连不上，先检查什么？",
-        a: "手机与电脑同一 Wi‑Fi；电脑运行 devpet-bridge restart；设置里填电脑局域网 IP（不要用 127.0.0.1），格式 ws://IP:9877。",
+        a: "手机与电脑同一 Wi‑Fi；电脑运行 devpet-bridge restart；设置里填电脑局域网 IP（不要用 127.0.0.1），格式 ws://IP:19877。",
       },
       lanIp: {
         q: "为什么不能用 127.0.0.1？",
@@ -121,8 +121,8 @@ export default {
         a: "确认 Bridge 已启动、IP 正确、同一 Wi‑Fi；iOS 需允许 Expo Go / DevPet 的本地网络权限。",
       },
       ports: {
-        q: "9876 和 9877 端口是什么？",
-        a: "9876 = 电脑 Hooks 的 HTTP；9877 = 手机 WebSocket。必须是同一 Bridge 进程，异常时执行 devpet-bridge restart。",
+        q: "19876 和 19877 端口是什么？",
+        a: "19876 = 电脑 Hooks 的 HTTP；19877 = 手机 WebSocket。必须是同一 Bridge 进程，异常时执行 devpet-bridge restart。",
       },
       sessions: {
         q: "切换页面后会话不见了",
@@ -151,6 +151,7 @@ export default {
   approval: {
     deny: "拒绝",
     allowOnce: "允许一次",
+    sendFailed: "未连接到 Bridge，无法提交。请检查设置中的连接。",
     freeTextHint: "自由文本提示暂需在 IDE 中输入。",
   },
   petStates: {
@@ -178,13 +179,13 @@ export default {
     error: "错误",
   },
   errors: {
-    invalid_bridge_url: "请输入有效地址，例如 ws://192.168.1.10:9877",
+    invalid_bridge_url: "请输入有效地址，例如 ws://192.168.1.10:19877",
     bridge_url_missing: "请在上方填入电脑的局域网 IP（不要用 127.0.0.1）。",
     bridge_url_loopback: "127.0.0.1 只能在电脑上本机访问，请填局域网 IP。",
     connection_timeout:
       "连接超时。请确认 Bridge 已启动、同一 Wi‑Fi，并使用局域网 IP（不要用 127.0.0.1）。",
     invalid_ws_url: "WebSocket 地址无效。",
-    ws_error: "WebSocket 错误。请使用 ws://<局域网IP>:9877，并确保与 Bridge 在同一 Wi‑Fi。",
+    ws_error: "WebSocket 错误。请使用 ws://<局域网IP>:19877，并确保与 Bridge 在同一 Wi‑Fi。",
     disconnected_reconnecting: "已与 Bridge 断开，正在重连…",
     reconnect_gave_up: "已自动重连 6 次仍失败，请手动点击连接。",
     gif_permission_denied: "需要相册权限才能选择 GIF。",

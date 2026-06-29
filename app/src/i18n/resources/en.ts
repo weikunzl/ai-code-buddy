@@ -25,13 +25,13 @@ export default {
     step1: "1. Open a terminal on your computer.",
     step2: "2. Start the bridge:",
     cmdRestart: "devpet-bridge restart",
-    cmdRestartHint: "Recommended — kills stale processes, starts HTTP :9876 + WS :9877.",
+    cmdRestartHint: "Recommended — kills stale processes, starts HTTP :19876 + WS :19877.",
     cmdStart: "devpet-bridge start",
     cmdStartHint: "Start only if ports are free (does not kill existing listeners).",
     stepCloneAlt: "Or from a git clone in the project directory:",
     cmdCloneRestart: "./tools/restart_bridge.sh",
     cmdCloneStart: "./tools/start_bridge.sh",
-    cmdManual: "python3 -m bridge --transport websocket --http-port 9876 --ws-port {{port}}",
+    cmdManual: "python3 -m bridge --transport websocket --http-port 19876 --ws-port {{port}}",
     stepCompact: "On your computer, run:",
     step3: "3. Or just start a chat in Cursor — hooks auto-start the bridge (default).",
     step4: "4. In Settings below, enter your computer LAN IP and tap Connect. Example:",
@@ -61,7 +61,7 @@ export default {
   sessions: {
     notConnectedTitle: "Bridge not connected",
     notConnectedBody:
-      "Open Settings, enter ws://<LAN-IP>:9877, then tap Connect.",
+      "Open Settings, enter ws://<LAN-IP>:19877, then tap Connect.",
     emptyTitle: "Connected, no sessions yet",
     emptyBody:
       "Sessions are created by Cursor / Claude Code hooks. On your computer run:\n\npython3 tools/push_test_prompt.py\n\nOr start a chat in Cursor and refresh this tab.",
@@ -105,7 +105,7 @@ export default {
     faq: {
       wifi: {
         q: "Phone cannot connect — what should I check first?",
-        a: "Same Wi‑Fi for phone and computer. Start the bridge with devpet-bridge restart. Use your computer's LAN IP (not 127.0.0.1) as ws://<IP>:9877 in Settings.",
+        a: "Same Wi‑Fi for phone and computer. Start the bridge with devpet-bridge restart. Use your computer's LAN IP (not 127.0.0.1) as ws://<IP>:19877 in Settings.",
       },
       lanIp: {
         q: "Why not use 127.0.0.1?",
@@ -124,8 +124,8 @@ export default {
         a: "Confirm bridge is running, IP is correct, same Wi‑Fi, and iOS Local Network permission is allowed for Expo Go / DevPet.",
       },
       ports: {
-        q: "What are ports 9876 and 9877?",
-        a: "9876 = HTTP for hooks on the computer. 9877 = WebSocket for the phone. Both must be the same bridge process — run devpet-bridge restart if things get stuck.",
+        q: "What are ports 19876 and 19877?",
+        a: "19876 = HTTP for hooks on the computer. 19877 = WebSocket for the phone. Both must be the same bridge process — run devpet-bridge restart if things get stuck.",
       },
       sessions: {
         q: "Sessions disappeared after switching tabs",
@@ -154,6 +154,7 @@ export default {
   approval: {
     deny: "Deny",
     allowOnce: "Allow once",
+    sendFailed: "Not connected to the bridge. Check Settings and try again.",
     freeTextHint: "Free-text prompts require IDE input for now.",
   },
   petStates: {
@@ -181,13 +182,13 @@ export default {
     error: "error",
   },
   errors: {
-    invalid_bridge_url: "Enter a valid URL, e.g. ws://192.168.1.10:9877",
+    invalid_bridge_url: "Enter a valid URL, e.g. ws://192.168.1.10:19877",
     bridge_url_missing: "Enter your computer's LAN IP above (not 127.0.0.1).",
     bridge_url_loopback: "127.0.0.1 only works on the computer itself. Use your LAN IP.",
     connection_timeout:
       "Connection timed out. Check bridge is running, same Wi‑Fi, and LAN IP (not 127.0.0.1).",
     invalid_ws_url: "Invalid WebSocket URL.",
-    ws_error: "WebSocket error. Use ws://<LAN-IP>:9877 with bridge on the same Wi‑Fi.",
+    ws_error: "WebSocket error. Use ws://<LAN-IP>:19877 with bridge on the same Wi‑Fi.",
     disconnected_reconnecting: "Disconnected from bridge. Reconnecting…",
     reconnect_gave_up: "Auto-reconnect stopped after 6 attempts. Connect manually when ready.",
     gif_permission_denied: "Photo library permission is required to pick a GIF.",

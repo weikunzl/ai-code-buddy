@@ -97,7 +97,7 @@ def print_manual_instructions() -> None:
     print(json.dumps(snippet(), indent=2))
     print(f"[install] hook script: {HOOK_SCRIPT}")
     print("[install] merge the hooks section into ~/.claude/settings.json")
-    print("[install] set BUDDY_BRIDGE_URL if the bridge is not on http://127.0.0.1:9876")
+    print("[install] set BUDDY_BRIDGE_URL if the bridge is not on http://127.0.0.1:19876")
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -8,7 +8,7 @@ import { useSnapshotStore } from "../store/snapshot";
 type BridgeContextValue = {
   connect: () => boolean;
   disconnect: () => void;
-  sendIntent: (intent: DeviceIntent) => void;
+  sendIntent: (intent: DeviceIntent) => boolean;
 };
 
 const BridgeContext = createContext<BridgeContextValue | null>(null);

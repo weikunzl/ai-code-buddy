@@ -25,13 +25,13 @@ export default {
     step1: "1. 컴퓨터에서 터미널을 엽니다.",
     step2: "2. Bridge 시작:",
     cmdRestart: "devpet-bridge restart",
-    cmdRestartHint: "권장 — 이전 프로세스를 정리하고 HTTP 9876 + WS 9877을 한 프로세스로 실행합니다.",
+    cmdRestartHint: "권장 — 이전 프로세스를 정리하고 HTTP 19876 + WS 19877을 한 프로세스로 실행합니다.",
     cmdStart: "devpet-bridge start",
     cmdStartHint: "실행 중이 아닐 때만 시작합니다(기존 프로세스는 종료하지 않음).",
     stepCloneAlt: "또는 git 클론 프로젝트 디렉터리에서:",
     cmdCloneRestart: "./tools/restart_bridge.sh",
     cmdCloneStart: "./tools/start_bridge.sh",
-    cmdManual: "python3 -m bridge --transport websocket --http-port 9876 --ws-port {{port}}",
+    cmdManual: "python3 -m bridge --transport websocket --http-port 19876 --ws-port {{port}}",
     stepCompact: "컴퓨터에서 실행:",
     step3: "3. 또는 Cursor에서 대화를 시작하면 훅이 Bridge를 자동 시작합니다(기본값).",
     step4: "4. 아래 설정에 컴퓨터 LAN IP를 입력하고 연결을 누르세요. 예:",
@@ -59,7 +59,7 @@ export default {
   sessions: {
     notConnectedTitle: "브리지 미연결",
     notConnectedBody:
-      "설정에서 ws://<LAN-IP>:9877 을 입력한 뒤 연결을 누르세요.",
+      "설정에서 ws://<LAN-IP>:19877 을 입력한 뒤 연결을 누르세요.",
     emptyTitle: "연결됨, 세션 없음",
     emptyBody:
       "세션은 Cursor / Claude Code 훅으로 생성됩니다. 컴퓨터에서 실행:\n\npython3 tools/push_test_prompt.py\n\n또는 Cursor에서 대화를 시작한 뒤 이 탭을 새로고침하세요.",
@@ -103,7 +103,7 @@ export default {
     faq: {
       wifi: {
         q: "연결이 안 될 때 먼저 확인할 것은?",
-        a: "같은 Wi‑Fi, devpet-bridge restart 실행, 설정에 컴퓨터 LAN IP(127.0.0.1 아님) ws://IP:9877 입력.",
+        a: "같은 Wi‑Fi, devpet-bridge restart 실행, 설정에 컴퓨터 LAN IP(127.0.0.1 아님) ws://IP:19877 입력.",
       },
       lanIp: {
         q: "127.0.0.1을 쓰면 안 되나요?",
@@ -122,8 +122,8 @@ export default {
         a: "bridge 실행, IP, Wi‑Fi, iOS 로컬 네트워크 권한을 확인하세요.",
       },
       ports: {
-        q: "9876과 9877 포트",
-        a: "9876=훅 HTTP, 9877=휴대폰 WebSocket. 하나의 bridge 프로세스여야 합니다.",
+        q: "19876과 19877 포트",
+        a: "19876=훅 HTTP, 19877=휴대폰 WebSocket. 하나의 bridge 프로세스여야 합니다.",
       },
       sessions: {
         q: "탭 전환 후 세션이 사라짐",
@@ -152,6 +152,7 @@ export default {
   approval: {
     deny: "거부",
     allowOnce: "한 번 허용",
+    sendFailed: "Bridge에 연결되지 않았습니다. 설정을 확인하세요.",
     freeTextHint: "자유 텍스트 프롬프트는 현재 IDE에서 입력해야 합니다.",
   },
   petStates: {
@@ -179,13 +180,13 @@ export default {
     error: "오류",
   },
   errors: {
-    invalid_bridge_url: "유효한 URL을 입력하세요. 예: ws://192.168.1.10:9877",
+    invalid_bridge_url: "유효한 URL을 입력하세요. 예: ws://192.168.1.10:19877",
     bridge_url_missing: "위에 컴퓨터 LAN IP를 입력하세요(127.0.0.1 아님).",
     bridge_url_loopback: "127.0.0.1은 컴퓨터에서만 동작합니다. LAN IP를 사용하세요.",
     connection_timeout:
       "연결 시간 초과. 브리지 실행, 동일 Wi‑Fi, LAN IP(127.0.0.1 아님)를 확인하세요.",
     invalid_ws_url: "WebSocket URL이 유효하지 않습니다.",
-    ws_error: "WebSocket 오류. 같은 Wi‑Fi에서 ws://<LAN-IP>:9877 을 사용하세요.",
+    ws_error: "WebSocket 오류. 같은 Wi‑Fi에서 ws://<LAN-IP>:19877 을 사용하세요.",
     disconnected_reconnecting: "브리지 연결이 끊어졌습니다. 재연결 중…",
     reconnect_gave_up: "6회 자동 재연결 후 중단되었습니다. 수동으로 연결하세요.",
     gif_permission_denied: "GIF 선택을 위해 사진 라이브러리 권한이 필요합니다.",
