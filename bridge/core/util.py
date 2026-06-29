@@ -30,6 +30,33 @@ def _clip(value: Any, n: int) -> str:
     return str(value or "").replace("\n", " ")[:n]
 
 
+def ide_bucket(model: str) -> str:
+    """Map bridge session `model` to a stable IDE id (trae/cursor/claude)."""
+    m = str(model or "").strip().lower()
+    if not m:
+        return ""
+    if "trae" in m:
+        return "trae"
+    if "cursor" in m:
+        return "cursor"
+    if "claude" in m or "codex" in m:
+        return "claude"
+    return ""
+
+
+def normalize_session_model(incoming: str, previous: str = "") -> str:
+    """Keep IDE bucket when hooks send LLM ids or omit model on later events."""
+    inc = _clip(incoming, 24)
+    prev = _clip(previous, 24)
+    bucket = ide_bucket(inc)
+    if bucket:
+        return bucket
+    bucket = ide_bucket(prev)
+    if bucket:
+        return bucket
+    return inc or prev or "codex"
+
+
 def encode_line(obj: dict[str, Any]) -> bytes:
     return (json.dumps(obj, ensure_ascii=False, separators=(",", ":")) + "\n").encode("utf-8")
 

@@ -315,6 +315,22 @@ static SessionSummary* findDisplaySession() {
   return nullptr;
 }
 
+static const char* activeSessionModel() {
+  SessionSummary* s = findDisplaySession();
+  if (s && s->model[0]) return s->model;
+  if (tama.model[0]) return tama.model;
+  return nullptr;
+}
+
+static void drawHudIdeLine(const Palette& p, int y, const char* model) {
+  spr.setFont(&fonts::Font0);
+  spr.setTextColor(p.textDim, p.bg);
+  spr.setCursor(4, y);
+  spr.print("IDE ");
+  spr.setTextColor(p.text, p.bg);
+  spr.print(resolveIdeLabel(model));
+}
+
 extern bool settingsOpen;
 extern bool resetOpen;
 
@@ -1543,18 +1559,26 @@ void drawHUD() {
 
   if (tama.lineGen != lastLineGen) { msgScroll = 0; lastLineGen = tama.lineGen; wake(); }
 
+  const char* ideModel = activeSessionModel();
+  const bool showIde = ideModel != nullptr;
+
   if (tama.nLines == 0) {
     UiScript msgScript = detectUiScript(tama.msg);
     UiCompactLayout layout = uiCompactLayoutFor(msgScript);
     char msgLine[80];
     utf8LineSlice(tama.msg, layout.bodyCols, msgLine, sizeof(msgLine));
     LH = uiLineHeightFor(msgScript);
-    const int SHOW = 3;
-    const int hudArea = SHOW * LH + 4;
+    const int rows = showIde ? 2 : 1;
+    const int hudArea = rows * LH + 4;
     spr.fillRect(0, H - hudArea, W, hudArea, p.bg);
+    int y = H - hudArea + 2;
+    if (showIde) {
+      drawHudIdeLine(p, y, ideModel);
+      y += LH;
+    }
     spr.setTextColor(p.text, p.bg);
     setUiBodyFont(msgLine);
-    spr.setCursor(4, H - LH - 2);
+    spr.setCursor(4, y);
     spr.print(msgLine);
     spr.setFont(&fonts::Font0);
     if (!settings().sound) {
@@ -1586,8 +1610,15 @@ void drawHUD() {
   UiCompactLayout layout = uiCompactLayoutFor(hudScript);
   const int SHOW = 3;
   LH = uiLineHeightFor(hudScript);
-  const int hudArea = SHOW * LH + 4;
+  const int ideRows = showIde ? 1 : 0;
+  const int hudArea = (SHOW + ideRows) * LH + 4;
   spr.fillRect(0, H - hudArea, W, hudArea, p.bg);
+
+  int yBase = H - hudArea + 2;
+  if (showIde) {
+    drawHudIdeLine(p, yBase, ideModel);
+    yBase += LH;
+  }
 
   uint8_t maxBack = (nDisp > SHOW) ? (nDisp - SHOW) : 0;
   if (msgScroll > maxBack) msgScroll = maxBack;
@@ -1600,7 +1631,7 @@ void drawHUD() {
     bool fresh = (srcOf[row] == newest) && (msgScroll == 0);
     spr.setTextColor(fresh ? p.text : p.textDim, p.bg);
     setUiBodyFont(disp[row]);
-    spr.setCursor(4, H - hudArea + 2 + i * LH);
+    spr.setCursor(4, yBase + i * LH);
     spr.print(disp[row]);
     spr.setFont(&fonts::Font0);
   }
@@ -1710,7 +1741,10 @@ static void drawSessionList() {
   setUiBodyFont(branchLine);
   spr.setCursor(4, y); spr.print(branchLine); y += layout.bodyLH;
   spr.setFont(&fonts::Font0);
-  spr.setCursor(4, y); spr.print(resolveIdeLabel(s.model)); y += layout.bodyLH;
+  spr.setTextColor(p.textDim, p.bg);
+  spr.setCursor(4, y); spr.print("IDE ");
+  spr.setTextColor(s.focused ? GREEN : p.text, p.bg);
+  spr.print(resolveIdeLabel(s.model)); y += layout.bodyLH;
   spr.setCursor(4, y); spr.printf("%s %s", s.phase, dur); y += layout.bodyLH + layout.sectionGap;
   spr.setTextColor(p.text, p.bg);
   setUiBodyFont(lastLine);

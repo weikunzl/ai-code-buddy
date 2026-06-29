@@ -5,7 +5,7 @@ import time
 from typing import Any
 
 from bridge.core.state import BridgeState
-from bridge.core.util import _clip, is_ignored_workspace, stable_local_sid
+from bridge.core.util import _clip, is_ignored_workspace, normalize_session_model, stable_local_sid
 
 
 def git_value(cwd: str, *args: str) -> str:
@@ -105,7 +105,9 @@ def apply_hook(
     project = project_name(cwd)
     branch = git_value(cwd, "rev-parse", "--abbrev-ref", "HEAD") or ""
     dirty = git_dirty(cwd)
-    model = _clip(payload.get("model") or "codex", 24)
+    with state.lock:
+        prev_model = state.sessions[sid].model if sid in state.sessions else ""
+    model = normalize_session_model(str(payload.get("model") or ""), prev_model)
 
     if event == "SessionStart":
         state.upsert_session(sid, cwd, project, branch, dirty, "idle", model, "connected", now)

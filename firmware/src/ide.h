@@ -13,6 +13,6 @@ static inline const char* resolveIdeLabel(const char* model) {
   m[i] = 0;
   if (strstr(m, "trae")) return "Trae";
   if (strstr(m, "cursor")) return "Cursor";
-  if (strstr(m, "claude") || strstr(m, "codex")) return "Claude";
-  return "IDE";
+  if (strstr(m, "claude") || strstr(m, "codex")) return "Claude Code";
+  return model;
 }

@@ -730,6 +730,39 @@ class HookHandlingTests(unittest.TestCase):
         self.assertEqual(state.decisions["q_followup"], "here")
 
 
+class IdeModelTests(unittest.TestCase):
+    def test_normalize_preserves_trae_when_llm_id_arrives(self):
+        from bridge.core.util import normalize_session_model
+
+        self.assertEqual(normalize_session_model("doubao-seed", "trae"), "trae")
+        self.assertEqual(normalize_session_model("", "trae"), "trae")
+
+    def test_normalize_maps_llm_name_with_trae_substring(self):
+        from bridge.core.util import normalize_session_model
+
+        self.assertEqual(normalize_session_model("trae-pro", ""), "trae")
+
+    def test_followup_hook_without_model_keeps_trae_bucket(self):
+        state = session_bridge.BridgeState()
+        session_bridge.apply_hook(state, {
+            "hook_event_name": "UserPromptSubmit",
+            "session_id": "s_docs",
+            "cwd": "/Users/me/workspace/docs",
+            "model": "trae",
+            "prompt": "edit readme",
+        }, now=10)
+        session_bridge.apply_hook(state, {
+            "hook_event_name": "Notification",
+            "session_id": "s_docs",
+            "cwd": "/Users/me/workspace/docs",
+            "observe_only": True,
+            "message": "RunCommand: ls",
+        }, now=11)
+        hb = state.build_heartbeat(now=12)
+        self.assertEqual(hb["model"], "trae")
+        self.assertEqual(hb["sessions"][0]["model"], "trae")
+
+
 class TransportTests(unittest.TestCase):
     def test_chunk_bytes_splits_payload_at_requested_limit(self):
         payload = b"abcdefghijklmnopqrstuvwxyz"

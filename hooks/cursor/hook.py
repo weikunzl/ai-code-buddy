@@ -271,7 +271,8 @@ def session_cwd(ev: dict[str, Any]) -> str:
 
 
 def model(ev: dict[str, Any]) -> str:
-    return str(ev.get("model") or "cursor")
+    # Bridge/firmware use `model` as IDE bucket; Cursor puts the LLM id in this field.
+    return "cursor"
 
 
 def emit(obj: dict[str, Any] | None) -> int:

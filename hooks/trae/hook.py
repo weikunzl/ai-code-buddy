@@ -233,7 +233,8 @@ def session_cwd(ev: dict[str, Any]) -> str:
 
 
 def model(ev: dict[str, Any]) -> str:
-    return str(ev.get("model") or "trae")
+    # Bridge/firmware use `model` as IDE bucket; TRAE puts the LLM id in this field.
+    return "trae"
 
 
 def emit(obj: dict[str, Any] | None) -> int:
