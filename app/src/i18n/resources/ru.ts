@@ -77,9 +77,10 @@ export default {
   },
   settings: {
     bridgeTitle: "Bridge WebSocket (порт {{port}})",
-    bridgeHint: "Следуйте шагам ниже, чтобы запустить bridge на компьютере.",
+    bridgeHint: "Подключение к bridge на компьютере по WebSocket, порт по умолчанию {{port}}.",
     lanIp: "LAN IP компьютера",
     port: "Порт",
+    portHint: "Порт WebSocket, по умолчанию {{port}} (не HTTP 19876 на компьютере).",
     urlPreview: "Адрес: {{url}}",
     status: "Статус: {{status}}",
     sounds: "Звуки",

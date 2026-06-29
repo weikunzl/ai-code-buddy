@@ -72,7 +72,7 @@ const char* petName();
 void ownerSet(const char* name);
 const char* ownerName();
 #include "stats.h"
-#include <M5Unified.h>
+#include "m5_compat.h"
 
 inline bool xferCommand(JsonDocument& doc) {
   const char* cmd = doc["cmd"];
@@ -112,9 +112,9 @@ inline bool xferCommand(JsonDocument& doc) {
   if (strcmp(cmd, "status") == 0) {
     // Dump everything the info screens show. Manual printf rather than
     // ArduinoJson serialize — less heap churn, and the shape is fixed.
-    int vBat = M5.Power.getBatteryVoltage();
-    int iBat = M5.Power.getBatteryCurrent();
-    int vBus = M5.Power.getVBUSVoltage();
+    int vBat = (int)(bdyBatV() * 1000);
+    int iBat = (int)bdyBatI();
+    int vBus = (int)(bdyVbusV() * 1000);
     int pct = (vBat - 3200) / 10;
     if (pct < 0) pct = 0; if (pct > 100) pct = 100;
     char b[320];

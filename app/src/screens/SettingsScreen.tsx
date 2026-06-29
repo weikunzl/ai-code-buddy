@@ -12,7 +12,7 @@ import {
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
-import { BUDDY_WS_PORT, buildBridgeUrl, parseBridgeUrl } from "../bridge/bridgeUrl";
+import { BUDDY_WS_PORT, buildBridgeUrl, normalizeWsPort, parseBridgeUrl } from "../bridge/bridgeUrl";
 import { translateErrorKey } from "../i18n";
 import { LanguagePicker } from "../components/LanguagePicker";
 import { HelpFaqSection } from "../components/HelpFaqSection";
@@ -49,12 +49,12 @@ export function SettingsScreen({ navigation }: Props) {
 
   const parsed = parseBridgeUrl(bridgeUrl);
   const [host, setHost] = useState(parsed.host);
-  const [port, setPort] = useState(parsed.port || String(BUDDY_WS_PORT));
+  const [port, setPort] = useState(normalizeWsPort(parsed.port));
 
   useEffect(() => {
     const p = parseBridgeUrl(bridgeUrl);
     setHost(p.host);
-    setPort(p.port || String(BUDDY_WS_PORT));
+    setPort(normalizeWsPort(p.port));
   }, [bridgeUrl]);
 
   const connected = status === "connected";
@@ -118,6 +118,7 @@ export function SettingsScreen({ navigation }: Props) {
           keyboardType="number-pad"
           editable={!busy}
         />
+        <Text style={styles.hint}>{t("settings.portHint", { port: BUDDY_WS_PORT })}</Text>
 
         <Text style={styles.preview}>
           {t("settings.urlPreview", { url: fullUrl || t("common.emDash") })}

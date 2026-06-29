@@ -1,9 +1,9 @@
 #include "../buddy.h"
 #include "../buddy_common.h"
-#include <M5Unified.h>
+#include "../m5_compat.h"
 #include <string.h>
 
-extern M5Canvas spr;
+extern TFT_eSprite spr;
 
 namespace dragon {
 

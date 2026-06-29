@@ -24,6 +24,11 @@ pio run -t upload
 # M5 StickS3:     pio run -e m5sticks3 -t upload
 ```
 
+Hardware abstraction (`m5_compat.h`) merged from
+[anthropics/claude-desktop-buddy](https://github.com/anthropics/claude-desktop-buddy):
+StickS3 uses software RTC, `bdy*()` power/IMU helpers, and USB-CDC boot fixes;
+StickC Plus keeps M5Unified for UTF-8/CJK fonts.
+
 ## Documentation
 
 | Document | Content |

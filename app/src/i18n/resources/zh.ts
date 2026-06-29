@@ -76,9 +76,10 @@ export default {
   },
   settings: {
     bridgeTitle: "Bridge WebSocket（端口 {{port}}）",
-    bridgeHint: "按下方步骤在电脑上启动 Bridge。",
+    bridgeHint: "手机通过 WebSocket 连接电脑 Bridge，默认端口 {{port}}。",
     lanIp: "电脑局域网 IP",
     port: "端口",
+    portHint: "WebSocket 端口，默认 {{port}}（不是电脑的 HTTP 19876）。",
     urlPreview: "连接地址：{{url}}",
     status: "状态：{{status}}",
     sounds: "音效",

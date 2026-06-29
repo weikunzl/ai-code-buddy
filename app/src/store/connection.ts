@@ -7,6 +7,15 @@ import { BUDDY_WS_PORT } from "../bridge/bridgeUrl";
 /** Empty until the user enters their computer's LAN IP in Settings. */
 export const DEFAULT_BRIDGE_URL = "";
 
+function migrateBridgeUrl(url: string): string {
+  if (!url) return url;
+  const ws = String(BUDDY_WS_PORT);
+  return url
+    .replace(/:9877(?=\/|$)/g, `:${ws}`)
+    .replace(/:9876(?=\/|$)/g, `:${ws}`)
+    .replace(/:19876(?=\/|$)/g, `:${ws}`);
+}
+
 type ConnectionState = {
   status: ConnectionStatus;
   bridgeUrl: string;
@@ -44,6 +53,13 @@ export const useConnectionStore = create(
       name: "buddy-connection",
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({ bridgeUrl: state.bridgeUrl, soundsMuted: state.soundsMuted }),
+      onRehydrateStorage: () => (state) => {
+        if (!state?.bridgeUrl) return;
+        const migrated = migrateBridgeUrl(state.bridgeUrl);
+        if (migrated !== state.bridgeUrl) {
+          state.setBridgeUrl(migrated);
+        }
+      },
     },
   ),
 );

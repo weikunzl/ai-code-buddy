@@ -1,6 +1,18 @@
 /** Default WebSocket port for mobile ↔ bridge (see docs/protocol/mobile-bridge.md). */
 export const BUDDY_WS_PORT = 19877;
 
+/** HTTP hook port on the computer — not used for mobile WebSocket connections. */
+export const BUDDY_HTTP_PORT = 19876;
+
+const LEGACY_WS_PORTS = new Set(["9877", "9876", "19876"]);
+
+/** Coerce saved or mistyped ports to the mobile WebSocket default. */
+export function normalizeWsPort(port: string | number | undefined): string {
+  const p = String(port ?? "").trim();
+  if (!p || LEGACY_WS_PORTS.has(p)) return String(BUDDY_WS_PORT);
+  return p;
+}
+
 export function buildBridgeUrl(host: string, port: string | number = BUDDY_WS_PORT): string {
   const h = host.trim();
   const p = String(port).trim() || String(BUDDY_WS_PORT);
@@ -15,7 +27,7 @@ export function parseBridgeUrl(url: string): { host: string; port: string } {
     const u = new URL(normalized);
     return {
       host: u.hostname,
-      port: u.port || String(BUDDY_WS_PORT),
+      port: normalizeWsPort(u.port || String(BUDDY_WS_PORT)),
     };
   } catch {
     return { host: "", port: String(BUDDY_WS_PORT) };
