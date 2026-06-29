@@ -9,7 +9,7 @@ from collections import OrderedDict, deque
 from dataclasses import dataclass, field
 from typing import Any
 
-from bridge.core.util import _clip, stable_local_sid
+from bridge.core.util import _clip, stable_local_sid, is_ignored_workspace
 
 # Drop sessions with no hook updates for this long (active or completed).
 SESSION_RETENTION_S = 86400  # 24h
@@ -134,7 +134,7 @@ class BridgeState:
         if self.focused_sid == sid:
             self.focused_sid = ""
             for s in reversed(self.sessions.values()):
-                if s.phase in ("running", "waiting"):
+                if s.phase in ("running", "waiting", "idle"):
                     self.focused_sid = s.sid
                     break
 
@@ -150,7 +150,7 @@ class BridgeState:
         return changed
 
     def _active_sessions_unlocked(self) -> list[Session]:
-        return [s for s in self.sessions.values() if s.phase in ("running", "waiting")]
+        return [s for s in self.sessions.values() if s.phase in ("running", "waiting", "idle")]
 
     def _visible_sessions_unlocked(self) -> list[Session]:
         active = self._active_sessions_unlocked()
@@ -162,7 +162,7 @@ class BridgeState:
         now = int(now if now is not None else time.time())
         line = f"{time.strftime('%H:%M', time.localtime(now))} {_clip(message, 72)}"
         with self.lock:
-            active = [s for s in self.sessions.values() if s.phase in ("running", "waiting")]
+            active = [s for s in self.sessions.values() if s.phase in ("running", "waiting", "idle")]
             if not active:
                 return
             self.entries.appendleft(line)
@@ -401,24 +401,44 @@ class BridgeState:
                 return True
         return False
 
+    def prune_ignored_workspace_sessions(self) -> bool:
+        changed = False
+        with self.lock:
+            for sid in list(self.sessions.keys()):
+                sess = self.sessions.get(sid)
+                if sess and is_ignored_workspace(sess.cwd):
+                    self._remove_session_unlocked(sid)
+                    changed = True
+        return changed
+
     def build_heartbeat(self, now: int | None = None) -> dict[str, Any]:
         now = int(now if now is not None else time.time())
         self.prune_stale_sessions(now)
+        self.prune_ignored_workspace_sessions()
         with self.lock:
             active = self._active_sessions_unlocked()
             visible = self._visible_sessions_unlocked()
             focused = self.sessions.get(self.focused_sid)
+            if focused and focused.phase == "done":
+                focused = None
+                self.focused_sid = ""
             if not focused:
                 if active:
                     focused = active[-1]
                 else:
                     done = [s for s in visible if s.phase == "done"]
                     focused = done[0] if done else None
-                self.focused_sid = focused.sid if focused else ""
+                if focused and focused.phase != "done":
+                    self.focused_sid = focused.sid
+            elif focused.phase == "done" and active:
+                focused = active[-1]
+                self.focused_sid = focused.sid
             active_pending = next(iter(self.pending.values()), None)
             running = sum(1 for s in active if s.phase == "running")
             waiting = sum(1 for s in active if s.phase == "waiting") or (1 if self.pending else 0)
-            msg = active_pending.title if active_pending else (focused.last if focused else "idle")
+            msg = active_pending.title if active_pending else (
+                focused.last if focused and focused.phase != "done" else "idle"
+            )
             if not self.sessions and not self.pending:
                 self.entries.clear()
             hb: dict[str, Any] = {
@@ -431,7 +451,7 @@ class BridgeState:
             }
             if self.entries:
                 hb["entries"] = list(self.entries)
-            if focused:
+            if focused and focused.phase != "done":
                 hb.update({
                     "focused": focused.sid,
                     "project": focused.project,

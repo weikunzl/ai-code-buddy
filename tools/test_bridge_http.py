@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+import os
 import threading
 import unittest
 import urllib.request
@@ -27,6 +28,57 @@ class BridgeStateTests(unittest.TestCase):
         self.assertEqual(hb["running"], 1)
         self.assertEqual(hb["project"], "repo")
         self.assertEqual(hb["sessions"][0]["sid"], "s_123")
+
+    def test_session_start_ignored_for_cursor_config_dir(self):
+        from bridge.core.hooks import apply_hook
+
+        state = BridgeState()
+        apply_hook(state, {
+            "hook_event_name": "SessionStart",
+            "session_id": "s_cfg",
+            "cwd": os.path.expanduser("~/.cursor"),
+            "model": "cursor",
+        }, now=100)
+        hb = state.build_heartbeat(now=101)
+        self.assertEqual(hb["total"], 0)
+        self.assertNotIn("sessions", hb)
+
+    def test_prune_removes_existing_cursor_config_session(self):
+        state = BridgeState()
+        state.upsert_session(
+            sid="s_cfg", cwd=os.path.expanduser("~/.cursor"), project=".cursor",
+            branch="", dirty=0, phase="idle", model="cursor", last="connected", now=10,
+        )
+        hb = state.build_heartbeat(now=11)
+        self.assertEqual(hb["total"], 0)
+
+    def test_session_start_marks_idle_not_running(self):
+        from bridge.core.hooks import apply_hook
+
+        state = BridgeState()
+        apply_hook(state, {
+            "hook_event_name": "SessionStart",
+            "session_id": "s_idle",
+            "cwd": "/tmp/proj",
+            "model": "cursor",
+        }, now=100)
+        hb = state.build_heartbeat(now=101)
+        self.assertEqual(hb["total"], 1)
+        self.assertEqual(hb["running"], 0)
+        self.assertEqual(hb["sessions"][0]["phase"], "idle")
+
+    def test_done_session_not_promoted_to_focus_banner(self):
+        state = BridgeState()
+        state.upsert_session(
+            sid="s_done", cwd="/tmp", project="p", branch="main", dirty=0,
+            phase="done", model="cursor", last="session done", now=100,
+        )
+        state.focused_sid = "s_done"
+        hb = state.build_heartbeat(now=101)
+        self.assertEqual(hb["total"], 0)
+        self.assertEqual(hb["running"], 0)
+        self.assertNotIn("assistant_msg", hb)
+        self.assertNotIn("project", hb)
 
     def test_permission_decision_via_handle_device_command(self):
         state = BridgeState()

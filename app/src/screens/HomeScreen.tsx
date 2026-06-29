@@ -6,7 +6,7 @@ import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTranslation } from "react-i18next";
 import { useBridge } from "../bridge/BridgeProvider";
-import { resolveIdeI18nKey } from "../bridge/resolveIde";
+import { buildHomeBanner } from "../bridge/homeBanner";
 import { resolveContextSession } from "../bridge/sessionContext";
 import { BridgeSetupGuide } from "../components/BridgeSetupGuide";
 import type { RootParamList } from "../navigation/navigationRef";
@@ -46,30 +46,18 @@ export function HomeScreen() {
     [snapshot, pending],
   );
 
-  const banner = useMemo(() => {
-    if (reconnectGaveUp) return t("home.reconnectGaveUp");
-    if (connecting) return t("home.connecting");
-    if (!connected) return t("home.notConnected");
-    if (pending) {
-      return t("home.waitingApproval", { tool: pending.title });
-    }
-    if (snapshot?.assistant_msg) return snapshot.assistant_msg;
-    if (contextSession?.project) {
-      return t("home.activeProject", {
-        project: contextSession.project,
-        branch: contextSession.branch ?? t("common.main"),
-      });
-    }
-    return t("home.watching");
-  }, [connected, connecting, contextSession, pending, reconnectGaveUp, snapshot, t]);
-
-  const sessionDetail = useMemo(() => {
-    if (!connected || !contextSession) return null;
-    const ideKey = resolveIdeI18nKey(contextSession.model);
-    const ide = t(ideKey);
-    const tool = pending?.title ?? snapshot?.prompt?.tool ?? contextSession.last ?? "—";
-    return t("home.sessionDetail", { ide, tool });
-  }, [connected, contextSession, pending?.title, snapshot?.prompt?.tool, t]);
+  const banner = useMemo(
+    () =>
+      buildHomeBanner(t, {
+        connected,
+        connecting,
+        reconnectGaveUp,
+        snapshot,
+        pending,
+        contextSession,
+      }),
+    [connected, connecting, contextSession, pending, reconnectGaveUp, snapshot, t],
+  );
 
   const showConnectCta = reconnectGaveUp && !connected && !connecting;
 
@@ -77,11 +65,11 @@ export function HomeScreen() {
     <View style={styles.container}>
       <View style={[styles.banner, !connected && styles.bannerOff, pending && styles.bannerAttention]}>
         <Text style={styles.bannerText} numberOfLines={3}>
-          {banner}
+          {banner.title}
         </Text>
-        {sessionDetail ? (
+        {banner.subtitle ? (
           <Text style={styles.bannerSub} numberOfLines={2}>
-            {sessionDetail}
+            {banner.subtitle}
           </Text>
         ) : null}
       </View>

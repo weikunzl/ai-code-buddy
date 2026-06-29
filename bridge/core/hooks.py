@@ -5,7 +5,7 @@ import time
 from typing import Any
 
 from bridge.core.state import BridgeState
-from bridge.core.util import _clip, stable_local_sid
+from bridge.core.util import _clip, is_ignored_workspace, stable_local_sid
 
 
 def git_value(cwd: str, *args: str) -> str:
@@ -96,12 +96,23 @@ def apply_hook(
     if not sid:
         sid = stable_local_sid(str(payload.get("cwd") or os.getcwd()))
     cwd = str(payload.get("cwd") or os.getcwd())
+    if is_ignored_workspace(cwd) and event not in ("Stop",):
+        if event == "Notification" and payload.get("observe_only"):
+            state.append_entry(_clip(payload.get("message"), 120), now)
+            notify_state_change()
+        return {}
+
     project = project_name(cwd)
     branch = git_value(cwd, "rev-parse", "--abbrev-ref", "HEAD") or ""
     dirty = git_dirty(cwd)
     model = _clip(payload.get("model") or "codex", 24)
 
-    if event in ("SessionStart", "UserPromptSubmit"):
+    if event == "SessionStart":
+        state.upsert_session(sid, cwd, project, branch, dirty, "idle", model, "connected", now)
+        notify_state_change()
+        return {}
+
+    if event == "UserPromptSubmit":
         prompt = _clip(payload.get("prompt"), 80)
         state.upsert_session(sid, cwd, project, branch, dirty, "running", model, prompt or "running", now)
         notify_state_change()

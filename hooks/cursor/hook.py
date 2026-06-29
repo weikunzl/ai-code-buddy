@@ -404,6 +404,7 @@ def on_after_file_edit(ev: dict[str, Any]) -> int:
     post_bridge(
         {
             "hook_event_name": "Notification",
+            "observe_only": True,
             "session_id": session_id(ev),
             "cwd": session_cwd(ev),
             "model": model(ev),

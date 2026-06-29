@@ -21,6 +21,10 @@ test("waiting permission → attention", () => {
   expect(derivePetState(snap, true)).toBe("attention");
 });
 
+test("idle session with no running work → idle", () => {
+  expect(derivePetState({ ...base, total: 1, running: 0, waiting: 0 }, true)).toBe("idle");
+});
+
 test("running sessions → busy", () => {
   expect(derivePetState({ ...base, running: 1 }, true)).toBe("busy");
 });
