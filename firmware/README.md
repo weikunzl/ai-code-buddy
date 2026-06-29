@@ -29,6 +29,10 @@ Hardware abstraction (`m5_compat.h`) merged from
 StickS3 uses software RTC, `bdy*()` power/IMU helpers, and USB-CDC boot fixes;
 StickC Plus keeps M5Unified for UTF-8/CJK fonts.
 
+**Firmware-only changes** (upstream sync, board ports, `m5_compat`) land on
+`feat/firmware-m5-compat`. Pull or rebase that branch before editing `firmware/`
+so mobile/bridge work on `main` stays separate.
+
 ## Documentation
 
 | Document | Content |
