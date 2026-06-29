@@ -21,6 +21,7 @@ static void startBt() {
 }
 
 #include "character.h"
+#include "ide.h"
 #include "stats.h"
 const int W = 135, H = 240;
 const int CX = W / 2;
@@ -276,10 +277,42 @@ static void sendAnswerChoices(const PendingDecision& d) {
   sendCmd(cmd);
 }
 
+// Optimistic focus while waiting for the next bridge snapshot (session list A).
+static char uiFocusSid[24] = "";
+
 static void sendFocusSession(const char* sid) {
+  if (!sid || !sid[0]) return;
   char cmd[96];
   snprintf(cmd, sizeof(cmd), "{\"cmd\":\"focus\",\"sid\":\"%s\"}", sid);
   sendCmd(cmd);
+  strncpy(uiFocusSid, sid, sizeof(uiFocusSid) - 1);
+  uiFocusSid[sizeof(uiFocusSid) - 1] = 0;
+}
+
+static SessionSummary* findDisplaySession() {
+  if (uiFocusSid[0]) {
+    for (uint8_t i = 0; i < tama.nSessions; i++) {
+      if (strcmp(tama.sessions[i].sid, uiFocusSid) == 0) {
+        if (tama.sessions[i].focused || strcmp(tama.focused, uiFocusSid) == 0) {
+          uiFocusSid[0] = 0;
+        }
+        return &tama.sessions[i];
+      }
+    }
+    uiFocusSid[0] = 0;
+  }
+  if (tama.focused[0]) {
+    for (uint8_t i = 0; i < tama.nSessions; i++) {
+      if (strcmp(tama.sessions[i].sid, tama.focused) == 0) {
+        return &tama.sessions[i];
+      }
+    }
+  }
+  for (uint8_t i = 0; i < tama.nSessions; i++) {
+    if (tama.sessions[i].focused) return &tama.sessions[i];
+  }
+  if (tama.nSessions > 0) return &tama.sessions[0];
+  return nullptr;
 }
 
 extern bool settingsOpen;
@@ -865,8 +898,9 @@ void drawInfo() {
   if (infoPage == 0) {
     _infoHeader(p, y, "ABOUT", infoPage);
     spr.setTextColor(p.textDim, p.bg);
-    ln("I watch your Claude");
-    ln("desktop sessions.");
+    ln("I watch your IDE");
+    ln("sessions (Claude,");
+    ln("Cursor, Trae, etc).");
     y += 6;
     ln("I sleep when nothing's");
     ln("happening, wake when");
@@ -898,11 +932,12 @@ void drawInfo() {
     ln("    hold 6s = off");
 
   } else if (infoPage == 2) {
-    _infoHeader(p, y, "CLAUDE", infoPage);
+    _infoHeader(p, y, "STATUS", infoPage);
     spr.setTextColor(p.textDim, p.bg);
     ln("  sessions  %u", tama.sessionsTotal);
     ln("  running   %u", tama.sessionsRunning);
     ln("  waiting   %u", tama.sessionsWaiting);
+    if (tama.model[0]) ln("  ide       %s", resolveIdeLabel(tama.model));
     y += 8;
     spr.setTextColor(p.text, p.bg);
     ln("LINK");
@@ -981,11 +1016,11 @@ void drawInfo() {
       spr.setTextColor(p.text, p.bg);
       ln("TO PAIR");
       spr.setTextColor(p.textDim, p.bg);
-      ln(" Open Claude desktop");
-      ln(" > Developer");
-      ln(" > Hardware Buddy");
+      ln(" Claude desktop:");
+      ln("  Developer > Buddy");
       y += 4;
-      ln(" auto-connects via BLE");
+      ln(" Trae / Cursor:");
+      ln("  bridge + USB/BLE");
     }
 
   } else {
@@ -1587,11 +1622,7 @@ static void drawFocusedSession() {
   spr.fillRect(0, TOP, W, H - TOP, p.bg);
   spr.setTextSize(1);
 
-  SessionSummary* s = nullptr;
-  for (uint8_t i = 0; i < tama.nSessions; i++) {
-    if (tama.sessions[i].focused) { s = &tama.sessions[i]; break; }
-  }
-  if (!s && tama.nSessions > 0) s = &tama.sessions[0];
+  SessionSummary* s = findDisplaySession();
 
   int y = TOP + 2;
   spr.setTextColor(p.text, p.bg);
@@ -1607,20 +1638,18 @@ static void drawFocusedSession() {
   const char* branch = s->branch[0] ? s->branch : tama.branch;
   const char* model = s->model[0] ? s->model : tama.model;
   const char* last = s->last[0] ? s->last : tama.assistantMsg;
+  const char* ide = resolveIdeLabel(model);
   UiScript layoutScript = UI_ASCII;
   layoutScript = mergeUiScript(layoutScript, detectUiScript(project));
   layoutScript = mergeUiScript(layoutScript, detectUiScript(branch));
-  layoutScript = mergeUiScript(layoutScript, detectUiScript(model));
   layoutScript = mergeUiScript(layoutScript, detectUiScript(last));
   UiCompactLayout layout = uiCompactLayoutFor(layoutScript);
-  UiCompactLayout modelLayout = uiCompactLayoutFor(detectUiScript(model));
 
   char dur[12];
-  char projectLine[96], branchLine[96], modelLine[64], last0[96], last1[96];
+  char projectLine[96], branchLine[96], last0[96], last1[96];
   const char* lastNext = nullptr;
   utf8LineSlice(project, layout.bodyCols, projectLine, sizeof(projectLine));
   utf8LineSlice(branch, layout.bodyCols, branchLine, sizeof(branchLine));
-  utf8LineSlice(model, modelLayout.choiceCols, modelLine, sizeof(modelLine));
   bool lastMore = utf8LineSlice(last, layout.bodyCols, last0, sizeof(last0), &lastNext);
   fmtDur(s->pendingS ? s->pendingS : s->elapsedS, dur, sizeof(dur));
   spr.setTextColor(p.body, p.bg);
@@ -1631,9 +1660,7 @@ static void drawFocusedSession() {
   spr.setCursor(4, y); spr.print(branchLine); y += layout.bodyLH;
   spr.setFont(&fonts::Font0);
   spr.setCursor(4, y); spr.printf("%s %s  dirty %d", s->phase, dur, s->dirty); y += layout.bodyLH;
-  spr.setCursor(4, y); spr.print("model ");
-  setUiBodyFont(modelLine);
-  spr.print(modelLine); y += layout.bodyLH + layout.sectionGap;
+  spr.setCursor(4, y); spr.print("IDE "); spr.print(ide); y += layout.bodyLH + layout.sectionGap;
   spr.setTextColor(p.text, p.bg);
   setUiBodyFont(last0);
   spr.setCursor(4, y); spr.print(last0); y += layout.bodyLH;
@@ -1683,6 +1710,7 @@ static void drawSessionList() {
   setUiBodyFont(branchLine);
   spr.setCursor(4, y); spr.print(branchLine); y += layout.bodyLH;
   spr.setFont(&fonts::Font0);
+  spr.setCursor(4, y); spr.print(resolveIdeLabel(s.model)); y += layout.bodyLH;
   spr.setCursor(4, y); spr.printf("%s %s", s.phase, dur); y += layout.bodyLH + layout.sectionGap;
   spr.setTextColor(p.text, p.bg);
   setUiBodyFont(lastLine);
@@ -2000,6 +2028,7 @@ void loop() {
       } else if (displayMode == DISP_SESSIONS && tama.nSessions > 0) {
         if (sessionPage >= tama.nSessions) sessionPage = 0;
         sendFocusSession(tama.sessions[sessionPage].sid);
+        toneFocusAck();
         displayMode = DISP_SESSION;
         applyDisplayMode();
       } else if (resetOpen) {
