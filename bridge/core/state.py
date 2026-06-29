@@ -259,6 +259,7 @@ class BridgeState:
                 pending_since=now,
             )
             if sid in self.sessions:
+                self.focused_sid = sid
                 self.sessions[sid].phase = "waiting"
                 self.sessions[sid].waiting_since = self._oldest_pending_since(sid)
 
@@ -279,15 +280,25 @@ class BridgeState:
             self.decisions.pop(pid, None)
             self._acknowledge_pending_unlocked(pid)
 
+    @staticmethod
+    def normalize_permission_decision(decision: str) -> str:
+        """Map mobile labels (skip/allow/run) to hook verdicts (deny/once)."""
+        if decision in ("deny", "skip"):
+            return "deny"
+        if decision in ("once", "allow", "run"):
+            return "once"
+        return ""
+
     def handle_device_command(self, obj: dict[str, Any]) -> bool:
         cmd = obj.get("cmd")
         with self.lock:
             if cmd == "permission":
                 pid = str(obj.get("id") or "")
-                decision = str(obj.get("decision") or "")
-                if pid in self.pending and decision in ("once", "deny"):
+                decision = self.normalize_permission_decision(str(obj.get("decision") or ""))
+                if pid in self.pending and decision:
+                    # Keep pending visible until apply_hook resolve_pending() so
+                    # the phone stays on "attention" and Cursor gets the verdict.
                     self.decisions[pid] = decision
-                    self._acknowledge_pending_unlocked(pid)
                     return True
                 return False
             if cmd == "answer":
@@ -297,7 +308,6 @@ class BridgeState:
                 if pending and pending.kind in ("single_choice", "free_text_required") and choice:
                     if any(opt.get("id") == choice for opt in pending.options):
                         self.decisions[pid] = choice
-                        self._acknowledge_pending_unlocked(pid)
                         return True
                 raw_choices = obj.get("choices")
                 if pending and pending.kind == "multi_choice" and isinstance(raw_choices, list):
@@ -313,7 +323,6 @@ class BridgeState:
                         selected.append(raw)
                     if selected:
                         self.decisions[pid] = selected
-                        self._acknowledge_pending_unlocked(pid)
                         return True
                 return False
             if cmd == "focus":

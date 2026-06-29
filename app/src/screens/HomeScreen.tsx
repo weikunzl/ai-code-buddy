@@ -6,6 +6,8 @@ import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTranslation } from "react-i18next";
 import { useBridge } from "../bridge/BridgeProvider";
+import { resolveIdeI18nKey } from "../bridge/resolveIde";
+import { resolveContextSession } from "../bridge/sessionContext";
 import { BridgeSetupGuide } from "../components/BridgeSetupGuide";
 import type { RootParamList } from "../navigation/navigationRef";
 import type { SettingsStackParamList } from "../navigation/types";
@@ -39,27 +41,49 @@ export function HomeScreen() {
     lastApproveAt ?? undefined,
   );
   const pending = snapshot?.pending?.[0] ?? null;
+  const contextSession = useMemo(
+    () => resolveContextSession(snapshot, pending),
+    [snapshot, pending],
+  );
 
   const banner = useMemo(() => {
     if (reconnectGaveUp) return t("home.reconnectGaveUp");
     if (connecting) return t("home.connecting");
     if (!connected) return t("home.notConnected");
-    if (pending) return pending.title;
+    if (pending) {
+      return t("home.waitingApproval", { tool: pending.title });
+    }
     if (snapshot?.assistant_msg) return snapshot.assistant_msg;
-    if (snapshot?.project) {
-      return `${snapshot.project} · ${snapshot.branch ?? t("common.main")}`;
+    if (contextSession?.project) {
+      return t("home.activeProject", {
+        project: contextSession.project,
+        branch: contextSession.branch ?? t("common.main"),
+      });
     }
     return t("home.watching");
-  }, [connected, connecting, pending, reconnectGaveUp, snapshot, t]);
+  }, [connected, connecting, contextSession, pending, reconnectGaveUp, snapshot, t]);
+
+  const sessionDetail = useMemo(() => {
+    if (!connected || !contextSession) return null;
+    const ideKey = resolveIdeI18nKey(contextSession.model);
+    const ide = t(ideKey);
+    const tool = pending?.title ?? snapshot?.prompt?.tool ?? contextSession.last ?? "—";
+    return t("home.sessionDetail", { ide, tool });
+  }, [connected, contextSession, pending?.title, snapshot?.prompt?.tool, t]);
 
   const showConnectCta = reconnectGaveUp && !connected && !connecting;
 
   return (
     <View style={styles.container}>
-      <View style={[styles.banner, !connected && styles.bannerOff]}>
+      <View style={[styles.banner, !connected && styles.bannerOff, pending && styles.bannerAttention]}>
         <Text style={styles.bannerText} numberOfLines={3}>
           {banner}
         </Text>
+        {sessionDetail ? (
+          <Text style={styles.bannerSub} numberOfLines={2}>
+            {sessionDetail}
+          </Text>
+        ) : null}
       </View>
 
       <ScrollView
@@ -111,7 +135,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   bannerOff: { backgroundColor: "#e5e7eb" },
-  bannerText: { fontSize: 14, color: "#1e3a8a" },
+  bannerAttention: { backgroundColor: "#fef3c7" },
+  bannerText: { fontSize: 14, color: "#1e3a8a", fontWeight: "600" },
+  bannerSub: { fontSize: 13, color: "#374151", marginTop: 4 },
   scroll: { flex: 1 },
   scrollContent: { flexGrow: 1, paddingBottom: 24 },
   petArea: { alignItems: "center", justifyContent: "center", gap: 12, paddingVertical: 24 },

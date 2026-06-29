@@ -54,7 +54,16 @@ export default {
     tapConnect: "연결",
     openBridgeGuide: "전체 설치 가이드 →",
     watching: "세션 대기 중…",
+    waitingApproval: "승인 필요: {{tool}}",
+    activeProject: "{{project}} · {{branch}}",
+    sessionDetail: "{{ide}} · {{tool}}",
     stats: "실행 {{running}} · 대기 {{waiting}} · 전체 {{total}}",
+  },
+  ides: {
+    cursor: "Cursor",
+    claudeCode: "Claude Code",
+    trae: "Trae",
+    unknown: "IDE",
   },
   sessions: {
     notConnectedTitle: "브리지 미연결",
@@ -151,8 +160,9 @@ export default {
     importFailed: "GIF를 가져올 수 없음",
   },
   approval: {
-    deny: "거부",
-    allowOnce: "한 번 허용",
+    skip: "건너뛰기",
+    allow: "허용",
+    run: "실행",
     sendFailed: "Bridge에 연결되지 않았습니다. 설정을 확인하세요.",
     freeTextHint: "자유 텍스트 프롬프트는 현재 IDE에서 입력해야 합니다.",
   },

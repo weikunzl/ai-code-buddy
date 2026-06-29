@@ -47,7 +47,8 @@ export interface BuddySnapshot {
 export interface PermissionIntent {
   cmd: "permission";
   id: string;
-  decision: "once" | "deny";
+  /** Mobile UI: skip/allow/run; bridge also accepts legacy once/deny. */
+  decision: "skip" | "allow" | "run" | "once" | "deny";
 }
 
 export interface AnswerIntent {

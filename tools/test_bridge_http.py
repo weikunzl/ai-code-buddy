@@ -35,11 +35,37 @@ class BridgeStateTests(unittest.TestCase):
             phase="waiting", model="codex", last="x", now=10,
         )
         state.add_pending("req_1", "s_1", "permission", "Bash", "rm -rf /tmp/x", [], now=10)
-        ok = state.handle_device_command({"cmd": "permission", "id": "req_1", "decision": "once"})
+        ok = state.handle_device_command({"cmd": "permission", "id": "req_1", "decision": "run"})
         self.assertTrue(ok)
         self.assertEqual(state.decisions["req_1"], "once")
         hb = state.build_heartbeat(now=11)
+        self.assertIn("pending", hb)
+        state.resolve_pending("req_1")
+        hb = state.build_heartbeat(now=12)
         self.assertNotIn("pending", hb)
+
+    def test_permission_aliases_normalize_to_once_or_deny(self):
+        self.assertEqual(BridgeState.normalize_permission_decision("run"), "once")
+        self.assertEqual(BridgeState.normalize_permission_decision("allow"), "once")
+        self.assertEqual(BridgeState.normalize_permission_decision("skip"), "deny")
+        self.assertEqual(BridgeState.normalize_permission_decision("bogus"), "")
+
+    def test_add_pending_focuses_session(self):
+        state = BridgeState()
+        state.upsert_session(
+            sid="s_a", cwd="/tmp/a", project="alpha", branch="main", dirty=0,
+            phase="running", model="cursor", last="work", now=10,
+        )
+        state.upsert_session(
+            sid="s_b", cwd="/tmp/b", project="beta", branch="dev", dirty=0,
+            phase="running", model="trae", last="other", now=11,
+        )
+        state.focused_sid = "s_a"
+        state.add_pending("req_1", "s_b", "permission", "Bash", "git push", [], now=12)
+        self.assertEqual(state.focused_sid, "s_b")
+        hb = state.build_heartbeat(now=13)
+        self.assertEqual(hb["focused"], "s_b")
+        self.assertEqual(hb["project"], "beta")
 
     def test_prune_stale_running_session(self):
         state = BridgeState()
@@ -152,6 +178,44 @@ class _FakeRuntime:
 
 
 class HttpServerTests(unittest.TestCase):
+    def test_post_pretooluse_waits_for_mobile_permission(self):
+        state = BridgeState()
+        runtime = _FakeRuntime(state)
+        server = run_http(state, runtime, port=19876)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        payload = {
+            "hook_event_name": "PreToolUse",
+            "session_id": "s_demo",
+            "cwd": "/tmp",
+            "model": "cursor",
+            "tool_name": "Bash",
+            "tool_input": {"command": "git push origin main"},
+        }
+
+        def decide():
+            import time
+            deadline = time.time() + 3
+            while time.time() < deadline:
+                with state.lock:
+                    pid = next(iter(state.pending), None)
+                if pid:
+                    state.handle_device_command({"cmd": "permission", "id": pid, "decision": "run"})
+                    return
+                time.sleep(0.01)
+
+        threading.Thread(target=decide, daemon=True).start()
+        req = urllib.request.Request(
+            "http://127.0.0.1:19876",
+            data=json.dumps(payload).encode(),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            body = json.loads(resp.read().decode())
+        self.assertEqual(body["hookSpecificOutput"]["permissionDecision"], "allow")
+        server.shutdown()
+
     def test_post_notification_single_choice(self):
         state = BridgeState()
         runtime = _FakeRuntime(state)

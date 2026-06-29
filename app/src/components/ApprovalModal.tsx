@@ -10,6 +10,9 @@ import {
 import { useTranslation } from "react-i18next";
 import type { PendingItem } from "@protocol/index";
 import type { DeviceIntent } from "@protocol/index";
+import { resolveIdeI18nKey } from "../bridge/resolveIde";
+import { resolveContextSession } from "../bridge/sessionContext";
+import { useSnapshotStore } from "../store/snapshot";
 
 type Props = {
   pending: PendingItem | null;
@@ -27,6 +30,8 @@ const APPROVAL_KINDS = new Set([
 
 export function ApprovalModal({ pending, onSend, onDismiss, sendError }: Props) {
   const { t } = useTranslation();
+  const snapshot = useSnapshotStore((s) => s.snapshot);
+  const contextSession = resolveContextSession(snapshot, pending);
   const [selected, setSelected] = useState<string[]>([]);
   const visible = pending !== null && APPROVAL_KINDS.has(pending.kind);
 
@@ -34,14 +39,19 @@ export function ApprovalModal({ pending, onSend, onDismiss, sendError }: Props) 
     setSelected([]);
   }, [pending?.id]);
 
-  const approvePermission = useCallback(() => {
-    if (!pending) return;
-    onSend({ cmd: "permission", id: pending.id, decision: "once" });
-  }, [pending, onSend]);
-
   const denyPermission = useCallback(() => {
     if (!pending) return;
-    onSend({ cmd: "permission", id: pending.id, decision: "deny" });
+    onSend({ cmd: "permission", id: pending.id, decision: "skip" });
+  }, [pending, onSend]);
+
+  const allowPermission = useCallback(() => {
+    if (!pending) return;
+    onSend({ cmd: "permission", id: pending.id, decision: "allow" });
+  }, [pending, onSend]);
+
+  const runPermission = useCallback(() => {
+    if (!pending) return;
+    onSend({ cmd: "permission", id: pending.id, decision: "run" });
   }, [pending, onSend]);
 
   const submitChoice = useCallback(
@@ -64,6 +74,16 @@ export function ApprovalModal({ pending, onSend, onDismiss, sendError }: Props) 
       <View style={styles.backdrop}>
         <View style={styles.card}>
           <Text style={styles.title}>{pending.title}</Text>
+          {contextSession?.project ? (
+            <Text style={styles.sessionLine} numberOfLines={2}>
+              {t("home.activeProject", {
+                project: contextSession.project,
+                branch: contextSession.branch ?? t("common.main"),
+              })}
+              {" · "}
+              {t(resolveIdeI18nKey(contextSession.model))}
+            </Text>
+          ) : null}
           <ScrollView style={styles.bodyScroll}>
             <Text style={styles.body}>{pending.body}</Text>
           </ScrollView>
@@ -73,10 +93,13 @@ export function ApprovalModal({ pending, onSend, onDismiss, sendError }: Props) 
           {pending.kind === "permission" && (
             <View style={styles.row}>
               <Pressable style={[styles.btn, styles.deny]} onPress={denyPermission}>
-                <Text style={styles.btnText}>{t("approval.deny")}</Text>
+                <Text style={styles.btnText}>{t("approval.skip")}</Text>
               </Pressable>
-              <Pressable style={[styles.btn, styles.approve]} onPress={approvePermission}>
-                <Text style={styles.btnText}>{t("approval.allowOnce")}</Text>
+              <Pressable style={[styles.btn, styles.allow]} onPress={allowPermission}>
+                <Text style={styles.btnText}>{t("approval.allow")}</Text>
+              </Pressable>
+              <Pressable style={[styles.btn, styles.run]} onPress={runPermission}>
+                <Text style={styles.btnText}>{t("approval.run")}</Text>
               </Pressable>
             </View>
           )}
@@ -138,17 +161,19 @@ const styles = StyleSheet.create({
     maxHeight: "80%",
   },
   title: { fontSize: 18, fontWeight: "700", marginBottom: 8 },
+  sessionLine: { fontSize: 13, color: "#4b5563", marginBottom: 8 },
   bodyScroll: { maxHeight: 160, marginBottom: 16 },
   body: { fontSize: 14, color: "#374151" },
   error: { fontSize: 13, color: "#dc2626", marginBottom: 12 },
-  row: { flexDirection: "row", gap: 12 },
+  row: { flexDirection: "row", gap: 8 },
   btn: {
     flex: 1,
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: "center",
   },
-  approve: { backgroundColor: "#2563eb" },
+  run: { backgroundColor: "#2563eb" },
+  allow: { backgroundColor: "#059669" },
   deny: { backgroundColor: "#6b7280" },
   disabled: { opacity: 0.4 },
   btnText: { color: "#fff", fontWeight: "600" },

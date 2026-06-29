@@ -20,7 +20,7 @@
       "properties": {
         "cmd": { "const": "permission" },
         "id": { "type": "string" },
-        "decision": { "enum": ["once", "deny"] }
+        "decision": { "enum": ["skip", "allow", "run", "once", "deny"] }
       },
       "additionalProperties": false
     },

@@ -40,7 +40,7 @@ class BuddySnapshot(TypedDict, total=False):
 class PermissionIntent(TypedDict):
     cmd: Literal["permission"]
     id: str
-    decision: Literal["once", "deny"]
+    decision: Literal["skip", "allow", "run", "once", "deny"]
 
 
 class AnswerIntent(TypedDict, total=False):

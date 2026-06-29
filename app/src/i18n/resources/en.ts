@@ -56,7 +56,16 @@ export default {
     tapConnect: "Connect",
     openBridgeGuide: "Full setup guide →",
     watching: "Watching sessions…",
+    waitingApproval: "Approval needed: {{tool}}",
+    activeProject: "{{project}} · {{branch}}",
+    sessionDetail: "{{ide}} · {{tool}}",
     stats: "{{running}} running · {{waiting}} waiting · {{total}} total",
+  },
+  ides: {
+    cursor: "Cursor",
+    claudeCode: "Claude Code",
+    trae: "Trae",
+    unknown: "IDE",
   },
   sessions: {
     notConnectedTitle: "Bridge not connected",
@@ -153,8 +162,9 @@ export default {
     importFailed: "Could not import GIF",
   },
   approval: {
-    deny: "Deny",
-    allowOnce: "Allow once",
+    skip: "Skip",
+    allow: "Allow",
+    run: "Run",
     sendFailed: "Not connected to the bridge. Check Settings and try again.",
     freeTextHint: "Free-text prompts require IDE input for now.",
   },

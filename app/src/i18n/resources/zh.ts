@@ -54,7 +54,16 @@ export default {
     tapConnect: "连接",
     openBridgeGuide: "查看完整安装指南 →",
     watching: "正在监听会话…",
+    waitingApproval: "需要审批：{{tool}}",
+    activeProject: "{{project}} · {{branch}}",
+    sessionDetail: "{{ide}} · {{tool}}",
     stats: "{{running}} 运行中 · {{waiting}} 等待中 · {{total}} 总计",
+  },
+  ides: {
+    cursor: "Cursor",
+    claudeCode: "Claude Code",
+    trae: "Trae",
+    unknown: "IDE",
   },
   sessions: {
     notConnectedTitle: "未连接 Bridge",
@@ -150,8 +159,9 @@ export default {
     importFailed: "无法导入 GIF",
   },
   approval: {
-    deny: "拒绝",
-    allowOnce: "允许一次",
+    skip: "跳过",
+    allow: "允许",
+    run: "运行",
     sendFailed: "未连接到 Bridge，无法提交。请检查设置中的连接。",
     freeTextHint: "自由文本提示暂需在 IDE 中输入。",
   },

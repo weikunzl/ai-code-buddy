@@ -54,7 +54,16 @@ export default {
     tapConnect: "Подключить",
     openBridgeGuide: "Полная инструкция →",
     watching: "Ожидание сессий…",
+    waitingApproval: "Нужно одобрение: {{tool}}",
+    activeProject: "{{project}} · {{branch}}",
+    sessionDetail: "{{ide}} · {{tool}}",
     stats: "{{running}} активных · {{waiting}} ожидают · {{total}} всего",
+  },
+  ides: {
+    cursor: "Cursor",
+    claudeCode: "Claude Code",
+    trae: "Trae",
+    unknown: "IDE",
   },
   sessions: {
     notConnectedTitle: "Bridge не подключён",
@@ -151,8 +160,9 @@ export default {
     importFailed: "Не удалось импортировать GIF",
   },
   approval: {
-    deny: "Отклонить",
-    allowOnce: "Разрешить один раз",
+    skip: "Пропустить",
+    allow: "Разрешить",
+    run: "Выполнить",
     sendFailed: "Нет подключения к bridge. Проверьте настройки.",
     freeTextHint: "Свободный текст пока вводится в IDE.",
   },

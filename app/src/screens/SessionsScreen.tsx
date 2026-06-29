@@ -2,6 +2,7 @@ import React, { useCallback, useMemo } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { PendingItem } from "@protocol/index";
+import { resolveIdeI18nKey } from "../bridge/resolveIde";
 import { useBridge } from "../bridge/BridgeProvider";
 import { BridgeSetupGuide } from "../components/BridgeSetupGuide";
 import { useConnectionStore } from "../store/connection";
@@ -95,7 +96,13 @@ function SessionCard({
         {focused ? ` ${t("sessions.focusedMark")}` : ""}
       </Text>
       <Text style={styles.meta}>
-        {[item.branch, item.phase, item.model].filter(Boolean).join(" · ")}
+        {[
+          item.branch,
+          item.phase,
+          item.model ? t(resolveIdeI18nKey(item.model)) : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
       </Text>
       {item.last ? <Text style={styles.last}>{item.last}</Text> : null}
       {!focused && sid ? (
